@@ -22,6 +22,8 @@ Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://gith
    - `program.md` — this file.
    - `prepare.py` — setup. Do not modify.
    - `harness.py` — benchmark harness. Do not modify.
+   - `agent_loop.py` — keep/revert loop. Do not modify.
+   - `patches.py` — helpers for common lucebox-ggml modifications. Do not modify; call from `experiment.py`.
    - `reproduce.py` — reproducibility suite. Do not modify.
    - `report.py` — result aggregation. Do not modify.
    - `experiment.py` — this is what you edit.
@@ -34,10 +36,11 @@ Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://gith
 **What you CAN do:**
 - Modify `experiment.py` to implement one idea per experiment.
 - Add small helper functions inside `experiment.py`.
+- Call patch helpers from `patches.py` (e.g., `apply_march_native`, `apply_speculative_candidates`).
 - Place patch files in `patches/` and reference them from `experiment.py`.
 
 **What you CANNOT do:**
-- Modify `prepare.py`, `harness.py`, `reproduce.py`, or `report.py`.
+- Modify `prepare.py`, `harness.py`, `agent_loop.py`, `patches.py`, `reproduce.py`, or `report.py`.
 - Install new packages beyond `pyproject.toml`.
 - Change the metric or correctness check.
 - Commit changes inside the `lucebox-ggml/` submodule.
@@ -85,12 +88,15 @@ LOOP FOREVER:
 1. Look at the git state and `results.tsv`.
 2. Modify `experiment.py` with one experimental idea.
 3. `git commit`.
-4. Run the harness: `uv run harness.py > run.log 2>&1`.
+4. Run the loop: `uv run agent_loop.py > run.log 2>&1`.
 5. Read results: `grep "^score:\|^decode_tok_s:\|^correctness:" run.log`.
 6. If output is empty, the run crashed. Read `tail -n 50 run.log`, attempt a fix.
-7. Log to `results.tsv`.
-8. If `score` improved, keep the commit.
-9. If `score` is equal or worse, `git reset` back to the previous best.
+7. `agent_loop.py` appends to `results.tsv` and keeps or reverts the commit automatically.
+8. If `score` improved, the commit is kept.
+9. If `score` is equal or worse, `agent_loop.py` resets back to the previous best.
+
+For a dry run that does not modify git state, use `uv run agent_loop.py --dry-run`.
+For the baseline, use `uv run agent_loop.py --baseline` or `uv run harness.py --baseline`.
 
 **Timeout**: If the harness takes more than 60 minutes, kill it and treat as a failure.
 
@@ -127,6 +133,17 @@ Start with low-risk, high-leverage changes and measure after each one.
 
 ### 5. Reproducibility / harness improvements
 These are not experiments, but if you find a bug in the harness, report it to the user instead of silently patching it.
+
+## Deterministic reproducibility
+
+Use the provided `Dockerfile` to pin OS, compiler, and `uv` versions:
+
+```bash
+docker build -t autoggml .
+docker run --rm -it -v $(pwd)/work:/app/work autoggml
+```
+
+CI builds this container on every push. Results obtained inside the container are considered the canonical reproducibility target.
 
 ## Important constraints
 

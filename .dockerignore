@@ -1,0 +1,13 @@
+# Docker build context exclusions for autoggml.
+work/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+.git/
+.cache/
+results.tsv
+run.log
+.best_score.json

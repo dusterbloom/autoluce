@@ -15,10 +15,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
-          version: "latest"
+          version: "0.5.5"
 
       - name: Create uv venv and sync dependencies
-        run: uv sync
+        run: uv sync --frozen
 
       - name: Lint Python
         run: uv run ruff check .
@@ -28,3 +28,14 @@ jobs:
 
       - name: Smoke test reproducibility suite
         run: uv run reproduce.py
+
+  container-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build deterministic container
+        run: docker build -t autoggml .
+
+      - name: Run lint and smoke tests in container
+        run: docker run --rm autoggml uv run reproduce.py

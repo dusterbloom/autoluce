@@ -1,0 +1,38 @@
+{
+  "benchmark": "qwen36-27b",
+  "model": "Qwen3.6-27B-Q4_K_M.gguf",
+  "draft": "dflash-draft-3.6-q4_k_m.gguf",
+  "spec_type": "draft-dflash",
+  "n_draft": 15,
+  "parameters": {
+    "temperature": 0.0,
+    "top_k": 1,
+    "top_p": 1.0,
+    "n_predict": 64,
+    "seed": 42
+  },
+  "generated_at": "NOT_YET_GENERATED",
+  "note": "Run scripts/generate_golden.py to populate real golden outputs after downloading models.",
+  "outputs": [
+    {
+      "prompt": "Write a Python function to compute the factorial of a number.",
+      "text": "PLACEHOLDER: run scripts/generate_golden.py to generate",
+      "tokens": []
+    },
+    {
+      "prompt": "Explain the difference between stack and heap memory.",
+      "text": "PLACEHOLDER: run scripts/generate_golden.py to generate",
+      "tokens": []
+    },
+    {
+      "prompt": "Summarize the plot of Hamlet in three sentences.",
+      "text": "PLACEHOLDER: run scripts/generate_golden.py to generate",
+      "tokens": []
+    },
+    {
+      "prompt": "What is the capital of France? Answer in one word.",
+      "text": "PLACEHOLDER: run scripts/generate_golden.py to generate",
+      "tokens": []
+    }
+  ]
+}

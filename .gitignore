@@ -6,8 +6,9 @@ __pycache__/
 *.log
 run.log
 .venv/
-uv.lock
 work/
 results/
+results.tsv
+.best_score.json
 patches/*.patch
 !patches/.gitkeep
