@@ -1,0 +1,14 @@
+[project]
+name = "autoresearch-ggml-optimizer"
+version = "0.1.0"
+description = "Autonomous research project for on-demand GGML graph optimization"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+python_files = ["test_*.py"]
