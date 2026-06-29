@@ -1,0 +1,30 @@
+name: autoggml v2 CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Create uv venv and sync dependencies
+        run: uv sync
+
+      - name: Lint Python
+        run: uv run ruff check .
+
+      - name: Smoke test harness (simulation mode)
+        run: uv run harness.py --baseline
+
+      - name: Smoke test reproducibility suite
+        run: uv run reproduce.py

@@ -1,0 +1,21 @@
+{
+  "name": "qwen36-27b",
+  "manifest_entry": "qwen36-27b",
+  "spec_type": "draft-dflash",
+  "n_draft": 15,
+  "prompts": [
+    "Write a Python function to compute the factorial of a number.",
+    "Explain the difference between stack and heap memory.",
+    "Summarize the plot of Hamlet in three sentences."
+  ],
+  "llama_bench_args": {
+    "-p": 512,
+    "-n": 128,
+    "--repetitions": 3
+  },
+  "expected": {
+    "min_decode_tok_s": 50.0,
+    "min_acceptance_rate": 0.4,
+    "max_peak_mem_GiB": 24.0
+  }
+}

@@ -7,3 +7,7 @@ __pycache__/
 run.log
 .venv/
 uv.lock
+work/
+results/
+patches/*.patch
+!patches/.gitkeep

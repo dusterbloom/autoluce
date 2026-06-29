@@ -1,53 +1,81 @@
-# autoresearch-ggml-optimizer
+# autoggml v2
 
-Autonomous research project for an **on-demand pre-run GGML graph optimizer**.
+Autonomous research harness for **verifiably and reproducibly improving GGML-based inference engines**, starting with [`Luce-Org/lucebox-ggml`](https://github.com/Luce-Org/lucebox-ggml).
 
-The goal is to discover graph-level optimizations that run after a GGML computation graph is built and before it is scheduled/executed, improving latency, memory, or throughput without changing model outputs.
+## What this is
 
-## How it works
+`autoggml` is a self-contained experimentation framework. An AI agent (or a human) proposes a change to `lucebox-ggml`, the harness builds the project, runs a fixed benchmark suite, checks correctness, and records whether the change improved the metric.
 
-This repo is intentionally small. Three files matter:
+The focus of v2 is **verifiability and reproducibility**:
 
-- **`graph.py`** — read-only GGML graph data model and builders. Do not modify.
-- **`harness.py`** — read-only evaluation harness: loads graphs, applies an optimizer, measures latency/memory/correctness, and logs results. Do not modify.
-- **`optimizer.py`** — the single file the agent edits. Implement optimization passes here.
-- **`program.md`** — instructions for the autonomous agent.
+- Every experiment starts from a pinned `lucebox-ggml` commit.
+- Benchmarks use fixed prompts, seeds, and model configurations.
+- The environment (OS, compiler, GPU, dependency versions) is recorded for every run.
+- Correctness is checked by comparing generated outputs and perplexity against a baseline.
+- Results are logged in a machine-readable format with full provenance.
 
-The agent modifies `optimizer.py`, runs the harness, and keeps changes that improve the metric.
+## Repository layout
+
+```
+autoggml/
+├── README.md              This file
+├── program.md             Instructions for the autonomous agent
+├── prepare.py             Read-only setup: clone, build, download models
+├── experiment.py          Agent-editable: the change to try
+├── harness.py             Read-only benchmark and correctness harness
+├── reproduce.py           Read-only reproducibility suite
+├── report.py              Read-only result aggregation and diff
+├── pyproject.toml         Python dependencies
+├── benchmarks/            Benchmark definitions (fixed prompts, expected outputs)
+├── patches/               Optional patch files referenced by experiment.py
+├── results.tsv            Experiment log (created by the agent, not committed)
+└── .github/workflows/     CI that validates the harness on CPU
+```
 
 ## Quick start
 
+You need [uv](https://docs.astral.sh/uv/) installed. It handles Python, the virtual environment, and dependencies in one step.
+
 ```bash
-# 1. Install dependencies
+# 1. Create the virtual environment and install dependencies
 uv sync
 
-# 2. Run the baseline harness
+# 2. One-time setup: clone lucebox-ggml, download models, build
+uv run prepare.py
+
+# 3. Run the baseline benchmark
 uv run harness.py --baseline
 
-# 3. Run with the current optimizer
+# 4. Run with the current experiment
 uv run harness.py
 ```
 
+`uv` creates and manages `.venv/` automatically. Do not create your own virtualenv; `uv run` always uses the project-managed one.
+
+## How the autoresearch loop works
+
+1. The agent reads `program.md`.
+2. The agent edits `experiment.py` to implement one idea.
+3. `git commit` the change.
+4. `uv run harness.py` builds `lucebox-ggml` with the experiment applied, runs benchmarks, and prints a score.
+5. If the score improves (higher `tokens_per_second` at equal or better correctness), the commit is kept.
+6. Otherwise, `git reset` and try the next idea.
+
 ## Metric
 
-The primary metric is **normalized cost**: a weighted combination of:
+The primary metric is **normalized throughput**:
 
-- simulated latency (dominant for optimization)
-- peak memory
-- correctness penalty (large penalty if outputs diverge)
+```
+score = (decode_tok/s)^2 / (peak_mem_GiB * build_time_s)
+```
 
-Lower is better. See `harness.py` for the exact formula.
+- Higher is better.
+- `decode_tok/s` is squared because speculative decoding cares most about decode throughput.
+- Memory and build time act as regularizers to prevent cheating.
+- A large correctness penalty is applied if outputs diverge or perplexity regresses.
 
-## Graph representation
+See `harness.py` for the exact computation.
 
-For fast experimentation, the harness uses a Python-level GGML graph model (`graph.py`) rather than requiring a full C/C++ build. It captures:
+## License
 
-- tensor shapes, types, and memory layouts
-- operator types (`MUL_MAT`, `ADD`, `RMS_NORM`, `SILU`, `FLASH_ATTN_EXT`, etc.)
-- backend assignments and data movement edges
-
-The optimizer reads this model, rewrites it, and returns a new graph. The harness simulates execution cost and checks equivalence.
-
-## Future integration path
-
-Once promising passes are found in Python, the plan is to port them into the actual GGML C/C++ pipeline between `ggml_build_forward_expand` and `ggml_backend_sched_alloc_graph`.
+Apache-2.0.

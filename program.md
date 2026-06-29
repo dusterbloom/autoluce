@@ -1,123 +1,144 @@
-# autoresearch-ggml-optimizer
+# autoggml v2
 
-This is an autonomous research project to build an **on-demand pre-run GGML graph optimizer**.
+Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://github.com/Luce-Org/lucebox-ggml).
 
 ## What we are optimizing
 
-GGML models build a computation graph (`ggml_cgraph`) for every forward pass. Today, graph-level optimizations in `llama.cpp` are mostly hand-written per architecture (fused attention, fused FFN, etc.) and applied at graph-build time. We want a **general, modular optimizer** that runs after the graph is built and before it is scheduled, rewriting the graph to reduce simulated latency and memory while preserving correctness.
+`lucebox-ggml` is a fork of `llama.cpp` that adds DFlash speculative decoding. The goal of this autoresearch is to discover **verifiable, reproducible improvements** to `lucebox-ggml`:
+
+- Higher decode throughput (tok/s)
+- Lower time-to-first-token (TTFT) for prefill
+- Higher draft acceptance rate
+- Lower memory usage
+- Shorter build times
+- Correctness preserved (output match, perplexity)
 
 ## Setup
 
 1. **Agree on a run tag** with the user, e.g., `jun29`.
-2. **Create a branch**: `git checkout -b autoresearch-ggml-optimizer/<tag>` from current master.
+2. **Create a branch**: `git checkout -b autoggml/<tag>` from `main`.
 3. **Read the in-scope files**:
    - `README.md` — project overview.
-   - `RESEARCH.md` — prior art and design questions.
-   - `graph.py` — graph data model. Do not modify.
-   - `harness.py` — evaluation harness. Do not modify.
-   - `optimizer.py` — baseline optimizer (identity pass). This is what you edit.
-4. **Confirm the harness runs**: `uv run harness.py --baseline` should print a baseline cost.
-5. **Initialize `results.tsv`** with just the header row.
+   - `program.md` — this file.
+   - `prepare.py` — setup. Do not modify.
+   - `harness.py` — benchmark harness. Do not modify.
+   - `reproduce.py` — reproducibility suite. Do not modify.
+   - `report.py` — result aggregation. Do not modify.
+   - `experiment.py` — this is what you edit.
+4. **Run setup**: `uv run prepare.py` (one-time; can take 10–30 minutes depending on hardware).
+5. **Verify baseline**: `uv run harness.py --baseline` should print a score.
+6. **Initialize `results.tsv`** with just the header row.
 
 ## Experimentation loop
 
-Each experiment runs the harness on one or more benchmark graphs.
-
 **What you CAN do:**
-- Modify `optimizer.py` — add, remove, or reorder optimization passes.
-- Change pass parameters and heuristics.
-- Add helper functions inside `optimizer.py`.
+- Modify `experiment.py` to implement one idea per experiment.
+- Add small helper functions inside `experiment.py`.
+- Place patch files in `patches/` and reference them from `experiment.py`.
 
 **What you CANNOT do:**
-- Modify `graph.py` or `harness.py`. They are read-only.
-- Install new packages or add dependencies beyond `pyproject.toml`.
-- Change the evaluation metric or correctness check.
+- Modify `prepare.py`, `harness.py`, `reproduce.py`, or `report.py`.
+- Install new packages beyond `pyproject.toml`.
+- Change the metric or correctness check.
+- Commit changes inside the `lucebox-ggml/` submodule.
 
-**The goal is simple: get the lowest normalized cost.** The harness prints:
+**The goal is simple: get the highest `score`.** The harness prints:
 
 ```
 ---
-cost:              1.0000
-latency_ms:        12.34
-peak_mem_mb:       456.7
-correctness:       pass
-nodes:             120
-edges:             180
+score:              12.3456
+decode_tok_s:       134.50
+prefill_tok_s:      3456.70
+acceptance_rate:    0.6234
+peak_mem_GiB:       18.2
+build_time_s:       245.3
+correctness:        pass
 ```
 
-`cost` is the metric to minimize.
+`score` is the metric to maximize.
 
-**VRAM** is a soft constraint; memory reductions are good, but do not explode peak memory.
+**Correctness is a hard constraint.** If `correctness` is `FAIL`, the experiment is discarded regardless of throughput.
 
-**Simplicity criterion**: All else equal, simpler is better. A tiny improvement that adds 200 lines of fragile code is not worth it. A tiny improvement from deleting code is great.
+**Simplicity criterion**: All else equal, simpler is better. A tiny throughput gain that adds hundreds of lines of fragile patch code is not worth it.
 
 ## Output format
 
-After each run, log the result to `results.tsv` (tab-separated, 5 columns):
+After each run, log to `results.tsv` (tab-separated, 7 columns):
 
 ```
-commit	cost	latency_ms	peak_mem_mb	status	description
+commit	score	decode_tok_s	prefill_tok_s	acceptance_rate	peak_mem_GiB	status	description
 ```
 
 - `commit`: short git hash (7 chars)
-- `cost`: harness cost (0.0000 for crashes)
-- `latency_ms`: harness latency (0.0 for crashes)
-- `peak_mem_mb`: harness memory (0.0 for crashes)
+- `score`: harness score (0.0000 for crashes)
+- `decode_tok_s`: decode throughput (0.0 for crashes)
+- `prefill_tok_s`: prefill throughput (0.0 for crashes)
+- `acceptance_rate`: speculative acceptance rate (0.0 for crashes)
+- `peak_mem_GiB`: peak memory (0.0 for crashes)
 - `status`: `keep`, `discard`, or `crash`
 - `description`: short text of what this experiment tried
 
 ## Experiment loop
 
-The experiment runs on a dedicated branch.
-
 LOOP FOREVER:
 
-1. Look at the git state.
-2. Modify `optimizer.py` with one experimental idea.
+1. Look at the git state and `results.tsv`.
+2. Modify `experiment.py` with one experimental idea.
 3. `git commit`.
 4. Run the harness: `uv run harness.py > run.log 2>&1`.
-5. Read results: `grep "^cost:\|^latency_ms:\|^peak_mem_mb:\|^correctness:" run.log`.
+5. Read results: `grep "^score:\|^decode_tok_s:\|^correctness:" run.log`.
 6. If output is empty, the run crashed. Read `tail -n 50 run.log`, attempt a fix.
 7. Log to `results.tsv`.
-8. If `cost` improved (lower), keep the commit.
-9. If `cost` is equal or worse, `git reset` back to the previous best.
+8. If `score` improved, keep the commit.
+9. If `score` is equal or worse, `git reset` back to the previous best.
 
-**Timeout**: If the harness takes more than 2 minutes, kill it and treat as a failure.
+**Timeout**: If the harness takes more than 60 minutes, kill it and treat as a failure.
 
-**Crashes**: If a bug is trivial (typo, wrong attribute), fix and re-run. If the idea is fundamentally broken, log `crash` and move on.
+**Crashes**: If a bug is trivial (typo, wrong path), fix and re-run. If the idea is fundamentally broken, log `crash` and move on.
 
-**NEVER STOP**: Once the loop begins, continue autonomously until manually interrupted. If you run out of ideas, re-read `RESEARCH.md`, combine previous near-misses, or try more radical passes.
+**NEVER STOP**: Once the loop begins, continue autonomously until manually interrupted.
 
-## Suggested optimization passes to explore
+## Suggested experiment categories
 
-These are starting ideas based on `RESEARCH.md`. Do not implement all at once; try one at a time.
+Start with low-risk, high-leverage changes and measure after each one.
 
-1. **Dead-code elimination**: remove nodes that do not contribute to outputs.
-2. **Constant folding**: evaluate constant sub-graphs at optimization time.
-3. **Common subexpression elimination**: merge identical nodes.
-4. **Operator fusion**:
-   - `RMS_NORM` + `MUL_MAT(QKV)` → fused QKV norm
-   - `SILU` + `MUL` → SwiGLU fusion
-   - `MUL_MAT(Q,K^T)` + causal mask + softmax + `MUL_MAT(V)` → flash attention pattern
-5. **Layout optimization**: choose tensor layouts (e.g., transposed weights) that reduce dispatch overhead.
-6. **Backend placement**: move nodes to the backend with the lowest simulated cost.
-7. **Memory planning**: reuse intermediate buffers using lifetime analysis.
-8. **Quantized intermediates**: cast F32 intermediates to F16/BF16 where allowed.
-9. **Batching**: merge equivalent single-token graphs into a batched graph.
-10. **Attention-specific rewrites**: replace generic attention sub-graphs with `FLASH_ATTN_EXT` when shapes permit.
+### 1. Build / compile flags
+- Try different `CMAKE_BUILD_TYPE` values.
+- Enable/disable specific backends (`GGML_CUDA`, `GGML_METAL`, `GGML_VULKAN`).
+- Try architecture-specific flags (`-march=native`, `-ffast-math`).
+- Enable link-time optimization (`-flto`).
 
-Start with the simplest passes (DCE, CSE) and measure. Then build toward fusion.
+### 2. Runtime parameters
+- `spec-draft-n-max`, `spec-draft-n-min`, `spec-draft-p-min`.
+- KV-cache types for target and draft (`--cache-type-k`, `--cache-type-v`).
+- Batch sizes (`-b`, `-ub`).
+- GPU layer offloading for draft model (`-ngld`).
 
-## Important correctness constraints
+### 3. DFlash-specific tuning
+- Different `target_layer_ids` configurations (if you can override via metadata or patch).
+- Block-size-aware clamping heuristics.
+- Draft sampler temperature/top_k for acceptance vs. diversity.
 
-- Optimizations must preserve floating-point equivalence within tolerance.
-- Fusing ops may change numerics; the harness checks outputs against the original graph.
-- Do not change the semantics of view/reshape/transpose chains unless you can prove equivalence.
-- Be careful with quantization: some rewrites are only valid for FP16/FP32 tensors.
+### 4. Code patches (advanced)
+- Add early-exit heuristics in the speculative loop.
+- Optimize the feature interleaving / cache injection path.
+- Reduce synchronization between target and draft contexts.
+- Add asynchronous draft generation.
+
+### 5. Reproducibility / harness improvements
+These are not experiments, but if you find a bug in the harness, report it to the user instead of silently patching it.
+
+## Important constraints
+
+- Do not break the build on the reference hardware.
+- Do not change the model weights or tokenizer.
+- Do not silently disable correctness checks.
+- All patches must be deterministic and reproducible.
 
 ## Tips
 
-- Keep passes small and composable. Each pass should be a pure function `Graph -> Graph`.
-- Use `graph.py` helpers (`topological_sort`, `replace_uses`, `is_fusible_attention`) rather than manipulating raw edges.
-- Measure after every change. It is easy to add complexity that does not improve cost.
-- If a pass only helps on one benchmark, consider making it conditional or abandoning it.
+- Make one change at a time.
+- Read the `lucebox-ggml` source before patching (`common/speculative.cpp`, `src/models/dflash.cpp`).
+- Use `patches/` for non-trivial changes; keep `experiment.py` as the orchestrator.
+- If a change only helps on one benchmark, consider making it conditional.
+- Track wall-clock time; some optimizations trade build time for runtime.
