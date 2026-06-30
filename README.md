@@ -13,43 +13,62 @@ The focus of v2 is **verifiability and reproducibility**:
 - The environment (OS, compiler, GPU, dependency versions) is recorded for every run.
 - Correctness is checked by comparing generated outputs against golden outputs (perplexity is not yet implemented).
 - Results are logged in a machine-readable format with full provenance.
+- **Real mode measures every metric or raises** — no silent fallbacks. `--simulate` is the opt-in plumbing mode for CI/no-GPU smoke.
+- **Keep/revert is significance-gated**, not raw-improvement, so noise can't drive a random walk.
+- `--profile` captures `nsys`/`rocprof` traces and `profiling.classify_bottleneck` reports whether decode is memory-, compute-, or overhead-bound.
+
+The optimization plan — ranked ideas (algorithmic / kernel / graph / runtime), the Strix-Halo unified-memory angle, and execution order — lives in [`ROADMAP.md`](ROADMAP.md).
 
 ## Repository layout
 
 ```
 autoggml/
 ├── README.md              This file
+├── ROADMAP.md             "Beat llama.cpp" plan: ranked ideas, execution order
+├── CHANGELOG.md           Notable changes
+├── LICENSE                Apache-2.0
 ├── program.md             Instructions for the autonomous agent
 ├── prepare.py             Read-only setup: clone, build, download models
 ├── experiment.py          Agent-editable: the change to try
 ├── harness.py             Read-only benchmark and correctness harness
-├── agent_loop.py          Read-only keep/revert experiment loop
+├── agent_loop.py          Read-only keep/revert experiment loop (significance-gated)
 ├── patches.py             Read-only helpers for common lucebox-ggml patches
 ├── reproduce.py           Read-only reproducibility suite
 ├── report.py              Read-only result aggregation and diff
+├── uncertainty.py         Score-uncertainty propagation + significance gate
+├── profiling.py           Backend-aware profiler capture + bottleneck classification
+├── runner.py              Parallel experiment fan-out (dispatch/screen)
+├── verify.py              Clean A/B verification before commit
+├── ideas.py               Untried-ideas reporter for ROADMAP.md
 ├── Dockerfile             Deterministic container image
 ├── pyproject.toml         Python dependencies
 ├── benchmarks/            Benchmark definitions (fixed prompts, expected outputs)
 ├── patches/               Optional patch files referenced by experiment.py
+├── scripts/               Golden-output generation, docker helper
 ├── results.tsv            Experiment log (created by the agent, not committed)
-└── .github/workflows/     CI that validates the harness and container
+└── .github/workflows/     CI: lint, pytest, simulation smoke, container build
 ```
 
 ## Quick start
 
-You need [uv](https://docs.astral.sh/uv/) installed. It handles Python, the virtual environment, and dependencies in one step.
+You need [uv](https://docs.astral.sh/uv/) installed. It handles Python, the virtual environment, and dependencies in one step. Real builds also require `cmake`, `ccache`, and `ninja-build` (the harness builds with the Ninja generator + ccache launchers for fast incremental rebuilds).
 
 ```bash
 # 1. Create the virtual environment and install dependencies
 uv sync
 
-# 2. One-time setup: clone lucebox-ggml, download models, build
+# 2. No-GPU smoke run (plumbing test; never writes best-score or git state):
+uv run pytest -q && uv run harness.py --baseline --simulate
+
+# 3. One-time setup: clone lucebox-ggml, download models, build
+#    (first build after switching to the Ninja generator requires a clean build dir)
+rm -rf work/lucebox-ggml/build
 uv run prepare.py
 
-# 3. Run the baseline benchmark
+# 4. Run the baseline benchmark (real mode; raises if unprepared)
 uv run harness.py --baseline
 
-# 4. Run with the current experiment
+# 5. Run with the current experiment
 uv run agent_loop.py
 ```
 
@@ -66,12 +85,14 @@ docker run --rm -it -v $(pwd)/work:/app/work autoggml
 
 ## How the autoresearch loop works
 
-1. The agent reads `program.md`.
+1. The agent reads `program.md` and picks the next idea (`uv run ideas.py` lists untried `ROADMAP.md` items).
 2. The agent edits `experiment.py` (or calls helpers in `patches.py`) to implement one idea.
 3. `git commit` the change.
 4. `uv run agent_loop.py` builds `lucebox-ggml` with the experiment applied, runs benchmarks, checks correctness, and either keeps the commit or reverts it.
-5. Results are appended to `results.tsv` and the best score is stored in `.best_score.json`.
-6. If the score improves, the commit is kept; otherwise the working tree is reset to the previous best.
+5. Results are appended to `results.tsv`; the best score **and its stddev** are stored in `.best_score.json`.
+6. The commit is kept only if the improvement is **significant** (`--significance`, default `k=1.0`): the score must beat the best by more than `k` times the combined stddev. Otherwise the working tree resets to the previous best.
+
+For searching many ideas at once, `runner.py` runs experiments in parallel (screen) and `verify.py` does clean A/B verification of candidates before commit — see `program.md`.
 
 ## Metric
 
