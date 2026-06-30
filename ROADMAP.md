@@ -78,6 +78,41 @@ The harness carries `--profile` for exactly this. Never swing before knowing the
 14. **KV-cache quant + GQA sweep.** Existing knobs (`cache-type-k/v`); harness finds the
     Pareto frontier vs acceptance hit.
 
+## Meta — dynamic, machine- & request-aware compilation
+
+The harness today assumes one machine, one fixed benchmark, one scalar score. That
+makes a *dynamic* build — one that adapts its flags, kernels, and code paths to the
+host hardware and the incoming request — structurally invisible: a per-target policy
+either looks like noise (it picks the same config on the reference box) or gets kept
+for a win that is a regression on a box you can't see, and the significance gate has
+no way to reason about a payoff *distribution* over hardware × workload. The fix is
+harness scope, not a patch to lucebox. Three enabling moves; together they turn
+"compile for this machine, this request" from a static flag sweep into a discovered
+policy.
+
+15. **Multi-target scoring (3090 + Strix Halo).** Run the loop on both boxes, score
+    per-target, and let an experiment's payoff be a *vector* (or Pareto frontier) over
+    hardware, not a scalar. Without this, "machine constraints" is unobservable. Today
+    the second box is a regression gate; after this it is a first-class objective.
+    Depends on the Strix Halo host being reachable from `runner.py`.
+16. **Workload suite, not a fixed benchmark.** Vary context length, batch shape, and
+    prompt type (code / prose / long-context) so a policy can condition on the
+    *request*. `benchmarks/` is fixed prompts today — the request dimension is absent.
+    Single-box useful: even on the reference box it turns a "win" that only helps
+    short-context from a keep into visible workload-dependence.
+17. **Config-selector experiment type.** A new experiment surface:
+    `select_config(machine_features, request_features) → (cmake_flags, runtime_flags,
+    code_paths)`. The harness scores the *policy* over the hardware × workload grid,
+    significance-gated across the joint distribution — not a single config. This is the
+    surface that lets the agent discover, e.g., "Vulkan path for Strix-Halo
+    long-context, CUDA path for 3090 batch-N." Depends on 15 and 16 for a grid to
+    select over.
+
+The static subset (best flags for the reference box) the harness can already find:
+`experiment.get_cmake_flags()`, `patches.apply_march_native` ("compile for THIS CPU"),
+and items 6 and 12 are all per-target static tuning. 15–17 generalize that from one box
+to the grid.
+
 ## Execution order
 
 - **Profile both targets first** — know the wall before swinging (`--profile`).
@@ -85,6 +120,12 @@ The harness carries `--profile` for exactly this. Never swing before knowing the
   n-gram hybrid (4), CUDA-graph verify flag sweep (8). Small patches, real numbers.
 - **One big algorithmic bet: tree speculative + hidden-state drafting (1+2).** This is
   the move that *beats* llama.cpp rather than trails it. Validate via the harness.
+- **Stand up the grid before the moat (do-order 16 → 15 → 17).** The Strix Halo moat
+  (6) and the Vulkan tuning (12) are per-target wins — but the harness scores one box,
+  so a per-target gain is invisible or mis-attributed. Build the workload axis (16)
+  first on the reference box (cheapest, unblocks signal on every later item), then the
+  machine axis (15), then the config-selector surface (17) as the capstone. Numbered
+  15–17 but executed 16 → 15 → 17.
 - **Pursue the moat: UMA-native draft on Strix Halo (6).** The result no NVIDIA-focused
   competitor reproduces. Turns the second box from a regression gate into lucebox's
   signature win.
@@ -101,3 +142,8 @@ The harness carries `--profile` for exactly this. Never swing before knowing the
   acceptance_rate and decode tok/s are the headline metrics.
 - **Architectural (5, 6, 7):** cross-backend orchestration; depends on Phase 2 targets /
   serve-once work and the Strix Halo host.
+- **Meta (15, 16, 17):** harness-extension track, **not** a lucebox patch — maintainer
+  work, outside the experiment agent's read-only contract on `harness.py` / `runner.py`.
+  `benchmarks/` → workload grid (16); `runner.py` → multi-target dispatch (15); new
+  `select_config` surface in `experiment.py` (17). Scored as a Pareto policy over the
+  hardware × workload grid, significance-gated across the joint distribution.

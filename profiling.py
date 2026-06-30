@@ -9,18 +9,62 @@ command building is pure and unit-tested here. Vulkan capture is layer-based
 from __future__ import annotations
 
 import os
+import shutil
+import sys
+from pathlib import Path
+
+
+_ENV_TO_BACKEND = {
+    "GGML_CUDA": "cuda",
+    "GGML_HIP": "hip",
+    "GGML_VULKAN": "vulkan",
+    "GGML_METAL": "metal",
+}
+
+_BACKEND_CMAKE_FLAG = {
+    "cuda": "-DGGML_CUDA=ON",
+    "hip": "-DGGML_HIP=ON",
+    "vulkan": "-DGGML_VULKAN=ON",
+    "metal": "-DGGML_METAL=ON",
+}
+
+
+def _probe_gpu() -> str | None:
+    """Probe the host for an installed accelerator toolkit/runtime.
+
+    Build-time detection: we look for the compiler/runtime each backend needs to
+    build, not just the driver. Priority matches the profiler order: cuda > hip >
+    vulkan > metal.
+    """
+    if shutil.which("nvcc") or os.environ.get("CUDA_HOME"):
+        return "cuda"
+    if shutil.which("hipcc") or Path("/opt/rocm").exists():
+        return "hip"
+    if shutil.which("vulkaninfo"):
+        return "vulkan"
+    if sys.platform == "darwin":
+        return "metal"
+    return None
 
 
 def detect_backend(env: dict[str, str] | None = None) -> str:
-    """Infer the active ggml backend from build/runtime env (cuda > hip > vulkan > cpu)."""
+    """Resolve the active ggml backend.
+
+    Explicit env override (GGML_*=ON) wins; otherwise probe the host. Falls back
+    to "cpu". Used both to pick the CMake flag (prepare/harness build) and the
+    profiler wrapper (profile_command).
+    """
     env = env if env is not None else os.environ
-    if env.get("GGML_CUDA") == "ON":
-        return "cuda"
-    if env.get("GGML_HIP") == "ON":
-        return "hip"
-    if env.get("GGML_VULKAN") == "ON":
-        return "vulkan"
-    return "cpu"
+    for var, backend in _ENV_TO_BACKEND.items():
+        if env.get(var) == "ON":
+            return backend
+    return _probe_gpu() or "cpu"
+
+
+def backend_cmake_flags(backend: str) -> list[str]:
+    """CMake flags that enable `backend`. Empty for cpu (no flag needed)."""
+    flag = _BACKEND_CMAKE_FLAG.get(backend)
+    return [flag] if flag else []
 
 
 def profile_command(cmd: list[str], backend: str, output_path: str) -> list[str]:

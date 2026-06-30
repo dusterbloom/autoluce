@@ -8,10 +8,21 @@ import pytest
 from profiling import classify_bottleneck, detect_backend, profile_command
 
 
-def test_detect_backend_from_env():
+def test_detect_backend_env_overrides_hardware(monkeypatch):
+    # Hardware may report anything; an explicit env override must win.
+    monkeypatch.setattr("profiling._probe_gpu", lambda: "cuda")
     assert detect_backend({"GGML_CUDA": "ON"}) == "cuda"
     assert detect_backend({"GGML_HIP": "ON"}) == "hip"
     assert detect_backend({"GGML_VULKAN": "ON"}) == "vulkan"
+
+
+def test_detect_backend_probes_hardware_when_no_env(monkeypatch):
+    monkeypatch.setattr("profiling._probe_gpu", lambda: "cuda")
+    assert detect_backend({}) == "cuda"
+
+
+def test_detect_backend_falls_back_to_cpu(monkeypatch):
+    monkeypatch.setattr("profiling._probe_gpu", lambda: None)
     assert detect_backend({}) == "cpu"
 
 

@@ -17,6 +17,8 @@ from pathlib import Path
 
 from huggingface_hub import hf_hub_download
 
+from profiling import backend_cmake_flags, detect_backend
+
 # ---------------------------------------------------------------------------
 # Pinning
 # ---------------------------------------------------------------------------
@@ -90,6 +92,55 @@ def _referenced_manifest_keys() -> set[str]:
     return keys
 
 
+# ---------------------------------------------------------------------------
+# Model discovery: reuse GGUFs the user already has before hitting the network
+# ---------------------------------------------------------------------------
+
+DEFAULT_MODEL_SEARCH_PATHS = [
+    "~/.cache/huggingface/hub",   # `hf_hub_download` default cache
+    "~/.cache/lm-studio/models",  # LM Studio (Linux)
+    "~/.lmstudio/models",         # LM Studio (alt)
+    "~/models",
+    "~/.local/share/models",
+    "~/Downloads",
+]
+
+
+def model_search_paths() -> list[Path]:
+    """Directories scanned for existing GGUFs. AUTOGGML_MODELS (colon-separated)
+    entries are prepended; non-existent dirs are skipped."""
+    env = os.environ.get("AUTOGGML_MODELS")
+    raw = [p for p in (env.split(":") if env else []) if p.strip()]
+    raw += DEFAULT_MODEL_SEARCH_PATHS
+    paths = [Path(p).expanduser() for p in raw]
+    return [p for p in paths if p.exists()]
+
+
+def discover_model(local_name: str) -> Path | None:
+    """Find an existing GGUF named `local_name` under the search paths. First hit wins."""
+    for base in model_search_paths():
+        for hit in base.rglob(local_name):
+            if hit.is_file():
+                return hit
+    return None
+
+
+def _link_into(src: Path, dest: Path) -> None:
+    """Make `dest` refer to `src`: symlink preferred (zero disk), then hardlink,
+    then copy. Symlink is chosen so a user deleting their cache breaks cleanly
+    rather than silently retaining stale bytes."""
+    try:
+        dest.symlink_to(src)
+        return
+    except (OSError, NotImplementedError):
+        pass
+    try:
+        os.link(src, dest)
+        return
+    except OSError:
+        shutil.copy2(src, dest)
+
+
 def download_models() -> None:
     """Download benchmark models referenced by the selected benchmarks."""
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -145,18 +196,45 @@ def download_models() -> None:
             if local_path.exists():
                 print(f"  {info['local']} already exists")
                 continue
+            found = discover_model(info["local"])
+            if found is not None:
+                print(f"  Reusing {info['local']} from {found}")
+                _link_into(found, local_path)
+                continue
             print(f"  Downloading {info['repo']}/{info['file']} ...")
             hf_hub_download(repo_id=info["repo"], filename=info["file"], local_dir=str(MODELS_DIR))
 
 
+def should_refuse_cpu_build(backend: str, env: dict[str, str] | None = None) -> bool:
+    """True when a CPU build would be a silent fallback the user didn't ask for.
+
+    The guardrail rule, stated once: refuse CPU unless AUTOGGML_ALLOW_CPU=1. Pure so
+    the rule is unit-testable independent of cmake/subprocess.
+    """
+    env = env if env is not None else os.environ
+    return backend == "cpu" and env.get("AUTOGGML_ALLOW_CPU") != "1"
+
+
 def build_lucebox() -> None:
-    """Configure and build lucebox-ggml."""
+    """Configure and build lucebox-ggml for the best available accelerator."""
     if shutil.which("cmake") is None:
         print("ERROR: cmake is not installed.", file=sys.stderr)
         sys.exit(1)
 
+    backend = detect_backend()
+    if should_refuse_cpu_build(backend):
+        print(
+            "ERROR: no GPU toolkit detected (nvcc / hipcc / vulkaninfo / Metal).\n"
+            "       A CPU build would give numbers unrelated to the GPU roadmap.\n"
+            "       To force a CPU build anyway, set AUTOGGML_ALLOW_CPU=1.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if backend == "cpu":
+        print("WARNING: building CPU-only (AUTOGGML_ALLOW_CPU=1); "
+              "numbers will not reflect the GPU roadmap.")
+
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    # Default CPU build. For GPU, set GGML_CUDA=ON or GGML_METAL=ON via environment.
     cmake_args = [
         "cmake",
         "-G", "Ninja",
@@ -166,15 +244,12 @@ def build_lucebox() -> None:
         "-DLLAMA_BUILD_TESTS=OFF",
         "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
         "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
-    ]
-    if os.environ.get("GGML_CUDA") == "ON":
-        cmake_args.append("-DGGML_CUDA=ON")
-    if os.environ.get("GGML_METAL") == "ON":
-        cmake_args.append("-DGGML_METAL=ON")
+    ] + backend_cmake_flags(backend)
+    print(f"Building for backend: {backend}")
 
     run(cmake_args)
     run(["cmake", "--build", str(BUILD_DIR), "-j", "--target", "llama-bench", "llama-server", "llama-cli"])
-    print(f"Build complete: {BUILD_DIR}")
+    print(f"Build complete: {BUILD_DIR} (backend={backend})")
 
 
 def main() -> None:

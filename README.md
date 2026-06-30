@@ -53,6 +53,8 @@ autoggml/
 
 You need [uv](https://docs.astral.sh/uv/) installed. It handles Python, the virtual environment, and dependencies in one step. Real builds also require `cmake`, `ccache`, and `ninja-build` (the harness builds with the Ninja generator + ccache launchers for fast incremental rebuilds).
 
+**GPU is auto-detected.** `prepare.py` probes for `nvcc` / `hipcc` / `vulkaninfo` / Metal and builds for the best available backend — no `GGML_CUDA=ON` needed. A CPU-only box is refused (its numbers are unrelated to the GPU-bound roadmap); override with `AUTOGGML_ALLOW_CPU=1` for a plumbing build. **Existing GGUFs are reused** — `prepare.py` scans `~/.cache/huggingface/hub`, LM Studio, `~/models`, etc. before downloading, so you don't re-pull a model you already have. Extend the search path with `AUTOGGML_MODELS=/path/a:/path/b`.
+
 ```bash
 # 1. Create the virtual environment and install dependencies
 uv sync

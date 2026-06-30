@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 from experiment import apply_experiment, get_cmake_flags, get_runtime_flags, reset_lucebox
-from profiling import detect_backend, profile_command
+from profiling import backend_cmake_flags, detect_backend, profile_command
 from uncertainty import propagate_score_stddev
 
 ROOT = Path(__file__).resolve().parent
@@ -55,7 +55,7 @@ def build() -> float:
         "-DLLAMA_BUILD_TESTS=OFF",
         "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
         "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
-    ] + get_cmake_flags()
+    ] + backend_cmake_flags(detect_backend()) + get_cmake_flags()
     env = os.environ.copy()
     run(cmake_args, env=env)
     t0 = time.time()
