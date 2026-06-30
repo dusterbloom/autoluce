@@ -12,12 +12,16 @@ measured against a fixed baseline while the best may have moved.
 
 from __future__ import annotations
 
+import json
+import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable
 
 from concurrency import ClaimResult, LockedFrontier
 from uncertainty import is_significant_improvement
+from worktree import ensure_worktree
 
 
 @dataclass(frozen=True)
@@ -90,7 +94,7 @@ def run_parallel(
         if result.get("correctness") != "pass":
             continue
         claim = frontier.claim_best_if_significant(
-            commit=spec.id,
+            commit=result.get("commit", spec.id),
             summary={
                 "score": result.get("score", 0.0),
                 "score_stddev": result.get("score_stddev", 0.0),
@@ -103,3 +107,56 @@ def run_parallel(
         )
         claimed.append((spec, claim))
     return claimed
+
+
+# --- local run_fn: gives run_parallel + worktree a real in-tree consumer -----------
+
+def _harness_command(worktree: Path) -> list[str]:
+    """Measure command run inside a worktree (score only -- the claim is run_parallel's)."""
+    return ["uv", "run", "python", "harness.py", "--json"]
+
+
+def _current_commit(worktree: Path) -> str:
+    """Short HEAD of the worktree, or '' if it can't be resolved."""
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=worktree,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    except Exception:
+        return ""
+
+
+def _parse_harness_json(stdout: str, commit: str, spec_id: str) -> dict:
+    """Parse `harness.py --json` output into a run_fn result dict. Malformed -> crash dict."""
+    try:
+        summary = json.loads(stdout)
+    except Exception as e:
+        return {"score": 0.0, "score_stddev": 0.0, "correctness": "FAIL",
+                "commit": commit or spec_id, "crash": f"harness json parse: {e}"}
+    return {
+        "score": float(summary.get("score", 0.0)),
+        "score_stddev": float(summary.get("score_stddev", 0.0)),
+        "correctness": summary.get("correctness", "FAIL"),
+        "commit": commit or spec_id,
+    }
+
+
+def local_run(spec: ExperimentSpec, repo_root: Path, run_subprocess=subprocess.run) -> dict:
+    """Run one spec in its own worktree and return the measured result dict.
+
+    Ensures an isolated worktree (worktree.py's first in-tree consumer), invokes
+    `harness.py --json` there via the injected transport, and parses the score. The claim
+    is deliberately NOT made here -- run_parallel is the funnel. `commit` in the result is
+    the worktree's real HEAD, so a claimed result points at a valid git ref.
+
+    This measures whatever `experiment.py` the worktree already contains. For true parallel
+    SEARCH (a different experiment per worktree), materialize `spec.patch` / `runtime_flags`
+    into the worktree's experiment.py first -- that step is intentionally not baked in (it
+    is heavy and domain-specific). This is the local run_fn giving run_parallel + worktree a
+    real consumer; wire it as `run_parallel(specs, lambda s: local_run(s, repo_root), ...)`.
+    """
+    wt = ensure_worktree(Path(repo_root), spec.id)
+    commit = _current_commit(wt)
+    proc = run_subprocess(_harness_command(wt), cwd=wt, capture_output=True, text=True)
+    return _parse_harness_json(proc.stdout, commit, spec.id)
