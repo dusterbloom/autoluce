@@ -5,7 +5,7 @@ Live capture needs the target GPU + profiler; the command building is pure here.
 
 import pytest
 
-from profiling import detect_backend, profile_command
+from profiling import classify_bottleneck, detect_backend, profile_command
 
 
 def test_detect_backend_from_env():
@@ -34,3 +34,29 @@ def test_profile_command_unsupported_backend_raises():
         profile_command(["llama-bench"], "vulkan", "/tmp/cap")
     with pytest.raises(ValueError):
         profile_command(["llama-bench"], "cpu", "/tmp/cap")
+
+
+def test_classify_bottleneck_memory_bound_when_bandwidth_saturated():
+    result = classify_bottleneck({"mem_bw_util": 0.9, "gpu_compute_util": 0.3})
+    assert result["bound"] == "memory"
+
+
+def test_classify_bottleneck_compute_bound_when_not_bandwidth_saturated():
+    result = classify_bottleneck({"mem_bw_util": 0.4, "gpu_compute_util": 0.9})
+    assert result["bound"] == "compute"
+
+
+def test_classify_bottleneck_overhead_bound_when_neither_saturated():
+    result = classify_bottleneck({"mem_bw_util": 0.2, "gpu_compute_util": 0.3})
+    assert result["bound"] == "overhead"
+
+
+def test_classify_bottleneck_memory_takes_precedence_over_compute():
+    # If bandwidth is saturated, extra compute work cannot help -> memory wins.
+    result = classify_bottleneck({"mem_bw_util": 0.85, "gpu_compute_util": 0.95})
+    assert result["bound"] == "memory"
+
+
+def test_classify_bottleneck_points_at_roadmap_items():
+    result = classify_bottleneck({"mem_bw_util": 0.9, "gpu_compute_util": 0.3})
+    assert result["roadmap"] and isinstance(result["roadmap"], list)
