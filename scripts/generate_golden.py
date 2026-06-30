@@ -10,10 +10,15 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from harness import build_generation_command, extract_generated_text  # noqa: E402
+
 WORK_DIR = ROOT / "work"
 BUILD_DIR = WORK_DIR / "lucebox-ggml" / "build"
 MODELS_DIR = WORK_DIR / "models"
@@ -45,33 +50,16 @@ def resolve_model(benchmark_name: str, role: str) -> Path | None:
 
 
 def generate_one(llama_cli: Path, model: Path, draft: Path | None, prompt: str, params: dict) -> dict:
-    cmd = [
-        str(llama_cli),
-        "-m", str(model),
-        "-p", prompt,
-        "-n", str(params.get("n_predict", 64)),
-        "--temp", str(params.get("temperature", 0.0)),
-        "--top-k", str(params.get("top_k", 1)),
-        "--top-p", str(params.get("top_p", 1.0)),
-        "--seed", str(params.get("seed", 42)),
-        "--no-display-prompt",
-    ]
-    if draft is not None and draft.exists():
-        cmd += [
-            "-md", str(draft),
-            "--spec-type", "draft-dflash",
-            "--spec-draft-n-max", str(params.get("n_draft", 15)),
-        ]
+    cmd = build_generation_command(llama_cli, model, draft, prompt, params, params.get("n_draft", 15))
 
     result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         raise RuntimeError(f"llama-cli failed: {result.stderr}")
 
-    text = result.stdout.strip()
     return {
         "prompt": prompt,
-        "text": text,
-        "tokens": [],  # Could parse token IDs if needed.
+        "text": extract_generated_text(result.stdout),
+        "tokens": [],
     }
 
 

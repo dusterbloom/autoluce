@@ -20,10 +20,13 @@ ENV UV_LINK_MODE=copy
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
+    ninja-build \
+    ccache \
     git \
     curl \
     ca-certificates \
     python3-dev \
+    time \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv at a pinned version for reproducibility.

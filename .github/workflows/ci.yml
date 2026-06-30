@@ -23,11 +23,14 @@ jobs:
       - name: Lint Python
         run: uv run ruff check .
 
+      - name: Run unit tests
+        run: uv run pytest -q
+
       - name: Smoke test harness (simulation mode)
-        run: uv run harness.py --baseline
+        run: uv run harness.py --baseline --simulate
 
       - name: Smoke test reproducibility suite
-        run: uv run reproduce.py
+        run: uv run reproduce.py --simulate
 
   container-build:
     runs-on: ubuntu-latest
@@ -38,4 +41,4 @@ jobs:
         run: docker build -t autoggml .
 
       - name: Run lint and smoke tests in container
-        run: docker run --rm autoggml uv run reproduce.py
+        run: docker run --rm autoggml uv run reproduce.py --simulate

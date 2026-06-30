@@ -32,9 +32,9 @@ BUILD_DIR = Lucebox_DIR / "build"
 # ---------------------------------------------------------------------------
 
 
-def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
+def run(cmd: list[str], cwd: Path | None = None, check: bool = True, capture_output: bool = False) -> subprocess.CompletedProcess:
     print(f"$ {' '.join(cmd)}")
-    return subprocess.run(cmd, cwd=cwd, check=check, text=True)
+    return subprocess.run(cmd, cwd=cwd, check=check, text=True, capture_output=capture_output)
 
 
 def sha256_file(path: Path) -> str:
@@ -58,10 +58,12 @@ def clone_lucebox() -> None:
     else:
         run(["git", "fetch", "origin", Lucebox_GGML_REF], cwd=Lucebox_DIR)
     # Resolve the current HEAD commit hash and store it.
-    result = run(["git", "rev-parse", "HEAD"], cwd=Lucebox_DIR, check=True)
+    result = run(["git", "rev-parse", "HEAD"], cwd=Lucebox_DIR, check=True, capture_output=True)
     commit = result.stdout.strip()
     pin_file = WORK_DIR / "lucebox-ggml.pin"
     pin_file.write_text(commit + "\n")
+    source_file = WORK_DIR / "lucebox-ggml.source"
+    source_file.write_text(f"{Lucebox_GGML_URL}\n{Lucebox_GGML_REF}\n")
     print(f"Pinned lucebox-ggml: {commit}")
     # Detach at the current HEAD so experiments are deterministic.
     run(["git", "checkout", "--detach", commit], cwd=Lucebox_DIR)
@@ -135,10 +137,13 @@ def build_lucebox() -> None:
     # Default CPU build. For GPU, set GGML_CUDA=ON or GGML_METAL=ON via environment.
     cmake_args = [
         "cmake",
+        "-G", "Ninja",
         "-S", str(Lucebox_DIR),
         "-B", str(BUILD_DIR),
         "-DCMAKE_BUILD_TYPE=Release",
         "-DLLAMA_BUILD_TESTS=OFF",
+        "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
     ]
     if os.environ.get("GGML_CUDA") == "ON":
         cmake_args.append("-DGGML_CUDA=ON")

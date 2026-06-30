@@ -50,6 +50,16 @@ def revert_all(repo: Path, files: list[str]) -> None:
         _git_checkout(repo, rel)
 
 
+CMAKE_PROJECT_ANCHOR = "project(llama.cpp C CXX)"
+
+
+def _anchor_insert(text: str, anchor: str, insertion: str) -> str | None:
+    """Insert `insertion` after the first occurrence of `anchor`, or return None if not found."""
+    if anchor not in text:
+        return None
+    return text.replace(anchor, f"{anchor}\n{insertion}", 1)
+
+
 def apply_march_native(repo: Path, flags: str | None = None) -> dict[str, str]:
     """
     Append native CPU architecture flags to the main CMakeLists.txt.
@@ -70,9 +80,11 @@ if ((CMAKE_C_COMPILER_ID MATCHES "GNU|Clang") AND NOT EMSCRIPTEN)
     add_compile_options({flag_str})
 endif()
 """
-    new_text = text.replace("project(llama.cpp C CXX)", f"project(llama.cpp C CXX)\n{insertion}", 1)
-    _write(path, new_text)
+    new_text = _anchor_insert(text, CMAKE_PROJECT_ANCHOR, insertion)
+    if new_text is None:
+        return {"patch": "march_native", "status": "no_anchor", "flags": flag_str}
 
+    _write(path, new_text)
     return {"patch": "march_native", "status": "applied", "flags": flag_str}
 
 
@@ -89,9 +101,11 @@ def apply_lto(repo: Path) -> dict[str, str]:
 {marker}
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 """
-    new_text = text.replace("project(llama.cpp C CXX)", f"project(llama.cpp C CXX)\n{insertion}", 1)
-    _write(path, new_text)
+    new_text = _anchor_insert(text, CMAKE_PROJECT_ANCHOR, insertion)
+    if new_text is None:
+        return {"patch": "lto", "status": "no_anchor"}
 
+    _write(path, new_text)
     return {"patch": "lto", "status": "applied"}
 
 
@@ -102,23 +116,26 @@ def apply_speculative_candidates(repo: Path, n_draft: int = 8) -> dict[str, str]
     """
     changed: list[str] = []
     files = [repo / "common" / "speculative.cpp", repo / "src" / "llama.cpp"]
+    total_replacements = 0
 
     for path in files:
         if not path.exists():
             continue
         text = path.read_text()
-        # Match patterns like int n_draft = 4; or .n_draft = 4
+        # Match simple assignments like `int n_draft = 4;` or `.n_draft = 4;`
         pattern = re.compile(r"(n_draft\s*=\s*)(\d+)")
-        new_text, count = pattern.subn(lambda m: f"{m.group(1)}{n_draft}", text)
+        new_text, count = pattern.subn(lambda m: f"{m.group(1)}{n_draft}", text, count=3)
         if count:
             _write(path, new_text)
             changed.append(str(path.relative_to(repo)))
+            total_replacements += count
 
     return {
         "patch": "speculative_candidates",
         "status": "applied" if changed else "no_match",
         "n_draft": str(n_draft),
         "files": ",".join(changed),
+        "replacements": str(total_replacements),
     }
 
 
@@ -127,23 +144,30 @@ def apply_graph_threads(repo: Path, n_threads: int = 4) -> dict[str, str]:
     Change the default number of threads used by the GGML graph scheduler.
     Looks for common default initializations in ggml/src/ggml.c or similar.
     """
-    paths = list(repo.rglob("ggml*.c")) + list(repo.rglob("ggml*.cpp"))
+    # Limit scope to the GGML source tree.
+    paths = [
+        p for p in (list((repo / "ggml").rglob("ggml*.c")) + list((repo / "ggml").rglob("ggml*.cpp")))
+        if p.is_file()
+    ]
     changed: list[str] = []
+    total_replacements = 0
 
     for path in paths:
         text = path.read_text()
-        # conservative: only touch lines that look like default n_threads assignments
-        pattern = re.compile(r"(n_threads\s*=\s*)(\d+)(\s*;)")
-        new_text, count = pattern.subn(lambda m: f"{m.group(1)}{n_threads}{m.group(3)}", text)
+        # Only touch simple default assignments, not loop variables or function parameters.
+        pattern = re.compile(r"^\s*(int\s+)?n_threads\s*=\s*\d+\s*;", re.MULTILINE)
+        new_text, count = pattern.subn(lambda m: re.sub(r"\d+", str(n_threads), m.group(0), count=1), text, count=3)
         if count:
             _write(path, new_text)
             changed.append(str(path.relative_to(repo)))
+            total_replacements += count
 
     return {
         "patch": "graph_threads",
         "status": "applied" if changed else "no_match",
         "n_threads": str(n_threads),
         "files": ",".join(changed),
+        "replacements": str(total_replacements),
     }
 
 

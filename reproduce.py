@@ -6,6 +6,7 @@ Records the environment, runs the harness, and writes a provenance bundle.
 
 from __future__ import annotations
 
+import argparse
 import json
 import platform
 import shutil
@@ -60,6 +61,10 @@ def capture_environment() -> dict[str, any]:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--simulate", action="store_true", help="Plumbing test without models or build")
+    args = parser.parse_args()
+
     RESULTS_DIR.mkdir(exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out_dir = RESULTS_DIR / stamp
@@ -68,7 +73,7 @@ def main():
     env = capture_environment()
     (out_dir / "environment.json").write_text(json.dumps(env, indent=2, default=str))
 
-    summary = run_harness(baseline=True)
+    summary = run_harness(baseline=True, simulate=args.simulate)
     (out_dir / "baseline.json").write_text(json.dumps(summary, indent=2, default=str))
 
     print(f"Reproducibility bundle written to {out_dir}")

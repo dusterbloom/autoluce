@@ -57,28 +57,17 @@ def apply_experiment() -> dict[str, any]:
     """
     Apply the experiment to lucebox-ggml.
     Returns a dict describing what was changed (for logging).
+
+    Shipped as a neutral no-op baseline; the agent fills this in per experiment.
+    Examples (uncomment one at a time, measure, keep or revert):
+
+        # from patches import apply_march_native, apply_lto
+        # apply_march_native(Lucebox_DIR)
+        # apply_lto(Lucebox_DIR)
+        # apply_patch("my_idea.patch")   # git-apply a file from patches/
     """
-    description = "baseline (no changes)"
-
-    # -----------------------------------------------------------------------
-    # Examples (uncomment one block per experiment):
-    # -----------------------------------------------------------------------
-
-    # Example 1: enable CUDA if available
-    # os.environ["GGML_CUDA"] = "ON"
-    # description = "enable CUDA backend"
-
-    # Example 2: apply a code patch
-    # apply_patch("0001-async-draft.patch")
-    # description = "async draft generation patch"
-
-    # Example 3: tune runtime parameters
-    # flags = get_runtime_flags()
-    # flags["spec-draft-n-max"] = "20"
-    # description = "increase draft-n-max to 20"
-
     return {
-        "description": description,
+        "description": "baseline (no changes)",
         "cmake_flags": get_cmake_flags(),
         "runtime_flags": get_runtime_flags(),
     }
@@ -94,5 +83,5 @@ def reset_lucebox() -> None:
         raise FileNotFoundError("Run prepare.py first")
     commit = pin_file.read_text().strip()
     subprocess.run(["git", "reset", "--hard", commit], cwd=Lucebox_DIR, check=True, text=True)
-    subprocess.run(["git", "clean", "-fd"], cwd=Lucebox_DIR, check=True, text=True)
+    subprocess.run(["git", "clean", "-fd", "-e", "build"], cwd=Lucebox_DIR, check=True, text=True)
     print(f"Reset lucebox-ggml to {commit}")

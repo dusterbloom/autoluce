@@ -11,7 +11,7 @@ Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://gith
 - Higher draft acceptance rate
 - Lower memory usage
 - Shorter build times
-- Correctness preserved (output match, perplexity)
+- Correctness preserved (output match against golden outputs; perplexity not yet implemented)
 
 ## Setup
 
@@ -29,7 +29,8 @@ Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://gith
    - `experiment.py` — this is what you edit.
 4. **Run setup**: `uv run prepare.py` (one-time; can take 10–30 minutes depending on hardware).
 5. **Verify baseline**: `uv run harness.py --baseline` should print a score.
-6. **Initialize `results.tsv`** with just the header row.
+6. **Generate golden outputs** after models download: `uv run scripts/generate_golden.py`.
+7. **Initialize `results.tsv`** with just the header row (or let `agent_loop.py` create it).
 
 ## Experimentation loop
 
@@ -66,14 +67,15 @@ correctness:        pass
 
 ## Output format
 
-After each run, log to `results.tsv` (tab-separated, 7 columns):
+After each run, log to `results.tsv` (tab-separated, 9 columns):
 
 ```
-commit	score	decode_tok_s	prefill_tok_s	acceptance_rate	peak_mem_GiB	status	description
+commit	score	score_stddev	decode_tok_s	prefill_tok_s	acceptance_rate	peak_mem_GiB	status	description
 ```
 
 - `commit`: short git hash (7 chars)
 - `score`: harness score (0.0000 for crashes)
+- `score_stddev`: propagated score uncertainty (0.0000 for crashes)
 - `decode_tok_s`: decode throughput (0.0 for crashes)
 - `prefill_tok_s`: prefill throughput (0.0 for crashes)
 - `acceptance_rate`: speculative acceptance rate (0.0 for crashes)

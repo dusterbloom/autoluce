@@ -8,10 +8,10 @@ Autonomous research harness for **verifiably and reproducibly improving GGML-bas
 
 The focus of v2 is **verifiability and reproducibility**:
 
-- Every experiment starts from a pinned `lucebox-ggml` commit.
+- `prepare.py` clones `lucebox-ggml` and pins the current upstream `HEAD` in `work/lucebox-ggml.pin`; every experiment resets to that pin.
 - Benchmarks use fixed prompts, seeds, and model configurations.
 - The environment (OS, compiler, GPU, dependency versions) is recorded for every run.
-- Correctness is checked by comparing generated outputs and perplexity against a baseline.
+- Correctness is checked by comparing generated outputs against golden outputs (perplexity is not yet implemented).
 - Results are logged in a machine-readable format with full provenance.
 
 ## Repository layout
@@ -57,7 +57,7 @@ uv run agent_loop.py
 
 ### Deterministic container
 
-A `Dockerfile` is provided for fully reproducible CI and local runs:
+A `Dockerfile` pins the `uv` version and Python version for CI and local runs. The base image and apt packages are pinned by name but not by digest, so fully byte-for-byte reproducibility requires an additional mirror or digest pin:
 
 ```bash
 docker build -t autoggml .
@@ -75,15 +75,20 @@ docker run --rm -it -v $(pwd)/work:/app/work autoggml
 
 ## Metric
 
-The primary metric is **normalized throughput**:
+The primary metric is **throughput per unit memory**:
 
 ```
-score = (decode_tok/s * prefill_tok/s * acceptance_rate) / (peak_mem_GiB * build_time_s)
+score = (decode_tok/s * prefill_tok/s * acceptance_rate) / peak_mem_GiB
 ```
 
 - Higher is better.
-- The metric rewards faster decode and prefill, higher speculative acceptance, lower memory, and faster builds.
+- Decode and prefill throughput (and their stddev) are parsed from `llama-bench`.
+- `peak_mem_GiB` is measured via `/usr/bin/time -v` (a missing profiler/source raises — no silent fallback).
+- `acceptance_rate` is parsed when the benchmark reports it; for speculative runs that don't report it, the neutral value `1.0` is used (identical for baseline and experiment, so comparisons stay fair). See `ROADMAP.md` for closing this gap.
+- `build_time_s` is measured and reported but **not** scored: with ccache + a preserved build dir it is cache-state-dependent, so scoring it would make runs non-reproducible.
 - A correctness failure forces the score to 0.
+
+The keep/revert decision is **significance-gated** (`--significance`, default `k=1.0`): a commit is kept only if its score improves on the best by more than `k` times the combined stddev. See `uncertainty.py`.
 
 See `harness.py` for the exact computation.
 
