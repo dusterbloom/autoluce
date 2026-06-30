@@ -11,10 +11,13 @@ Advisory only — fuzzy by design; the agent still reads results.tsv for detail.
 
 from __future__ import annotations
 
+import argparse
 import csv
 import re
 import sys
 from pathlib import Path
+
+from selector import rank_by_bottleneck
 
 ROOT = Path(__file__).resolve().parent
 ROADMAP = ROOT / "ROADMAP.md"
@@ -56,6 +59,15 @@ def _descriptions_from_results(path: Path) -> list[str]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Report untried ROADMAP items, optionally ranked by the active bottleneck.",
+    )
+    parser.add_argument(
+        "--bound", choices=["memory", "compute", "overhead"],
+        help="Rank untried items so those targeting this bottleneck come first (from the profile verdict).",
+    )
+    args = parser.parse_args()
+
     items = load_roadmap_items(ROADMAP.read_text())
     tried = extract_tried_numbers(_descriptions_from_results(RESULTS_TSV))
     print(f"Tried: {sorted(tried) if tried else '(none)'}")
@@ -63,9 +75,15 @@ def main() -> int:
     if not remaining:
         print("All roadmap items tried. Re-profile and search literature for new ideas.")
         return 0
-    print(f"Untried ({len(remaining)}):")
-    for n, title in remaining:
-        print(f"  #{n}. {title}")
+
+    ranked = rank_by_bottleneck(remaining, args.bound)
+    header = f"Untried ({len(ranked)})"
+    if args.bound:
+        header += f" -- ranked for {args.bound}-bound workload"
+    print(header + ":")
+    for n, title, matched in ranked:
+        marker = "  [matches bottleneck]" if (args.bound and matched) else ""
+        print(f"  #{n}. {title}{marker}")
     return 0
 
 

@@ -86,20 +86,34 @@ host hardware and the incoming request — structurally invisible: a per-target 
 either looks like noise (it picks the same config on the reference box) or gets kept
 for a win that is a regression on a box you can't see, and the significance gate has
 no way to reason about a payoff *distribution* over hardware × workload. The fix is
-harness scope, not a patch to lucebox. Three enabling moves; together they turn
+harness scope, not a patch to lucebox. Four enabling moves; together they turn
 "compile for this machine, this request" from a static flag sweep into a discovered
 policy.
 
-15. **Multi-target scoring (3090 + Strix Halo).** Run the loop on both boxes, score
-    per-target, and let an experiment's payoff be a *vector* (or Pareto frontier) over
-    hardware, not a scalar. Without this, "machine constraints" is unobservable. Today
-    the second box is a regression gate; after this it is a first-class objective.
-    Depends on the Strix Halo host being reachable from `runner.py`.
-16. **Workload suite, not a fixed benchmark.** Vary context length, batch shape, and
-    prompt type (code / prose / long-context) so a policy can condition on the
-    *request*. `benchmarks/` is fixed prompts today — the request dimension is absent.
-    Single-box useful: even on the reference box it turns a "win" that only helps
-    short-context from a keep into visible workload-dependence.
+**The reframe — the grid is a quality-diversity archive, not just a scoreboard.** A single
+scalar frontier (`LockedFrontier`) is a hill-climber: it converges fast on the flag-sweep
+basin and then sticks. The move beyond sweeps is population search — AlphaEvolve / OpenEvolve
+/ Sakana's evolutionary CUDA engineer maintain an *archive* indexed by behavior descriptors
+with one elite per cell, reward novelty + fitness, and let the LLM mutate *and recombine*
+across cells. This domain's behavior descriptors are exactly the axes below (machine ×
+workload × technique-family), so building the grid for scoring and building the archive for
+novelty are the **same work**. Prior art: AutoKernel is this harness's structural twin (same
+one-file / keep-revert loop, arXiv:2603.21331) — but it too is single-frontier hill-climbing;
+the population/archive layer is the open frontier, and it is higher-leverage here because
+speculative decoding's structure (tree verify, hidden-state drafting, UMA zero-copy) is far
+less trodden than AutoKernel's matmul/softmax/attention kernels.
+
+15. **Multi-target scoring = archive axis 1 (machine).** Run the loop on both boxes, score
+    per-target, and let an experiment's payoff be a *vector* over hardware, not a scalar.
+    Each machine becomes a column in the archive with its own elite, so a Strix-Halo win and
+    a 3090 win both persist instead of one evicting the other. Without this, "machine
+    constraints" is unobservable; today the second box is a regression gate, after this it
+    is a first-class objective. Depends on the Strix Halo host reachable from `runner.py`.
+16. **Workload suite = archive axis 2 (request).** Vary context length, batch shape, and
+    prompt type (code / prose / long-context) so each (machine × workload) cell holds its
+    own elite. Single-box useful immediately: a "win" that only helps short-context stops
+    evicting the long-context elite. `benchmarks/` is fixed prompts today — the request
+    dimension is absent.
 17. **Config-selector experiment type.** A new experiment surface:
     `select_config(machine_features, request_features) → (cmake_flags, runtime_flags,
     code_paths)`. The harness scores the *policy* over the hardware × workload grid,
@@ -107,10 +121,19 @@ policy.
     surface that lets the agent discover, e.g., "Vulkan path for Strix-Halo
     long-context, CUDA path for 3090 batch-N." Depends on 15 and 16 for a grid to
     select over.
+18. **Novelty + recombination engine (the operator over the archive).** The archive
+    (15 × 16) is just storage until the search uses it. Two LLM-driven operators:
+    (a) novelty-weighted selection — sample an under-explored cell rather than always
+    mutating the global best, so the search leaves the flag-sweep basin; (b) crossover —
+    hand the agent two cell elites (e.g. adaptive-K controller + KV-quant sweep) and ask
+    for a child combining both. `LockedFrontier.claim_best_if_significant` generalizes to
+    `insert_if_elite_in_cell(behavior, candidate)`; a `merge_patches` helper feeds two
+    `patches/*.patch` files as crossover input. This is the mechanism that discovers
+    structure hill-climbing cannot.
 
 The static subset (best flags for the reference box) the harness can already find:
 `experiment.get_cmake_flags()`, `patches.apply_march_native` ("compile for THIS CPU"),
-and items 6 and 12 are all per-target static tuning. 15–17 generalize that from one box
+and items 6 and 12 are all per-target static tuning. 15–18 generalize that from one box
 to the grid.
 
 **Coordination layer — shipped.** `concurrency.LockedFrontier` (file-locked frontier +
@@ -122,6 +145,11 @@ N worktrees -- or N hosts into one shared checkout -- converge safely instead of
 build on; it does **not** yet make the score a per-target vector, which is the remaining
 #15 work.
 
+**Move 1 — shipped.** `selector.rank_by_bottleneck` + `ideas.py --bound
+<memory|compute|overhead>` rank untried items so those targeting the active profiling
+bottleneck come first (the AutoKernel Amdahl-targeting move). Pure decision, tested; the
+nsys/rocprof trace-parser that auto-produces the bound verdict is the deferred I/O seam.
+
 ## Execution order
 
 - **Profile both targets first** — know the wall before swinging (`--profile`).
@@ -129,12 +157,13 @@ build on; it does **not** yet make the score a per-target vector, which is the r
   n-gram hybrid (4), CUDA-graph verify flag sweep (8). Small patches, real numbers.
 - **One big algorithmic bet: tree speculative + hidden-state drafting (1+2).** This is
   the move that *beats* llama.cpp rather than trails it. Validate via the harness.
-- **Stand up the grid before the moat (do-order 16 → 15 → 17).** The Strix Halo moat
+- **Stand up the grid before the moat (do-order 16 → 15 → 18 → 17).** The Strix Halo moat
   (6) and the Vulkan tuning (12) are per-target wins — but the harness scores one box,
-  so a per-target gain is invisible or mis-attributed. Build the workload axis (16)
-  first on the reference box (cheapest, unblocks signal on every later item), then the
-  machine axis (15), then the config-selector surface (17) as the capstone. Numbered
-  15–17 but executed 16 → 15 → 17.
+  so a per-target gain is invisible or mis-attributed. Build the workload axis (16) first on
+  the reference box (cheapest, unblocks signal on every later item), then the machine axis
+  (15), then the novelty/recombination operator (18) that turns the grid into a
+  quality-diversity archive, then the config-selector surface (17) as the capstone that
+  reads the archive. Numbered 15–18 but executed 16 → 15 → 18 → 17.
 - **Pursue the moat: UMA-native draft on Strix Halo (6).** The result no NVIDIA-focused
   competitor reproduces. Turns the second box from a regression gate into lucebox's
   signature win.
