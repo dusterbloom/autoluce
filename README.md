@@ -53,6 +53,22 @@ autoggml/
 
 ## Quick start
 
+### One-liner
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoggml/main/install.sh | bash
+cd autoggml
+AUTOGGML_BENCHMARKS=smoke uv run autoggml setup     # ~1 GB model + build
+```
+
+Clones the repo, installs `uv` + dependencies, and runs setup. Want to audit first?
+`curl -fsSL <url> -o install.sh && less install.sh`.
+
+Every script is also a subcommand of `uv run autoggml` (try `uv run autoggml help`):
+`setup`, `baseline`, `run`, `ideas`, `propose`, `harness`, `report`, `reproduce`.
+
+### Manual
+
 You need [uv](https://docs.astral.sh/uv/) installed. It handles Python, the virtual environment, and dependencies in one step. Real builds also require `cmake`, `ccache`, and `ninja-build` (the harness builds with the Ninja generator + ccache launchers for fast incremental rebuilds).
 
 **GPU is auto-detected.** `prepare.py` probes for `nvcc` / `hipcc` / `vulkaninfo` / Metal and builds for the best available backend — no `GGML_CUDA=ON` needed. A CPU-only box is refused (its numbers are unrelated to the GPU-bound roadmap); override with `AUTOGGML_ALLOW_CPU=1` for a plumbing build. **Existing GGUFs are reused** — `prepare.py` scans `~/.cache/huggingface/hub`, LM Studio, `~/models`, etc. before downloading, so you don't re-pull a model you already have. Extend the search path with `AUTOGGML_MODELS=/path/a:/path/b`.
