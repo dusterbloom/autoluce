@@ -100,9 +100,9 @@ def download_models() -> None:
     manifest = {
         "smoke": {
             "target": {
-                "repo": "unsloth/Qwen3.6-1.7B-GGUF",
-                "file": "Qwen3.6-1.7B-Q4_K_M.gguf",
-                "local": "Qwen3.6-1.7B-Q4_K_M.gguf",
+                "repo": "unsloth/Qwen3-1.7B-GGUF",
+                "file": "Qwen3-1.7B-Q4_K_M.gguf",
+                "local": "Qwen3-1.7B-Q4_K_M.gguf",
             },
         },
         "qwen36-27b": {
