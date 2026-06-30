@@ -8,7 +8,8 @@ local-subprocess / SSH / sky-exec worker.
 
 import time
 
-from runner import ExperimentSpec, dispatch, screen
+from concurrency import LockedFrontier
+from runner import ExperimentSpec, dispatch, run_parallel, screen
 
 
 def _spec(i: int) -> ExperimentSpec:
@@ -79,3 +80,35 @@ def test_screen_drops_correctness_failures():
 
     winners = screen([_spec(1)], run_fn, baseline_score=1.0, baseline_sigma=0.0, max_parallel=1)
     assert winners == []
+
+
+# --- run_parallel: live-frontier funnel (vs screen's fixed-snapshot filter) -----
+
+def _result(score: float, correctness: str = "pass", sigma: float = 0.01) -> dict:
+    return {
+        "score": score, "score_stddev": sigma, "correctness": correctness,
+        "decode_tok_s": 1.0, "prefill_tok_s": 1.0, "acceptance_rate": 1.0, "peak_mem_GiB": 1.0,
+    }
+
+
+def test_run_parallel_skips_correctness_failures(tmp_path):
+    frontier = LockedFrontier(tmp_path)
+    catalog = {"exp-1": _result(100.0), "exp-2": _result(999.0, "FAIL")}
+    results = run_parallel([_spec(1), _spec(2)], lambda s: catalog[s.id], frontier, max_parallel=2)
+    assert {r[0].id for r in results} == {"exp-1"}  # exp-2 skipped, never claimed
+    assert frontier.read_best()["score"] == 100.0
+
+
+def test_run_parallel_advancing_frontier_ends_at_the_best(tmp_path):
+    frontier = LockedFrontier(tmp_path)
+    catalog = {"exp-1": _result(50.0), "exp-2": _result(200.0)}
+    results = run_parallel([_spec(1), _spec(2)], lambda s: catalog[s.id], frontier, max_parallel=2)
+    # Order-independent: the live frontier's best ends at the max score.
+    assert frontier.read_best()["score"] == 200.0
+    assert "exp-2" in {s.id for s, c in results if c.claimed}
+
+
+def test_run_parallel_empty_specs_is_noop(tmp_path):
+    frontier = LockedFrontier(tmp_path)
+    assert run_parallel([], lambda s: {}, frontier, max_parallel=2) == []
+    assert frontier.read_best() == {}

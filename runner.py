@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Callable
 
+from concurrency import ClaimResult, LockedFrontier
 from uncertainty import is_significant_improvement
 
 
@@ -68,3 +69,37 @@ def screen(
             winners.append((spec, result))
     winners.sort(key=lambda sr: sr[1]["score"], reverse=True)
     return winners
+
+
+def run_parallel(
+    specs: list[ExperimentSpec],
+    run_fn: RunFn,
+    frontier: LockedFrontier,
+    max_parallel: int,
+) -> list[tuple[ExperimentSpec, ClaimResult]]:
+    """Run specs concurrently; funnel each passing result into the LIVE frontier.
+
+    Unlike screen (which tests against a fixed snapshot and returns winners), run_parallel
+    claims each result against the frontier as it stands now: the frontier advances as
+    better results land, and a later-finished spec is judged against the moved frontier
+    -- the parallel-safe funnel. Correctness failures are skipped (never claimed).
+    Returns (spec, ClaimResult) in completion order.
+    """
+    claimed: list[tuple[ExperimentSpec, ClaimResult]] = []
+    for spec, result in dispatch(specs, run_fn, max_parallel):
+        if result.get("correctness") != "pass":
+            continue
+        claim = frontier.claim_best_if_significant(
+            commit=spec.id,
+            summary={
+                "score": result.get("score", 0.0),
+                "score_stddev": result.get("score_stddev", 0.0),
+                "decode_tok_s": result.get("decode_tok_s", 0.0),
+                "prefill_tok_s": result.get("prefill_tok_s", 0.0),
+                "acceptance_rate": result.get("acceptance_rate", 0.0),
+                "peak_mem_GiB": result.get("peak_mem_GiB", 0.0),
+            },
+            description=spec.description,
+        )
+        claimed.append((spec, claim))
+    return claimed

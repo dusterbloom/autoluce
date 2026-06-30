@@ -113,6 +113,15 @@ The static subset (best flags for the reference box) the harness can already fin
 and items 6 and 12 are all per-target static tuning. 15–17 generalize that from one box
 to the grid.
 
+**Coordination layer — shipped.** `concurrency.LockedFrontier` (file-locked frontier +
+atomic `claim_best_if_significant`, re-verifying against the live best), `worktree`
+helpers, and `runner.run_parallel` (live-frontier funnel) are in. `agent_loop` now routes
+every shared-state write through the lock and honors `AUTOGGML_FRONTIER`, so N workers in
+N worktrees -- or N hosts into one shared checkout -- converge safely instead of racing on
+`.best_score.json` / `results.tsv` / the build dir. This is the foundation #15 and #17
+build on; it does **not** yet make the score a per-target vector, which is the remaining
+#15 work.
+
 ## Execution order
 
 - **Profile both targets first** — know the wall before swinging (`--profile`).

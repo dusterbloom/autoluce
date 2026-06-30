@@ -31,14 +31,16 @@ autoggml/
 ├── prepare.py             Read-only setup: clone, build, download models
 ├── experiment.py          Agent-editable: the change to try
 ├── harness.py             Read-only benchmark and correctness harness
-├── agent_loop.py          Read-only keep/revert experiment loop (significance-gated)
+├── agent_loop.py          Single-worker keep/revert loop (writes via locked frontier)
 ├── patches.py             Read-only helpers for common lucebox-ggml patches
 ├── reproduce.py           Read-only reproducibility suite
 ├── report.py              Read-only result aggregation and diff
 ├── uncertainty.py         Score-uncertainty propagation + significance gate
 ├── profiling.py           Backend-aware profiler capture + bottleneck classification
-├── runner.py              Parallel experiment fan-out (dispatch/screen)
+├── runner.py              Parallel fan-out: dispatch / screen / run_parallel (live frontier)
 ├── verify.py              Clean A/B verification before commit
+├── concurrency.py         File-locked shared frontier (parallel-safe leaderboard)
+├── worktree.py            Git worktree lifecycle (isolated worker trees)
 ├── ideas.py               Untried-ideas reporter for ROADMAP.md
 ├── Dockerfile             Deterministic container image
 ├── pyproject.toml         Python dependencies
@@ -107,6 +109,28 @@ docker run --rm -it -v $(pwd)/work:/app/work autoggml
 6. The commit is kept only if the improvement is **significant** (`--significance`, default `k=1.0`): the score must beat the best by more than `k` times the combined stddev. Otherwise the working tree resets to the previous best.
 
 For searching many ideas at once, `runner.py` runs experiments in parallel (screen) and `verify.py` does clean A/B verification of candidates before commit — see `program.md`.
+
+## Parallel runs
+
+The shared leaderboard is safe under concurrency. `agent_loop` writes `.best_score.json`
+and `results.tsv` through a file lock (`concurrency.LockedFrontier`) and re-verifies each
+candidate against the **live** frontier, not the snapshot it started with — so a worker can
+no longer "keep" a win a faster sibling already beat. To run workers in parallel on one
+host, give each its own git worktree (isolated `build/` dir) and point them all at one
+shared frontier:
+
+```bash
+MAIN=$(pwd)
+for i in 1 2 3 4; do
+  uv run python -c "from pathlib import Path; from worktree import ensure_worktree; ensure_worktree(Path('.'), 'w$i')"
+  (cd .worktrees/w$i && AUTOGGML_FRONTIER="$MAIN" uv run agent_loop.py) &
+done
+wait
+```
+
+For programmatic fan-out, `runner.run_parallel(specs, run_fn, frontier, max_parallel)`
+dispatches specs concurrently and funnels each result through the locked frontier. Supply
+your own `run_fn` (local-subprocess / SSH / VM) — dispatch is host-agnostic by design.
 
 ## Metric
 

@@ -1,34 +1,35 @@
 """
 Autonomous agent loop for autoggml v2.
 
-Run one experiment, compare the score to the current best, and either
-keep the commit or revert it. Logs results to results.tsv.
+Run one experiment, compare the score to the current best, and either keep the
+commit or revert it. Logs results to results.tsv.
+
+All shared-state access (.best_score.json + results.tsv) goes through LockedFrontier,
+so concurrent invocations -- multiple workers in git worktrees, or multiple hosts
+funneling into one shared checkout -- are safe: the keep/discard decision re-verifies
+significance against the LIVE frontier under a file lock, not the snapshot read at the
+start of the run.
 
 Usage:
     uv run agent_loop.py
 
-The loop is meant to be driven by an AI agent editing experiment.py,
-committing, and then calling this script. It can also be run manually.
+The loop is meant to be driven by an AI agent editing experiment.py, committing, and
+then calling this script. It can also be run manually.
 """
 
 from __future__ import annotations
 
 import argparse
-import csv
-import json
+import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
+from concurrency import LockedFrontier
 from harness import run_harness
-from uncertainty import is_significant_improvement
 
 ROOT = Path(__file__).resolve().parent
-RESULTS_TSV = ROOT / "results.tsv"
-RUN_LOG = ROOT / "run.log"
-BEST_SCORE_FILE = ROOT / ".best_score.json"
 
 
 def git_current_commit() -> str:
@@ -43,34 +44,6 @@ def git_reset(commit: str) -> None:
     subprocess.run(["git", "reset", "--hard", commit], cwd=ROOT, check=True, text=True)
 
 
-def load_best() -> dict:
-    if BEST_SCORE_FILE.exists():
-        return json.loads(BEST_SCORE_FILE.read_text())
-    return {"score": 0.0, "score_stddev": 0.0, "commit": "", "updated_at": ""}
-
-
-def load_best_score() -> float:
-    return float(load_best().get("score", 0.0))
-
-
-def load_best_stddev() -> float:
-    return float(load_best().get("score_stddev", 0.0))
-
-
-def load_best_commit() -> str | None:
-    commit = load_best().get("commit", "")
-    return commit if commit else None
-
-
-def save_best_score(score: float, score_stddev: float, commit: str) -> None:
-    BEST_SCORE_FILE.write_text(json.dumps({
-        "score": score,
-        "score_stddev": score_stddev,
-        "commit": commit,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }, indent=2))
-
-
 def default_summary() -> dict:
     """Fallback summary for crashes/timeouts."""
     return {
@@ -81,26 +54,6 @@ def default_summary() -> dict:
         "acceptance_rate": 0.0,
         "peak_mem_GiB": 0.0,
     }
-
-
-def log_result(commit: str, summary: dict, status: str, description: str) -> None:
-    RESULTS_TSV.parent.mkdir(parents=True, exist_ok=True)
-    if not RESULTS_TSV.exists():
-        RESULTS_TSV.write_text("commit\tscore\tscore_stddev\tdecode_tok_s\tprefill_tok_s\tacceptance_rate\tpeak_mem_GiB\tstatus\tdescription\n")
-
-    with open(RESULTS_TSV, "a", newline="") as f:
-        writer = csv.writer(f, delimiter="\t", lineterminator="\n")
-        writer.writerow([
-            commit,
-            f"{summary['score']:.6f}",
-            f"{summary.get('score_stddev', 0.0):.6f}",
-            f"{summary.get('decode_tok_s', 0.0):.2f}",
-            f"{summary.get('prefill_tok_s', 0.0):.2f}",
-            f"{summary.get('acceptance_rate', 0.0):.4f}",
-            f"{summary.get('peak_mem_GiB', 0.0):.2f}",
-            status,
-            description,
-        ])
 
 
 def run_single_experiment(timeout: int = 3600, baseline: bool = False, simulate: bool = False) -> dict:
@@ -145,8 +98,14 @@ def main():
     parser.add_argument("--significance", type=float, default=1.0, help="Keep only if improvement exceeds k*combined_sigma")
     args = parser.parse_args()
 
-    best_score = 0.0 if args.baseline else load_best_score()
-    best_stddev = 0.0 if args.baseline else load_best_stddev()
+    # Frontier root defaults to this checkout so a lone worker just works; override
+    # via AUTOGGML_FRONTIER so workers in separate worktrees funnel into ONE shared
+    # leaderboard instead of each writing their own .best_score.json.
+    frontier_root = Path(os.environ.get("AUTOGGML_FRONTIER", str(ROOT)))
+    frontier = LockedFrontier(frontier_root, k=args.significance)
+    best = frontier.read_best()
+    best_score = 0.0 if args.baseline else float(best.get("score", 0.0))
+    best_stddev = 0.0 if args.baseline else float(best.get("score_stddev", 0.0))
     start_commit = git_current_commit()
 
     print(f"Starting experiment at commit {start_commit}")
@@ -175,9 +134,9 @@ def main():
         print(f"{label} crashed: {description}")
         if args.baseline:
             sys.exit(1)
-        log_result(commit, summary, "crash", description)
+        frontier.log_result(commit, summary, "crash", description)
         if not args.dry_run:
-            best_commit = load_best_commit()
+            best_commit = frontier.read_best().get("commit", "")
             if best_commit:
                 print(f"Reverting to best commit {best_commit}...")
                 git_reset(best_commit)
@@ -186,24 +145,19 @@ def main():
         return
 
     if args.baseline:
-        log_result(commit, summary, "keep", f"baseline: {description}")
-        save_best_score(score, score_stddev, commit)
+        frontier.set_best(commit, summary, f"baseline: {description}")
         print("Baseline recorded.")
         return
 
-    if is_significant_improvement(score, score_stddev, best_score, best_stddev, k=args.significance):
+    claim = frontier.claim_best_if_significant(commit, summary, description)
+    if claim.claimed:
         print(f"Significant improvement (>{args.significance}σ); keeping commit.")
-        log_result(commit, summary, "keep", description)
-        if not args.dry_run:
-            save_best_score(score, score_stddev, commit)
     else:
         print("Improvement not significant; reverting.")
-        log_result(commit, summary, "discard", description)
         if not args.dry_run:
-            best_commit = load_best_commit()
-            if best_commit:
-                print(f"Reverting to best commit {best_commit}...")
-                git_reset(best_commit)
+            if claim.best_commit:
+                print(f"Reverting to best commit {claim.best_commit}...")
+                git_reset(claim.best_commit)
             else:
                 print("No recorded best commit; leaving worktree as-is.")
 

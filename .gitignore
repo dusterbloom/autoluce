@@ -10,5 +10,7 @@ work/
 results/
 results.tsv
 .best_score.json
+.autoggml.lock
+.worktrees/
 patches/*.patch
 !patches/.gitkeep
