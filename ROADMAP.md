@@ -8,8 +8,8 @@ truth for experiment selection so we don't chase noise.
 Do **not** try to out-kernel llama.cpp on a generic CUDA matmul — they have more
 people and it is a flat fight. lucebox wins only on two axes:
 
-1. **Structure llama.cpp's generic engine can't exploit** (speculative-decoding-specific).
-2. **Our specific hardware** — RTX 3090 (CUDA) + AMD Strix Halo (unified memory, Vulkan/HIP) — that generic ggml leaves on the table.
+- **Structure llama.cpp's generic engine can't exploit** (speculative-decoding-specific).
+- **Our specific hardware** — RTX 3090 (CUDA) + AMD Strix Halo (unified memory, Vulkan/HIP) — that generic ggml leaves on the table.
 
 Everything below is one of those two.
 
@@ -80,14 +80,14 @@ The harness carries `--profile` for exactly this. Never swing before knowing the
 
 ## Execution order
 
-1. **Profile both targets first** — know the wall before swinging (`--profile`).
-2. **Land the cheap/high-EV trio the harness validates immediately:** adaptive K (13),
-   n-gram hybrid (4), CUDA-graph verify flag sweep (8). Small patches, real numbers.
-3. **One big algorithmic bet: tree speculative + hidden-state drafting (1+2).** This is
-   the move that *beats* llama.cpp rather than trails it. Validate via the harness.
-4. **Pursue the moat: UMA-native draft on Strix Halo (6).** The result no NVIDIA-focused
-   competitor reproduces. Turns the second box from a regression gate into lucebox's
-   signature win.
+- **Profile both targets first** — know the wall before swinging (`--profile`).
+- **Land the cheap/high-EV trio the harness validates immediately:** adaptive K (13),
+  n-gram hybrid (4), CUDA-graph verify flag sweep (8). Small patches, real numbers.
+- **One big algorithmic bet: tree speculative + hidden-state drafting (1+2).** This is
+  the move that *beats* llama.cpp rather than trails it. Validate via the harness.
+- **Pursue the moat: UMA-native draft on Strix Halo (6).** The result no NVIDIA-focused
+  competitor reproduces. Turns the second box from a regression gate into lucebox's
+  signature win.
 
 ## Mapping to harness experiment categories
 

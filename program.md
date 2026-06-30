@@ -88,14 +88,14 @@ commit	score	score_stddev	decode_tok_s	prefill_tok_s	acceptance_rate	peak_mem_Gi
 LOOP FOREVER:
 
 1. Look at the git state and `results.tsv`.
-2. Modify `experiment.py` with one experimental idea.
-3. `git commit`.
-4. Run the loop: `uv run agent_loop.py > run.log 2>&1`.
-5. Read results: `grep "^score:\|^decode_tok_s:\|^correctness:" run.log`.
-6. If output is empty, the run crashed. Read `tail -n 50 run.log`, attempt a fix.
-7. `agent_loop.py` appends to `results.tsv` and keeps or reverts the commit automatically.
-8. If `score` improved, the commit is kept.
-9. If `score` is equal or worse, `agent_loop.py` resets back to the previous best.
+2. Pick the next idea: `uv run ideas.py` prints untried `ROADMAP.md` items. If the queue is empty, re-profile (`--profile`), search literature (below), and add ideas.
+3. Modify `experiment.py` with one experimental idea.
+4. `git commit`.
+5. Run the loop: `uv run agent_loop.py > run.log 2>&1`.
+6. Read results: `grep "^score:\|^score_stddev:\|^correctness:" run.log`.
+7. If output is empty, the run crashed. Read `tail -n 50 run.log`, attempt a fix.
+8. `agent_loop.py` appends to `results.tsv` and keeps or reverts the commit automatically (significance-gated; see `uncertainty.py`).
+9. If the improvement is significant, the commit is kept; otherwise `agent_loop.py` resets back to the previous best.
 
 For a dry run that does not modify git state, use `uv run agent_loop.py --dry-run`.
 For the baseline, use `uv run agent_loop.py --baseline` or `uv run harness.py --baseline`.
@@ -135,6 +135,19 @@ Start with low-risk, high-leverage changes and measure after each one.
 
 ### 5. Reproducibility / harness improvements
 These are not experiments, but if you find a bug in the harness, report it to the user instead of silently patching it.
+
+## Literature search
+
+When the ideas queue runs low, mine human knowledge before brainstorming from code context alone. Search in roughly this order of value:
+
+1. **Forks and competitors** — forks claiming better speed carry proven optimizations in their commit history. Adapt them.
+2. **Project PRs and issues** — merged "performance" PRs, known bottlenecks, prior attempts.
+3. **arXiv / Google Scholar** — papers on optimizing this project or its domain (speculative decoding, KV cache, kernel fusion). Save PDFs to `papers/`.
+4. **Technique papers** — general methods (EAGLE/Medusa, operator fusion, cache-oblivious algorithms, lock-free structures).
+
+Rank findings in `ROADMAP.md` (the living, numbered ideas queue; `uv run ideas.py` reports what's untried).
+
+**Tagging convention:** when an experiment targets a `ROADMAP.md` item, prefix its description with the item number and cite the source, e.g. `[#3] adaptive K controller (EAGLE-2, Li 2024)`. This lets `ideas.py` track coverage and records the provenance that later goes into a PR body.
 
 ## Deterministic reproducibility
 
