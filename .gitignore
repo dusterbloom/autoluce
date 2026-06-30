@@ -12,5 +12,7 @@ results.tsv
 .best_score.json
 .autoggml.lock
 .worktrees/
+.env
+!.env.example
 patches/*.patch
 !patches/.gitkeep

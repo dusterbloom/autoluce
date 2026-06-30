@@ -52,7 +52,7 @@ def untried(items: list[tuple[int, str]], tried_numbers: set[int]) -> list[tuple
     return [(n, title) for n, title in items if n not in tried_numbers]
 
 
-def _descriptions_from_results(path: Path) -> list[str]:
+def descriptions_from_results(path: Path) -> list[str]:
     if not path.exists():
         return []
     with open(path, newline="") as f:
@@ -70,7 +70,7 @@ def main() -> int:
     args = parser.parse_args()
 
     items = load_roadmap_items(ROADMAP.read_text())
-    tried = extract_tried_numbers(_descriptions_from_results(RESULTS_TSV))
+    tried = extract_tried_numbers(descriptions_from_results(RESULTS_TSV))
     print(f"Tried: {sorted(tried) if tried else '(none)'}")
     remaining = untried(items, tried)
     if not remaining:
