@@ -57,7 +57,7 @@ You need [uv](https://docs.astral.sh/uv/) installed. It handles Python, the virt
 # 1. Create the virtual environment and install dependencies
 uv sync
 
-# 2. No-GPU smoke run (plumbing test; never writes best-score or git state):
+# 2. No-GPU plumbing smoke (fake measurements; never writes best-score or git state):
 uv run pytest -q && uv run harness.py --baseline --simulate
 
 # 3. One-time setup: clone lucebox-ggml, download models, build
@@ -73,6 +73,18 @@ uv run agent_loop.py
 ```
 
 `uv` creates and manages `.venv/` automatically. Do not create your own virtualenv; `uv run` always uses the project-managed one.
+
+### Fast path: first real result in ~10 minutes
+
+To exercise the full real loop (build → bench → correctness → significance) without the ~35 GB model download, use the tiny smoke model — it downloads only the benchmark(s) you select:
+
+```bash
+AUTOGGML_BENCHMARKS=smoke uv run prepare.py                       # ~1 GB model + build
+AUTOGGML_BENCHMARKS=smoke uv run scripts/generate_golden.py --benchmark smoke
+AUTOGGML_BENCHMARKS=smoke uv run harness.py --baseline            # first real measurement
+```
+
+`prepare.py` only downloads models referenced by the selected benchmarks, so the orphan `gemma4-26b-a4b` (no benchmark yet) is skipped, and `AUTOGGML_BENCHMARKS=smoke` skips the 27B. Swap the env var back to `qwen36-27b` for the real DFlash benchmark.
 
 ### Deterministic container
 

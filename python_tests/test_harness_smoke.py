@@ -41,7 +41,9 @@ def test_reproducibility_bundle(tmp_path: Path):
     assert (out_dir / "environment.json").exists()
 
 
-def test_simulated_summary_carries_score_stddev():
+def test_simulated_summary_carries_score_stddev(monkeypatch):
+    # Pin to one benchmark so the aggregate is independent of how many exist.
+    monkeypatch.setenv("AUTOGGML_BENCHMARKS", "smoke")
     summary = run_harness(baseline=True, simulate=True)
     assert "score_stddev" in summary
     # Sim fixture: decode=120±4, prefill=2500±100, acceptance=1.0, mem=18, build_time excluded.

@@ -8,11 +8,14 @@ and builds the project. Safe to run multiple times (idempotent).
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from huggingface_hub import hf_hub_download
 
 # ---------------------------------------------------------------------------
 # Pinning
@@ -69,12 +72,39 @@ def clone_lucebox() -> None:
     run(["git", "checkout", "--detach", commit], cwd=Lucebox_DIR)
 
 
+def _referenced_manifest_keys() -> set[str]:
+    """Manifest keys needed by the selected benchmarks.
+
+    Honors AUTOGGML_BENCHMARKS (comma list) the same way the harness does; when
+    unset, all benchmarks/*.json are considered. A manifest entry with no
+    benchmark (e.g. a future model) is not downloaded."""
+    selected = os.environ.get("AUTOGGML_BENCHMARKS")
+    names = {b.strip() for b in selected.split(",") if b.strip()} if selected else None
+    keys: set[str] = set()
+    for path in sorted((ROOT / "benchmarks").glob("*.json")):
+        if names is not None and path.stem not in names:
+            continue
+        entry = json.loads(path.read_text()).get("manifest_entry")
+        if entry:
+            keys.add(entry)
+    return keys
+
+
 def download_models() -> None:
-    """Download benchmark models if not present and verify hashes."""
+    """Download benchmark models referenced by the selected benchmarks."""
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Model files used by the Lucebox DFlash server, pinned to specific HF sources.
+    # Pinned HF sources. The smoke entry is a tiny target-only model so a dev can
+    # exercise the full real loop (build -> bench -> correctness -> significance)
+    # with ~1 GB instead of ~35 GB: AUTOGGML_BENCHMARKS=smoke uv run prepare.py
     manifest = {
+        "smoke": {
+            "target": {
+                "repo": "unsloth/Qwen3.6-1.7B-GGUF",
+                "file": "Qwen3.6-1.7B-Q4_K_M.gguf",
+                "local": "Qwen3.6-1.7B-Q4_K_M.gguf",
+            },
+        },
         "qwen36-27b": {
             "target": {
                 "repo": "unsloth/Qwen3.6-27B-GGUF",
@@ -101,30 +131,22 @@ def download_models() -> None:
         },
     }
 
-    import json
     manifest_path = MODELS_DIR / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2))
     print(f"Model manifest written to {manifest_path}")
 
-    # Try to download using huggingface-cli if available.
-    hf_cli = shutil.which("huggingface-cli")
+    wanted = _referenced_manifest_keys()
     for name, entries in manifest.items():
+        if name not in wanted:
+            print(f"  SKIPPED '{name}': no selected benchmark references it")
+            continue
         for role, info in entries.items():
             local_path = MODELS_DIR / info["local"]
             if local_path.exists():
                 print(f"  {info['local']} already exists")
                 continue
-            if hf_cli:
-                print(f"  Downloading {info['repo']}/{info['file']} ...")
-                try:
-                    subprocess.run([
-                        hf_cli, "download", info["repo"], info["file"],
-                        "--local-dir", str(MODELS_DIR)
-                    ], check=True, text=True)
-                except subprocess.CalledProcessError as e:
-                    print(f"  ERROR downloading {info['local']}: {e}")
-            else:
-                print(f"  SKIPPED {info['local']}: huggingface-cli not installed")
+            print(f"  Downloading {info['repo']}/{info['file']} ...")
+            hf_hub_download(repo_id=info["repo"], filename=info["file"], local_dir=str(MODELS_DIR))
 
 
 def build_lucebox() -> None:
