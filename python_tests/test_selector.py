@@ -47,7 +47,7 @@ def test_empty_items_returns_empty():
 
 
 def test_defaults_to_profiling_roadmap_when_relevance_omitted():
-    # DRY: the bound->items mapping lives in profiling._ROADMAP_FOR_BOUND.
+    # DRY: the bound->items mapping lives in profiling.ROADMAP_FOR_BOUND.
     ranked = rank_by_bottleneck([(10, "KV"), (3, "off")], "memory")
     assert ranked[0][:2] == (10, "KV") and ranked[0][2] is True
     assert ranked[1][2] is False

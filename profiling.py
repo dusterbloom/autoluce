@@ -84,7 +84,7 @@ _BANDWIDTH_SATURATED = 0.80
 _COMPUTE_SATURATED = 0.80
 
 # Roadmap item numbers to pursue for each bound (see ROADMAP.md).
-_ROADMAP_FOR_BOUND = {
+ROADMAP_FOR_BOUND = {
     "memory": [10, 11, 14],   # KV O(1) rollback + shared prefix, draft quant, KV quant sweep
     "compute": [9, 12],       # fused draft subgraph, Q4_K verify kernel tuning
     "overhead": [8, 9],       # CUDA-graph verify, fused draft subgraph
@@ -110,4 +110,4 @@ def classify_bottleneck(summary: dict[str, float]) -> dict:
         else "compute" if summary.get("gpu_compute_util", 0.0) >= _COMPUTE_SATURATED
         else "overhead"
     )
-    return {"bound": bound, "strategy": _STRATEGY_FOR_BOUND[bound], "roadmap": _ROADMAP_FOR_BOUND[bound]}
+    return {"bound": bound, "strategy": _STRATEGY_FOR_BOUND[bound], "roadmap": ROADMAP_FOR_BOUND[bound]}

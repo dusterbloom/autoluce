@@ -6,13 +6,13 @@ profiler's trace parser (which produces the bound verdict + per-phase time fract
 for true Amdahl weighting) is a separate I/O concern; this function consumes the bound
 as given, so the ranking decision stays pure and deterministic.
 
-Relevance (bound -> ROADMAP item numbers) defaults to profiling._ROADMAP_FOR_BOUND so
+Relevance (bound -> ROADMAP item numbers) defaults to profiling.ROADMAP_FOR_BOUND so
 the mapping lives in exactly one place.
 """
 
 from __future__ import annotations
 
-from profiling import _ROADMAP_FOR_BOUND
+from profiling import ROADMAP_FOR_BOUND
 
 
 def rank_by_bottleneck(
@@ -28,7 +28,7 @@ def rank_by_bottleneck(
     annotate the worklist.
     """
     if relevance is None:
-        relevance = _ROADMAP_FOR_BOUND
+        relevance = ROADMAP_FOR_BOUND
     matching = set(relevance[bound]) if bound in relevance else set()
     matched = [(n, t, True) for n, t in items if n in matching]
     off = [(n, t, False) for n, t in items if n not in matching]

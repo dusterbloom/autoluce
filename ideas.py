@@ -17,6 +17,7 @@ import re
 import sys
 from pathlib import Path
 
+from profiling import ROADMAP_FOR_BOUND
 from selector import rank_by_bottleneck
 
 ROOT = Path(__file__).resolve().parent
@@ -63,7 +64,7 @@ def main() -> int:
         description="Report untried ROADMAP items, optionally ranked by the active bottleneck.",
     )
     parser.add_argument(
-        "--bound", choices=["memory", "compute", "overhead"],
+        "--bound", choices=list(ROADMAP_FOR_BOUND),
         help="Rank untried items so those targeting this bottleneck come first (from the profile verdict).",
     )
     args = parser.parse_args()
