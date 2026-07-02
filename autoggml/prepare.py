@@ -17,6 +17,7 @@ from pathlib import Path
 
 from huggingface_hub import hf_hub_download
 
+from autoggml import ROOT
 from autoggml.bench.profiling import backend_cmake_flags, detect_backend
 
 # ---------------------------------------------------------------------------
@@ -26,7 +27,6 @@ from autoggml.bench.profiling import backend_cmake_flags, detect_backend
 Lucebox_GGML_URL = "https://github.com/Luce-Org/lucebox-ggml.git"
 Lucebox_GGML_REF = "master"  # branch to fetch; commit is pinned dynamically
 
-from autoggml import ROOT
 WORK_DIR = ROOT / "work"
 Lucebox_DIR = WORK_DIR / "lucebox-ggml"
 MODELS_DIR = WORK_DIR / "models"

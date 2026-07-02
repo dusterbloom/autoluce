@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 
 from autoggml.parallel.concurrency import LockedFrontier
 from autoggml.ideation.ideas import descriptions_from_results, extract_tried_numbers, load_roadmap_items, untried
