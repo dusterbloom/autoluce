@@ -37,12 +37,14 @@ ENV PATH="/root/.local/bin:${PATH}"
 
 WORKDIR /app
 
-# Copy dependency manifest and lockfile first to leverage Docker layer caching.
+# Copy dependency manifest and lockfile first to leverage Docker layer caching:
+# install only third-party deps here (the autoggml package itself doesn't exist yet).
 COPY pyproject.toml .python-version uv.lock README.md ./
-RUN uv sync --frozen
+RUN uv sync --frozen --no-install-project
 
-# Copy source code.
+# Copy source code, then install the project into the environment.
 COPY . .
+RUN uv sync --frozen
 
 # Default: run lint and smoke tests.
 CMD ["uv", "run", "autoggml", "reproduce"]
