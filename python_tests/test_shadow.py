@@ -14,8 +14,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-import shadow
-from shadow import build_shadow_benchmark, extract_prompt, select_shadow_prompts
+from autoggml import shadow
+from autoggml.shadow import build_shadow_benchmark, extract_prompt, select_shadow_prompts
 
 NOW = datetime(2026, 7, 2, 12, 0, 0)
 
@@ -214,7 +214,7 @@ def test_cmd_build_no_prompts_exits_nonzero(monkeypatch, tmp_path):
 
 
 def test_harness_skips_golden_when_quality_kl(monkeypatch, tmp_path):
-    import harness
+    from autoggml.bench import harness
     spec = dict(TEMPLATE, name="shadow", quality="kl", kl_text=str(tmp_path / "k.txt"))
 
     def fail(*a, **k):
@@ -228,7 +228,7 @@ def test_harness_skips_golden_when_quality_kl(monkeypatch, tmp_path):
 
 
 def test_harness_still_requires_golden_without_quality_kl(monkeypatch):
-    import harness
+    from autoggml.bench import harness
     monkeypatch.setattr(harness, "load_golden", lambda name: None)
     with pytest.raises(RuntimeError, match="golden"):
         harness.resolve_correctness("smoke", dict(TEMPLATE), None, None, 0, {})

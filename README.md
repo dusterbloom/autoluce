@@ -12,10 +12,10 @@ If you run an AI model on your own computer, autoggml is a tireless lab assistan
 
 The focus of v2 is **verifiability and reproducibility**:
 
-- `prepare.py` clones `lucebox-ggml` and pins the current upstream `HEAD` in `work/lucebox-ggml.pin`; every experiment resets to that pin.
+- `autoggml/prepare.py` clones `lucebox-ggml` and pins the current upstream `HEAD` in `work/lucebox-ggml.pin`; every experiment resets to that pin.
 - Benchmarks use fixed prompts, seeds, and model configurations.
 - The environment (OS, compiler, GPU, dependency versions) is recorded for every run.
-- Correctness is checked two ways: generated outputs are compared against golden outputs, and (per benchmark, opt-in) KL divergence against frozen baseline logits catches quality regressions that exact-match can't (`kl.py`).
+- Correctness is checked two ways: generated outputs are compared against golden outputs, and (per benchmark, opt-in) KL divergence against frozen baseline logits catches quality regressions that exact-match can't (`autoggml/bench/kl.py`).
 - Results are logged in a machine-readable format with full provenance.
 - **Real mode measures every metric or raises** — no silent fallbacks. `--simulate` is the opt-in plumbing mode for CI/no-GPU smoke.
 - **Keep/revert is significance-gated**, not raw-improvement, so noise can't drive a random walk.
@@ -23,45 +23,27 @@ The focus of v2 is **verifiability and reproducibility**:
 
 The optimization plan — ranked ideas (algorithmic / kernel / graph / runtime), the Strix-Halo unified-memory angle, and execution order — lives in [`ROADMAP.md`](ROADMAP.md).
 
-## Repository layout
+## Finding your way around
+
+Five things matter; everything else is docs and config:
 
 ```
-autoggml/
-├── README.md              This file
-├── CHANGELOG.md           Notable changes
-├── ROADMAP.md             "Beat llama.cpp" plan: ranked ideas, archive reframe, execution order
-├── LICENSE                Apache-2.0
-├── program.md             Instructions for the autonomous agent
-├── install.sh             One-liner installer (curl | bash)
-├── cli.py                 Unified `autoggml <command>` router (subcommands → scripts)
-├── prepare.py             Setup: clone, build, download models (GPU auto-detected, GGUFs reused)
-├── experiment.py          Agent-editable: the change to try
-├── harness.py             Read-only benchmark and correctness harness
-├── agent_loop.py          Single-worker keep/revert loop (writes via locked frontier)
-├── patches.py             Read-only helpers for common lucebox-ggml patches
-├── reproduce.py           Read-only reproducibility suite
-├── report.py              Read-only result aggregation and diff
-├── uncertainty.py         Score-uncertainty propagation + significance gate
-├── objective.py           Constraint checks for the score (k·σ margins, baseline-relative bounds)
-├── kl.py                  KL-divergence quality oracle against frozen baseline logits
-├── shadow.py              Shadow bench: prompt-capture proxy + benchmark built from your own traffic
-├── profiling.py           Backend-aware profiler capture + bottleneck classification
-├── selector.py            Rank untried ROADMAP ideas by the active bottleneck
-├── ideas.py               Untried-ideas reporter (`--bound` ranks by bottleneck)
-├── propose.py             Optional LLM proposer for the next idea (needs OPENAI_BASE_URL)
-├── llm.py                 OpenAI-compatible client (cloud or local llama-server/Ollama/vLLM)
-├── runner.py              Parallel fan-out: dispatch / screen / run_parallel (live frontier)
-├── verify.py              Clean A/B verification before commit
-├── concurrency.py         File-locked shared frontier (parallel-safe leaderboard)
-├── worktree.py            Git worktree lifecycle (isolated worker trees)
-├── Dockerfile             Deterministic container image
-├── pyproject.toml         Python dependencies + `autoggml` console script
-├── benchmarks/            Benchmark definitions (fixed prompts, expected outputs)
-├── patches/               Optional patch files referenced by experiment.py
-├── scripts/               Golden-output generation, docker helper
-├── results.tsv            Experiment log (created by the agent, not committed)
-└── .github/workflows/     CI: lint, pytest, simulation smoke, container build
+cli.py            Start here: the `autoggml <command>` entry point (routes to autoggml/ modules)
+experiment.py     The ONE file you (or the agent) edit to try a change
+autoggml/         The engine — read-only during experiments, organized by question:
+│  ├── bench/       "Is it better?"      harness, objective (constraints), kl (quality), uncertainty, profiling
+│  ├── loop/        "Try it, keep it?"   agent_loop (keep/revert), verify (clean A/B), patches
+│  ├── ideation/    "What to try next?"  ideas, selector (rank by bottleneck), propose + llm (optional LLM)
+│  ├── parallel/    "Many at once"       runner (fan-out), concurrency (locked leaderboard), worktree
+│  ├── prepare.py   Setup: clone, build, download models (GPU auto-detected, GGUFs reused)
+│  ├── shadow.py    Shadow bench: benchmark built from your own traffic
+│  ├── report.py    Result aggregation and diff
+│  └── reproduce.py Reproducibility suite
+benchmarks/       What gets measured: fixed prompts, expected outputs, per-benchmark objectives
+python_tests/     Proof it works (`uv run pytest -q`)
 ```
+
+Supporting cast: `program.md` (the autonomous agent's instructions), `ROADMAP.md` (ranked ideas queue), `scripts/` (golden-output generation), `patches/` (patch files used by experiment.py), `install.sh`, `Dockerfile`, `.github/workflows/` (CI). `results.tsv` and `work/` are created by runs, not committed.
 
 ## Quick start
 
@@ -83,25 +65,25 @@ Every script is also a subcommand of `uv run autoggml` (try `uv run autoggml hel
 
 You need [uv](https://docs.astral.sh/uv/) installed. It handles Python, the virtual environment, and dependencies in one step. Real builds also require `cmake`, `ccache`, and `ninja-build` (the harness builds with the Ninja generator + ccache launchers for fast incremental rebuilds).
 
-**GPU is auto-detected.** `prepare.py` probes for `nvcc` / `hipcc` / `vulkaninfo` / Metal and builds for the best available backend — no `GGML_CUDA=ON` needed. A CPU-only box is refused (its numbers are unrelated to the GPU-bound roadmap); override with `AUTOGGML_ALLOW_CPU=1` for a plumbing build. **Existing GGUFs are reused** — `prepare.py` scans `~/.cache/huggingface/hub`, LM Studio, `~/models`, etc. before downloading, so you don't re-pull a model you already have. Extend the search path with `AUTOGGML_MODELS=/path/a:/path/b`.
+**GPU is auto-detected.** Setup probes for `nvcc` / `hipcc` / `vulkaninfo` / Metal and builds for the best available backend — no `GGML_CUDA=ON` needed. A CPU-only box is refused (its numbers are unrelated to the GPU-bound roadmap); override with `AUTOGGML_ALLOW_CPU=1` for a plumbing build. **Existing GGUFs are reused** — setup scans `~/.cache/huggingface/hub`, LM Studio, `~/models`, etc. before downloading, so you don't re-pull a model you already have. Extend the search path with `AUTOGGML_MODELS=/path/a:/path/b`.
 
 ```bash
 # 1. Create the virtual environment and install dependencies
 uv sync
 
 # 2. No-GPU plumbing smoke (fake measurements; never writes best-score or git state):
-uv run pytest -q && uv run harness.py --baseline --simulate
+uv run pytest -q && uv run autoggml baseline --simulate
 
 # 3. One-time setup: clone lucebox-ggml, download models, build
 #    (first build after switching to the Ninja generator requires a clean build dir)
 rm -rf work/lucebox-ggml/build
-uv run prepare.py
+uv run autoggml setup
 
 # 4. Run the baseline benchmark (real mode; raises if unprepared)
-uv run harness.py --baseline
+uv run autoggml baseline
 
 # 5. Run with the current experiment
-uv run agent_loop.py
+uv run autoggml run
 ```
 
 `uv` creates and manages `.venv/` automatically. Do not create your own virtualenv; `uv run` always uses the project-managed one.
@@ -111,12 +93,12 @@ uv run agent_loop.py
 To exercise the full real loop (build → bench → correctness → significance) without the ~35 GB model download, use the tiny smoke model — it downloads only the benchmark(s) you select:
 
 ```bash
-AUTOGGML_BENCHMARKS=smoke uv run prepare.py                       # ~1 GB model + build
+AUTOGGML_BENCHMARKS=smoke uv run autoggml setup                       # ~1 GB model + build
 AUTOGGML_BENCHMARKS=smoke uv run scripts/generate_golden.py --benchmark smoke
-AUTOGGML_BENCHMARKS=smoke uv run harness.py --baseline            # first real measurement
+AUTOGGML_BENCHMARKS=smoke uv run autoggml baseline            # first real measurement
 ```
 
-`prepare.py` only downloads models referenced by the selected benchmarks, so the orphan `gemma4-26b-a4b` (no benchmark yet) is skipped, and `AUTOGGML_BENCHMARKS=smoke` skips the 27B. Swap the env var back to `qwen36-27b` for the real DFlash benchmark.
+Setup only downloads models referenced by the selected benchmarks, so the orphan `gemma4-26b-a4b` (no benchmark yet) is skipped, and `AUTOGGML_BENCHMARKS=smoke` skips the 27B. Swap the env var back to `qwen36-27b` for the real DFlash benchmark.
 
 ### Deterministic container
 
@@ -131,13 +113,13 @@ docker run --rm -it -v $(pwd)/work:/app/work autoggml
 
 1. The agent reads `program.md` and picks the next idea — `uv run autoggml ideas` lists untried `ROADMAP.md` items, and `--bound <memory|compute|overhead>` ranks them by the profiling bottleneck so the high-impact ones come first.
 2. *(Optional)* `uv run autoggml propose` asks an OpenAI-compatible LLM for the next experiment given the ranked ideas + current best — see [LLM ideation](#llm-ideation-optional). Disabled unless `OPENAI_BASE_URL` is set.
-3. The agent edits `experiment.py` (or calls helpers in `patches.py`) to implement one idea.
+3. The agent edits `experiment.py` (or calls helpers in `autoggml/loop/patches.py`) to implement one idea.
 4. `git commit` the change.
 5. `uv run autoggml run` builds `lucebox-ggml` with the experiment applied, runs benchmarks, checks correctness, and either keeps the commit or reverts it. Every shared-state write goes through the file-locked frontier (`concurrency.LockedFrontier`), so workers in parallel can't race.
 6. Results are appended to `results.tsv`; the best score **and its stddev** are stored in `.best_score.json`.
 7. The commit is kept only if the improvement is **significant** (`--significance`, default `k=1.0`): the score must beat the best by more than `k` times the combined stddev. Otherwise the working tree resets to the previous best.
 
-For searching many ideas at once, `runner.run_parallel` fans experiments out across isolated workers and funnels each result through the locked frontier, and `verify.py` does clean A/B verification of candidates before commit — see `program.md`.
+For searching many ideas at once, `runner.run_parallel` fans experiments out across isolated workers and funnels each result through the locked frontier, and `autoggml/loop/verify.py` does clean A/B verification of candidates before commit — see `program.md`.
 
 ## Parallel runs
 
@@ -152,7 +134,7 @@ shared frontier:
 MAIN=$(pwd)
 for i in 1 2 3 4; do
   uv run python -c "from pathlib import Path; from worktree import ensure_worktree; ensure_worktree(Path('.'), 'w$i')"
-  (cd .worktrees/w$i && AUTOGGML_FRONTIER="$MAIN" uv run agent_loop.py) &
+  (cd .worktrees/w$i && AUTOGGML_FRONTIER="$MAIN" uv run autoggml run) &
 done
 wait
 ```
@@ -165,7 +147,7 @@ your own `run_fn` (local-subprocess / SSH / VM) — dispatch is host-agnostic by
 
 The harness is a measurement oracle — it never calls an LLM by default. The LLM is an
 *external* coding agent (Claude Code / Codex / Cursor / Aider) that edits `experiment.py`
-and runs the loop. Optionally, `propose.py` embeds an LLM call for ideation: it ranks the
+and runs the loop. Optionally, `autoggml propose` embeds an LLM call for ideation: it ranks the
 untried ideas by the bottleneck and asks the model for one concrete next experiment.
 
 `propose` is gated by `OPENAI_BASE_URL` (no default; disabled = no network call). One
@@ -188,7 +170,7 @@ OPENAI_BASE_URL=http://localhost:8080/v1 AUTOGGML_MODEL=<loaded-model> uv run au
 ```
 
 `propose` is ideation only — the agent (or a human) still writes `experiment.py` from the
-proposal; measurement and keep/revert stay in `agent_loop.py`. Put keys in a gitignored
+proposal; measurement and keep/revert stay in the loop. Put keys in a gitignored
 `.env`, never in the repo.
 
 ## Shadow bench
@@ -221,9 +203,9 @@ score = decode_tok_s   subject to the benchmark's "objective" constraints
 - `build_time_s` is measured and reported but **not** scored: with ccache + a preserved build dir it is cache-state-dependent, so scoring it would make runs non-reproducible.
 - A correctness failure forces the score to 0.
 
-The keep/revert decision is **significance-gated** (`--significance`, default `k=1.0`): a commit is kept only if its score improves on the best by more than `k` times the combined stddev. See `uncertainty.py`.
+The keep/revert decision is **significance-gated** (`--significance`, default `k=1.0`): a commit is kept only if its score improves on the best by more than `k` times the combined stddev. See `autoggml/bench/uncertainty.py`.
 
-See `harness.py` for the exact computation.
+See `autoggml/bench/harness.py` for the exact computation.
 
 ## License
 

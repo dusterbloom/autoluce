@@ -30,7 +30,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+from autoggml import ROOT
 BENCHMARKS_DIR = ROOT / "benchmarks"
 BUILD_DIR = ROOT / "work" / "lucebox-ggml" / "build"
 
@@ -161,7 +161,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Lazy imports: harness imports kl at module level.
-    import harness
+    from autoggml.bench import harness
     from experiment import reset_lucebox
 
     spec_path = BENCHMARKS_DIR / f"{args.benchmark}.json"

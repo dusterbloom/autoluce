@@ -108,7 +108,7 @@ less trodden than AutoKernel's matmul/softmax/attention kernels.
     Each machine becomes a column in the archive with its own elite, so a Strix-Halo win and
     a 3090 win both persist instead of one evicting the other. Without this, "machine
     constraints" is unobservable; today the second box is a regression gate, after this it
-    is a first-class objective. Depends on the Strix Halo host reachable from `runner.py`.
+    is a first-class objective. Depends on the Strix Halo host reachable from the parallel runner.
 16. **Workload suite = archive axis 2 (request).** Vary context length, batch shape, and
     prompt type (code / prose / long-context) so each (machine × workload) cell holds its
     own elite. Single-box useful immediately: a "win" that only helps short-context stops
@@ -145,7 +145,7 @@ N worktrees -- or N hosts into one shared checkout -- converge safely instead of
 build on; it does **not** yet make the score a per-target vector, which is the remaining
 #15 work.
 
-**Move 1 — shipped.** `selector.rank_by_bottleneck` + `ideas.py --bound
+**Move 1 — shipped.** `selector.rank_by_bottleneck` + `autoggml ideas --bound
 <memory|compute|overhead>` rank untried items so those targeting the active profiling
 bottleneck come first (the AutoKernel Amdahl-targeting move). Pure decision, tested; the
 nsys/rocprof trace-parser that auto-produces the bound verdict is the deferred I/O seam.
@@ -172,16 +172,16 @@ nsys/rocprof trace-parser that auto-produces the bound verdict is the deferred I
 
 - **Runtime (13, 14):** `experiment.get_runtime_flags()` + adaptive controller patch →
   measurable now, no kernel work.
-- **Build/graph (8, 9):** CMake flags + patch helpers in `patches.py`; build-time diff
+- **Build/graph (8, 9):** CMake flags + patch helpers in `autoggml/loop/patches.py`; build-time diff
   via `build_time_s`, runtime diff via decode tok/s.
 - **Kernel (10, 11, 12):** source patches against `ggml/` and `common/speculative.cpp`;
-  correctness gate (golden outputs + KL oracle, `kl.py`) must hold.
+  correctness gate (golden outputs + KL oracle, `autoggml/bench/kl.py`) must hold.
 - **Algorithmic (1, 2, 3, 4):** larger patches, possibly under `patches/` as files;
   decode tok/s is the headline metric (acceptance_rate is a logged diagnostic, not scored).
 - **Architectural (5, 6, 7):** cross-backend orchestration; depends on Phase 2 targets /
   serve-once work and the Strix Halo host.
 - **Meta (15, 16, 17):** harness-extension track, **not** a lucebox patch — maintainer
-  work, outside the experiment agent's read-only contract on `harness.py` / `runner.py`.
-  `benchmarks/` → workload grid (16); `runner.py` → multi-target dispatch (15); new
+  work, outside the experiment agent's read-only contract on the harness / runner.
+  `benchmarks/` → workload grid (16); `autoggml/parallel/runner.py` → multi-target dispatch (15); new
   `select_config` surface in `experiment.py` (17). Scored as a Pareto policy over the
   hardware × workload grid, significance-gated across the joint distribution.

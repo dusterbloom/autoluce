@@ -12,7 +12,7 @@ ab_compare is the pure decision; the build+measure orchestration is the worker's
 
 from __future__ import annotations
 
-from uncertainty import is_significant_improvement
+from autoggml.bench.uncertainty import is_significant_improvement
 
 
 def ab_compare(baseline_result: dict, optimized_result: dict, k: float = 1.0) -> dict:

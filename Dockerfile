@@ -4,10 +4,10 @@
 #   docker build -t autoggml .
 #
 # Run baseline harness in container:
-#   docker run --rm -it -v $(pwd)/work:/app/work autoggml uv run harness.py --baseline
+#   docker run --rm -it -v $(pwd)/work:/app/work autoggml uv run autoggml baseline
 #
 # Run full reproduction suite:
-#   docker run --rm -it -v $(pwd)/work:/app/work autoggml uv run reproduce.py
+#   docker run --rm -it -v $(pwd)/work:/app/work autoggml uv run autoggml reproduce
 
 FROM ubuntu:24.04
 
@@ -45,4 +45,4 @@ RUN uv sync --frozen
 COPY . .
 
 # Default: run lint and smoke tests.
-CMD ["uv", "run", "reproduce.py"]
+CMD ["uv", "run", "autoggml", "reproduce"]

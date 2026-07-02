@@ -18,13 +18,10 @@ dependencies = [
 autoggml = "cli:main"
 
 [tool.setuptools]
-# Flat layout: enumerate top-level modules so the editable install + the `autoggml`
-# console script resolve. The source root stays on sys.path, so imports are unchanged.
-py-modules = [
-    "agent_loop", "cli", "concurrency", "experiment", "harness", "ideas", "llm",
-    "patches", "prepare", "profiling", "propose", "report", "reproduce", "runner",
-    "selector", "uncertainty", "verify", "worktree",
-]
+# cli.py (entry point) and experiment.py (the agent-editable file) stay at the repo
+# root; everything else lives in the autoggml package.
+py-modules = ["cli", "experiment"]
+packages = ["autoggml", "autoggml.bench", "autoggml.loop", "autoggml.ideation", "autoggml.parallel"]
 
 [dependency-groups]
 dev = [

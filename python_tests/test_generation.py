@@ -2,7 +2,7 @@
 Tests for llama-cli output handling shared by the harness and the golden generator.
 """
 
-from harness import extract_generated_text
+from autoggml.bench.harness import extract_generated_text
 
 
 def test_extract_generated_text_drops_timings_block():

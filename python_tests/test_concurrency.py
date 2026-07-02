@@ -11,7 +11,7 @@ import json
 import threading
 from pathlib import Path
 
-from concurrency import LockedFrontier, file_lock
+from autoggml.parallel.concurrency import LockedFrontier, file_lock
 
 
 def _summary(score: float, sigma: float = 0.01) -> dict:

@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from harness import run_harness
-from reproduce import capture_environment
+from autoggml.bench.harness import run_harness
+from autoggml.reproduce import capture_environment
 
 
 def test_baseline_returns_required_keys():
@@ -54,7 +54,7 @@ def test_simulated_summary_carries_score_stddev(monkeypatch):
 def test_constraint_violation_zeroes_score():
     # smoke.json caps peak_mem_GiB at 8.0; the simulated fixture uses 18.0, so an
     # enforced run must zero the score exactly like a correctness failure.
-    from harness import run_single_benchmark
+    from autoggml.bench.harness import run_single_benchmark
 
     result = run_single_benchmark(
         "smoke", 1.0, {}, simulate=True,

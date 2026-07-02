@@ -30,7 +30,7 @@ from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+from autoggml import ROOT
 BENCHMARKS_DIR = ROOT / "benchmarks"
 DEFAULT_SHADOW_DIR = Path.home() / ".autoggml" / "shadow"
 TEMPLATE_BENCHMARK = "smoke"

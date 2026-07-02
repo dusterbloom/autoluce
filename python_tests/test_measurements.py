@@ -4,7 +4,7 @@ Tests for real metric parsing and the (fabrication-free) score formula.
 
 import pytest
 
-from harness import compute_score, parse_acceptance_rate, parse_llama_bench_output, parse_peak_memory, require_acceptance_rate
+from autoggml.bench.harness import compute_score, parse_acceptance_rate, parse_llama_bench_output, parse_peak_memory, require_acceptance_rate
 
 
 def test_parse_llama_bench_output_captures_stddev():

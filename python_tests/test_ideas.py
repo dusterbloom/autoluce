@@ -4,7 +4,7 @@ numbers have been tried (from experiment descriptions tagged "[#N]"), report
 what's left. Advisory — helps the agent pick the next untried idea.
 """
 
-from ideas import extract_tried_numbers, load_roadmap_items, untried
+from autoggml.ideation.ideas import extract_tried_numbers, load_roadmap_items, untried
 
 
 def test_load_roadmap_items_parses_numbered_bold_titles():

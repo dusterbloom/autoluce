@@ -23,12 +23,12 @@ import time
 from pathlib import Path
 
 from experiment import apply_experiment, get_cmake_flags, get_runtime_flags, reset_lucebox
-from kl import check_kl, kl_gate, resolve_kl_tau
-from objective import check_constraints
-from profiling import backend_cmake_flags, detect_backend, profile_command
-from uncertainty import propagate_score_stddev
+from autoggml.bench.kl import check_kl, kl_gate, resolve_kl_tau
+from autoggml.bench.objective import check_constraints
+from autoggml.bench.profiling import backend_cmake_flags, detect_backend, profile_command
+from autoggml.bench.uncertainty import propagate_score_stddev
 
-ROOT = Path(__file__).resolve().parent
+from autoggml import ROOT
 WORK_DIR = ROOT / "work"
 Lucebox_DIR = WORK_DIR / "lucebox-ggml"
 BUILD_DIR = Lucebox_DIR / "build"

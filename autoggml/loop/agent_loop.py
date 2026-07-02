@@ -26,10 +26,10 @@ import sys
 import time
 from pathlib import Path
 
-from concurrency import LockedFrontier
-from harness import run_harness
+from autoggml.parallel.concurrency import LockedFrontier
+from autoggml.bench.harness import run_harness
 
-ROOT = Path(__file__).resolve().parent
+from autoggml import ROOT
 
 
 def git_current_commit() -> str:

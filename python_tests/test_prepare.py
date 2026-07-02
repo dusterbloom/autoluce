@@ -6,8 +6,8 @@ The discovery tests below are characterization: they lock the 35 GB-critical reu
 behavior of helpers that already existed when the tests were added.
 """
 
-from prepare import _link_into, discover_model, model_search_paths, should_refuse_cpu_build
-from profiling import backend_cmake_flags
+from autoggml.prepare import _link_into, discover_model, model_search_paths, should_refuse_cpu_build
+from autoggml.bench.profiling import backend_cmake_flags
 
 
 # --- CPU-refusal decision (pure; Red-first) ------------------------------------

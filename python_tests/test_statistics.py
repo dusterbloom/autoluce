@@ -3,7 +3,7 @@ Tests for score-uncertainty propagation and the significance gate that
 replaces the old `score > best` keep/revert rule.
 """
 
-from uncertainty import is_significant_improvement, propagate_score_stddev
+from autoggml.bench.uncertainty import is_significant_improvement, propagate_score_stddev
 
 
 def _metrics(**overrides):

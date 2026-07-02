@@ -11,7 +11,7 @@ Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://gith
 - Higher draft acceptance rate
 - Lower memory usage
 - Shorter build times
-- Correctness preserved (output match against golden outputs; perplexity not yet implemented)
+- Correctness preserved (output match against golden outputs, plus optional KL-divergence gate against frozen baseline logits)
 
 ## Setup
 
@@ -20,28 +20,28 @@ Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://gith
 3. **Read the in-scope files**:
    - `README.md` — project overview.
    - `program.md` — this file.
-   - `prepare.py` — setup. Do not modify.
-   - `harness.py` — benchmark harness. Do not modify.
-   - `agent_loop.py` — keep/revert loop. Do not modify.
-   - `patches.py` — helpers for common lucebox-ggml modifications. Do not modify; call from `experiment.py`.
-   - `reproduce.py` — reproducibility suite. Do not modify.
-   - `report.py` — result aggregation. Do not modify.
+   - `autoggml/prepare.py` — setup. Do not modify.
+   - `autoggml/bench/harness.py` — benchmark harness. Do not modify.
+   - `autoggml/loop/agent_loop.py` — keep/revert loop. Do not modify.
+   - `autoggml/loop/patches.py` — helpers for common lucebox-ggml modifications. Do not modify; call from `experiment.py`.
+   - `autoggml/reproduce.py` — reproducibility suite. Do not modify.
+   - `autoggml/report.py` — result aggregation. Do not modify.
    - `experiment.py` — this is what you edit.
-4. **Run setup**: `uv run prepare.py` (one-time; can take 10–30 minutes depending on hardware).
-5. **Verify baseline**: `uv run harness.py --baseline` should print a score.
+4. **Run setup**: `uv run autoggml setup` (one-time; can take 10–30 minutes depending on hardware).
+5. **Verify baseline**: `uv run autoggml baseline` should print a score.
 6. **Generate golden outputs** after models download: `uv run scripts/generate_golden.py`.
-7. **Initialize `results.tsv`** with just the header row (or let `agent_loop.py` create it).
+7. **Initialize `results.tsv`** with just the header row (or let the loop create it).
 
 ## Experimentation loop
 
 **What you CAN do:**
 - Modify `experiment.py` to implement one idea per experiment.
 - Add small helper functions inside `experiment.py`.
-- Call patch helpers from `patches.py` (e.g., `apply_march_native`, `apply_speculative_candidates`).
+- Call patch helpers from `autoggml/loop/patches.py` (e.g., `apply_march_native`, `apply_speculative_candidates`).
 - Place patch files in `patches/` and reference them from `experiment.py`.
 
 **What you CANNOT do:**
-- Modify `prepare.py`, `harness.py`, `agent_loop.py`, `patches.py`, `reproduce.py`, or `report.py`.
+- Modify anything under `autoggml/` (the harness, loop, patches, reproduce, report machinery).
 - Install new packages beyond `pyproject.toml`.
 - Change the metric or correctness check.
 - Commit changes inside the `lucebox-ggml/` submodule.
@@ -50,7 +50,7 @@ Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://gith
 
 ```
 ---
-score:              12.3456
+score:              134.5000
 decode_tok_s:       134.50
 prefill_tok_s:      3456.70
 acceptance_rate:    0.6234
@@ -59,7 +59,9 @@ build_time_s:       245.3
 correctness:        pass
 ```
 
-`score` is the metric to maximize.
+`score` is the metric to maximize: it equals `decode_tok_s`, but is zeroed by a
+correctness failure, a KL-gate failure, or any constraint violation from the
+benchmark's `"objective"` block (see README "Metric").
 
 **Correctness is a hard constraint.** If `correctness` is `FAIL`, the experiment is discarded regardless of throughput.
 
@@ -88,17 +90,17 @@ commit	score	score_stddev	decode_tok_s	prefill_tok_s	acceptance_rate	peak_mem_Gi
 LOOP FOREVER:
 
 1. Look at the git state and `results.tsv`.
-2. Pick the next idea: `uv run ideas.py` prints untried `ROADMAP.md` items. If the queue is empty, re-profile (`--profile`), search literature (below), and add ideas.
+2. Pick the next idea: `uv run autoggml ideas` prints untried `ROADMAP.md` items. If the queue is empty, re-profile (`--profile`), search literature (below), and add ideas.
 3. Modify `experiment.py` with one experimental idea.
 4. `git commit`.
-5. Run the loop: `uv run agent_loop.py > run.log 2>&1`.
+5. Run the loop: `uv run autoggml run > run.log 2>&1`.
 6. Read results: `grep "^score:\|^score_stddev:\|^correctness:" run.log`.
 7. If output is empty, the run crashed. Read `tail -n 50 run.log`, attempt a fix.
-8. `agent_loop.py` appends to `results.tsv` and keeps or reverts the commit automatically (significance-gated; see `uncertainty.py`).
-9. If the improvement is significant, the commit is kept; otherwise `agent_loop.py` resets back to the previous best.
+8. the loop (`autoggml run`) appends to `results.tsv` and keeps or reverts the commit automatically (significance-gated; see `autoggml/bench/uncertainty.py`).
+9. If the improvement is significant, the commit is kept; otherwise the loop resets back to the previous best.
 
-For a dry run that does not modify git state, use `uv run agent_loop.py --dry-run`.
-For the baseline, use `uv run agent_loop.py --baseline` or `uv run harness.py --baseline`.
+For a dry run that does not modify git state, use `uv run autoggml run --dry-run`.
+For the baseline, use `uv run autoggml run --baseline` or `uv run autoggml baseline`.
 
 **Timeout**: If the harness takes more than 60 minutes, kill it and treat as a failure.
 
@@ -145,9 +147,9 @@ When the ideas queue runs low, mine human knowledge before brainstorming from co
 3. **arXiv / Google Scholar** — papers on optimizing this project or its domain (speculative decoding, KV cache, kernel fusion). Save PDFs to `papers/`.
 4. **Technique papers** — general methods (EAGLE/Medusa, operator fusion, cache-oblivious algorithms, lock-free structures).
 
-Rank findings in `ROADMAP.md` (the living, numbered ideas queue; `uv run ideas.py` reports what's untried).
+Rank findings in `ROADMAP.md` (the living, numbered ideas queue; `uv run autoggml ideas` reports what's untried).
 
-**Tagging convention:** when an experiment targets a `ROADMAP.md` item, prefix its description with the item number and cite the source, e.g. `[#3] adaptive K controller (EAGLE-2, Li 2024)`. This lets `ideas.py` track coverage and records the provenance that later goes into a PR body.
+**Tagging convention:** when an experiment targets a `ROADMAP.md` item, prefix its description with the item number and cite the source, e.g. `[#3] adaptive K controller (EAGLE-2, Li 2024)`. This lets the ideas tracker track coverage and records the provenance that later goes into a PR body.
 
 ## Deterministic reproducibility
 

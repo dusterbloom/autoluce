@@ -1,11 +1,12 @@
 """
-Unified autoggml CLI: one entry point routing to the existing scripts.
+Unified autoggml CLI: one entry point routing to the runnable modules.
 
-Each subcommand maps to one of the runnable scripts (prepare / harness / agent_loop / ...).
-The CLI reimplements nothing -- it resolves the subcommand to a script and dispatches it as
-a subprocess, so every script keeps its own argparse and the read-only contract on
-harness.py / agent_loop.py / etc. is preserved. resolve() is pure and tested; the subprocess
-call is an injected seam.
+Each subcommand maps to one of the runnable modules in the autoggml package
+(autoggml.prepare / autoggml.bench.harness / autoggml.loop.agent_loop / ...).
+The CLI reimplements nothing -- it resolves the subcommand to a dotted module path and
+dispatches it as a subprocess (`python -m <module>`), so every module keeps its own
+argparse and the read-only contract on harness / agent_loop / etc. is preserved.
+resolve() is pure and tested; the subprocess call is an injected seam.
 
 Registered as `autoggml` via [project.scripts] in pyproject.toml -> `uv run autoggml <cmd>`.
 """
@@ -14,23 +15,19 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-SCRIPTS = ROOT
-
-# command -> (script, default_args, one-line help)
+# command -> (dotted module path, default_args, one-line help)
 COMMANDS: dict[str, tuple[str, list[str], str]] = {
-    "setup":     ("prepare.py",    [], "clone + build + download models (one-time)"),
-    "baseline":  ("harness.py",    ["--baseline"], "measure the baseline score"),
-    "kl-base":   ("kl.py",         [], "generate the KL reference logits from the baseline build"),
-    "run":       ("agent_loop.py", [], "one keep/revert experiment (the agent loop)"),
-    "shadow":    ("shadow.py",     [], "shadow bench from your own local traffic (proxy|build)"),
-    "ideas":     ("ideas.py",      [], "list/rank untried ROADMAP ideas (--bound)"),
-    "propose":   ("propose.py",    [], "ask the LLM for the next idea (needs OPENAI_BASE_URL)"),
-    "harness":   ("harness.py",    [], "raw benchmark harness"),
-    "report":    ("report.py",     [], "aggregate / diff results"),
-    "reproduce": ("reproduce.py",  [], "reproducibility suite"),
+    "setup":     ("autoggml.prepare",           [], "clone + build + download models (one-time)"),
+    "baseline":  ("autoggml.bench.harness",     ["--baseline"], "measure the baseline score"),
+    "kl-base":   ("autoggml.bench.kl",          [], "generate the KL reference logits from the baseline build"),
+    "run":       ("autoggml.loop.agent_loop",   [], "one keep/revert experiment (the agent loop)"),
+    "shadow":    ("autoggml.shadow",            [], "shadow bench from your own local traffic (proxy|build)"),
+    "ideas":     ("autoggml.ideation.ideas",    [], "list/rank untried ROADMAP ideas (--bound)"),
+    "propose":   ("autoggml.ideation.propose",  [], "ask the LLM for the next idea (needs OPENAI_BASE_URL)"),
+    "harness":   ("autoggml.bench.harness",     [], "raw benchmark harness"),
+    "report":    ("autoggml.report",            [], "aggregate / diff results"),
+    "reproduce": ("autoggml.reproduce",         [], "reproducibility suite"),
 }
 
 
@@ -43,14 +40,14 @@ class CliHelp(Exception):
 
 
 def resolve(argv: list[str]) -> tuple[str, list[str]]:
-    """Map a CLI invocation to (script, full_args). Default args precede user args."""
+    """Map a CLI invocation to (dotted module path, full_args). Default args precede user args."""
     if not argv or argv[0] in ("help", "--help", "-h"):
         raise CliHelp()
     cmd, *rest = argv
     if cmd not in COMMANDS:
         raise CliError(f"unknown command '{cmd}'")
-    script, default_args, _ = COMMANDS[cmd]
-    return script, [*default_args, *rest]
+    module, default_args, _ = COMMANDS[cmd]
+    return module, [*default_args, *rest]
 
 
 def _help_text() -> str:
@@ -66,7 +63,7 @@ def _help_text() -> str:
 def main(argv: list[str] | None = None, runner=subprocess.run) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     try:
-        script, args = resolve(argv)
+        module, args = resolve(argv)
     except CliHelp:
         print(_help_text())
         return 0
@@ -74,7 +71,7 @@ def main(argv: list[str] | None = None, runner=subprocess.run) -> int:
         print(f"autoggml: {e}", file=sys.stderr)
         print(_help_text(), file=sys.stderr)
         return 2
-    invocation = [sys.executable, str(SCRIPTS / script), *args]
+    invocation = [sys.executable, "-m", module, *args]
     return runner(invocation).returncode
 
 

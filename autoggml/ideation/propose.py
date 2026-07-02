@@ -14,13 +14,13 @@ import argparse
 import sys
 from pathlib import Path
 
-from concurrency import LockedFrontier
-from ideas import descriptions_from_results, extract_tried_numbers, load_roadmap_items, untried
-from llm import complete, config_from_env
-from profiling import ROADMAP_FOR_BOUND
-from selector import rank_by_bottleneck
+from autoggml.parallel.concurrency import LockedFrontier
+from autoggml.ideation.ideas import descriptions_from_results, extract_tried_numbers, load_roadmap_items, untried
+from autoggml.ideation.llm import complete, config_from_env
+from autoggml.bench.profiling import ROADMAP_FOR_BOUND
+from autoggml.ideation.selector import rank_by_bottleneck
 
-ROOT = Path(__file__).resolve().parent
+from autoggml import ROOT
 ROADMAP = ROOT / "ROADMAP.md"
 RESULTS_TSV = ROOT / "results.tsv"
 

@@ -17,10 +17,10 @@ import re
 import sys
 from pathlib import Path
 
-from profiling import ROADMAP_FOR_BOUND
-from selector import rank_by_bottleneck
+from autoggml.bench.profiling import ROADMAP_FOR_BOUND
+from autoggml.ideation.selector import rank_by_bottleneck
 
-ROOT = Path(__file__).resolve().parent
+from autoggml import ROOT
 ROADMAP = ROOT / "ROADMAP.md"
 RESULTS_TSV = ROOT / "results.tsv"
 

@@ -14,9 +14,9 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from harness import run_harness
+from autoggml.bench.harness import run_harness
 
-ROOT = Path(__file__).resolve().parent
+from autoggml import ROOT
 RESULTS_DIR = ROOT / "results"
 
 

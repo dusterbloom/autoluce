@@ -1,46 +1,48 @@
 """
 Tests for the unified autoggml CLI.
 
-The CLI is a thin router: it maps a subcommand to one of the existing scripts and
-dispatches it as a subprocess (each script keeps its own argparse; nothing is
-reimplemented). resolve() is the pure, tested routing logic; main() is the thin
-dispatcher with an injectable runner so the wiring is verified without spawning real
-builds/benchmarks.
+The CLI is a thin router: it maps a subcommand to a dotted module path inside the
+autoggml package and dispatches it as a subprocess (`python -m <module>`; each module
+keeps its own argparse; nothing is reimplemented). resolve() is the pure, tested routing
+logic; main() is the thin dispatcher with an injectable runner so the wiring is verified
+without spawning real builds/benchmarks.
 """
+
+import importlib.util
 
 import pytest
 
-import cli
 from cli import COMMANDS, CliError, CliHelp, main, resolve
 
 
 def test_resolve_known_command_passthrough_args():
-    script, args = resolve(["ideas", "--bound", "memory"])
-    assert script == "ideas.py"
+    module, args = resolve(["ideas", "--bound", "memory"])
+    assert module == "autoggml.ideation.ideas"
     assert args == ["--bound", "memory"]
 
 
 def test_resolve_baseline_injects_default_flag_then_passthrough():
-    script, args = resolve(["baseline", "--simulate"])
-    assert script == "harness.py"
+    module, args = resolve(["baseline", "--simulate"])
+    assert module == "autoggml.bench.harness"
     assert args == ["--baseline", "--simulate"]  # default flag first, user args after
 
 
 def test_resolve_run_with_passthrough():
-    script, args = resolve(["run", "--dry-run"])
-    assert script == "agent_loop.py"
+    module, args = resolve(["run", "--dry-run"])
+    assert module == "autoggml.loop.agent_loop"
     assert args == ["--dry-run"]
 
 
 def test_resolve_setup_maps_to_prepare():
-    script, _ = resolve(["setup"])
-    assert script == "prepare.py"
+    module, _ = resolve(["setup"])
+    assert module == "autoggml.prepare"
 
 
 @pytest.mark.parametrize("cmd", sorted(COMMANDS))
-def test_every_advertised_command_resolves(cmd):
-    script, _ = resolve([cmd])
-    assert script.endswith(".py")
+def test_every_advertised_command_resolves_to_package_module(cmd):
+    module, _ = resolve([cmd])
+    assert module.startswith("autoggml")
+    assert not module.endswith(".py")  # dotted module path, not a script filename
 
 
 def test_resolve_empty_raises_help():
@@ -66,7 +68,7 @@ class _Result:
         self.returncode = returncode
 
 
-def test_main_dispatches_to_resolved_script_and_propagates_returncode(monkeypatch):
+def test_main_dispatches_module_via_dash_m_and_propagates_returncode(monkeypatch):
     calls = []
 
     def fake_runner(invocation):
@@ -76,8 +78,9 @@ def test_main_dispatches_to_resolved_script_and_propagates_returncode(monkeypatc
     rc = main(["ideas", "--bound", "compute"], runner=fake_runner)
     assert rc == 7
     assert len(calls) == 1
-    assert calls[0][1].endswith("ideas.py")   # [python, script, *args]
-    assert calls[0][2:] == ["--bound", "compute"]
+    assert calls[0][1] == "-m"                      # [python, -m, module, *args]
+    assert calls[0][2] == "autoggml.ideation.ideas"
+    assert calls[0][3:] == ["--bound", "compute"]
 
 
 def test_main_unknown_command_returns_nonzero(capsys):
@@ -90,6 +93,7 @@ def test_main_help_returns_zero(capsys):
     assert rc == 0
 
 
-def test_scripts_dir_constant_present():
-    # Ensure the dispatcher actually knows where the scripts live.
-    assert cli.SCRIPTS is not None
+def test_every_command_module_is_importable():
+    # Replaces the old SCRIPTS-dir check: the dispatcher must point at real modules.
+    for module, _, _ in COMMANDS.values():
+        assert importlib.util.find_spec(module) is not None, module

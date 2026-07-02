@@ -9,7 +9,7 @@ because they all speak /v1/chat/completions -- the only difference is OPENAI_BAS
 
 import pytest
 
-from llm import LLMConfig, build_request, complete, config_from_env, parse_completion
+from autoggml.ideation.llm import LLMConfig, build_request, complete, config_from_env, parse_completion
 
 
 # --- config resolution ---------------------------------------------------------

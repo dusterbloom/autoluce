@@ -5,7 +5,7 @@ and decide whether the win is real. The decision is pure; the live build+measure
 is the worker's job.
 """
 
-from verify import ab_compare
+from autoggml.loop.verify import ab_compare
 
 
 def _result(score, sigma, correctness="pass"):

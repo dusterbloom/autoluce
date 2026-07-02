@@ -19,9 +19,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from concurrency import ClaimResult, LockedFrontier
-from uncertainty import is_significant_improvement
-from worktree import ensure_worktree
+from autoggml.parallel.concurrency import ClaimResult, LockedFrontier
+from autoggml.bench.uncertainty import is_significant_improvement
+from autoggml.parallel.worktree import ensure_worktree
 
 
 @dataclass(frozen=True)
@@ -113,7 +113,7 @@ def run_parallel(
 
 def _harness_command(worktree: Path) -> list[str]:
     """Measure command run inside a worktree (score only -- the claim is run_parallel's)."""
-    return ["uv", "run", "python", "harness.py", "--json"]
+    return ["uv", "run", "python", "-m", "autoggml.bench.harness", "--json"]
 
 
 def _current_commit(worktree: Path) -> str:
@@ -128,7 +128,7 @@ def _current_commit(worktree: Path) -> str:
 
 
 def _parse_harness_json(stdout: str, commit: str, spec_id: str) -> dict:
-    """Parse `harness.py --json` output into a run_fn result dict. Malformed -> crash dict."""
+    """Parse `harness --json` output into a run_fn result dict. Malformed -> crash dict."""
     try:
         summary = json.loads(stdout)
     except Exception as e:
@@ -145,8 +145,8 @@ def _parse_harness_json(stdout: str, commit: str, spec_id: str) -> dict:
 def local_run(spec: ExperimentSpec, repo_root: Path, run_subprocess=subprocess.run) -> dict:
     """Run one spec in its own worktree and return the measured result dict.
 
-    Ensures an isolated worktree (worktree.py's first in-tree consumer), invokes
-    `harness.py --json` there via the injected transport, and parses the score. The claim
+    Ensures an isolated worktree (worktree module's first in-tree consumer), invokes
+    `autoggml.bench.harness --json` there via the injected transport, and parses the score. The claim
     is deliberately NOT made here -- run_parallel is the funnel. `commit` in the result is
     the worktree's real HEAD, so a claimed result points at a valid git ref.
 

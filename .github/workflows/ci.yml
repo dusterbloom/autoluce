@@ -27,10 +27,10 @@ jobs:
         run: uv run pytest -q
 
       - name: Smoke test harness (simulation mode)
-        run: uv run harness.py --baseline --simulate
+        run: uv run autoggml baseline --simulate
 
       - name: Smoke test reproducibility suite
-        run: uv run reproduce.py --simulate
+        run: uv run autoggml reproduce --simulate
 
   container-build:
     runs-on: ubuntu-latest
@@ -41,4 +41,4 @@ jobs:
         run: docker build -t autoggml .
 
       - name: Run lint and smoke tests in container
-        run: docker run --rm autoggml uv run reproduce.py --simulate
+        run: docker run --rm autoggml uv run autoggml reproduce --simulate

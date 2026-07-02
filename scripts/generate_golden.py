@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from harness import build_generation_command, extract_generated_text  # noqa: E402
+from autoggml.bench.harness import build_generation_command, extract_generated_text  # noqa: E402
 
 WORK_DIR = ROOT / "work"
 BUILD_DIR = WORK_DIR / "lucebox-ggml" / "build"

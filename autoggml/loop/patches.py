@@ -6,7 +6,7 @@ mutates one or more source files. Patches are reversible with git.
 
 Intended use from experiment.py:
 
-    from patches import apply_march_native, apply_speculative_candidates
+    from autoggml.loop.patches import apply_march_native, apply_speculative_candidates
     from pathlib import Path
 
     repo = Path("work/lucebox-ggml")

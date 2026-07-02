@@ -9,7 +9,7 @@ single host (the remote/VM case is already covered by runner's injected run_fn).
 import subprocess
 from pathlib import Path
 
-from worktree import ensure_worktree, remove_worktree
+from autoggml.parallel.worktree import ensure_worktree, remove_worktree
 
 
 def _run(cmd: list[str], cwd: Path) -> None:

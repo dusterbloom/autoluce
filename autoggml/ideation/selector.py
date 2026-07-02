@@ -12,7 +12,7 @@ the mapping lives in exactly one place.
 
 from __future__ import annotations
 
-from profiling import ROADMAP_FOR_BOUND
+from autoggml.bench.profiling import ROADMAP_FOR_BOUND
 
 
 def rank_by_bottleneck(

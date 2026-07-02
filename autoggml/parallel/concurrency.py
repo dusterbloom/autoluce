@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
-from uncertainty import is_significant_improvement
+from autoggml.bench.uncertainty import is_significant_improvement
 
 RESULTS_HEADER = (
     "commit\tscore\tscore_stddev\tdecode_tok_s\t"
