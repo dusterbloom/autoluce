@@ -14,5 +14,12 @@
   },
   "expected": {
     "min_decode_tok_s": 10.0
+  },
+  "objective": {
+    "maximize": "decode_tok_s",
+    "constraints": {
+      "peak_mem_GiB": {"max": 8.0},
+      "prefill_tok_s": {"min_frac_of_baseline": 0.95}
+    }
   }
 }

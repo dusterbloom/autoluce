@@ -46,7 +46,20 @@ def test_simulated_summary_carries_score_stddev(monkeypatch):
     monkeypatch.setenv("AUTOGGML_BENCHMARKS", "smoke")
     summary = run_harness(baseline=True, simulate=True)
     assert "score_stddev" in summary
-    # Sim fixture: decode=120±4, prefill=2500±100, acceptance=1.0, mem=18, build_time excluded.
-    # score = 120*2500*1/18; sigma = score*sqrt((4/120)^2+(100/2500)^2)
-    assert summary["score"] == pytest.approx(16666.6667, rel=1e-4)
-    assert summary["score_stddev"] == pytest.approx(867.8055, rel=1e-4)
+    # Sim fixture: decode=120±4. Score IS decode_tok_s; constraints are separate.
+    assert summary["score"] == pytest.approx(120.0)
+    assert summary["score_stddev"] == pytest.approx(4.0)
+
+
+def test_constraint_violation_zeroes_score():
+    # smoke.json caps peak_mem_GiB at 8.0; the simulated fixture uses 18.0, so an
+    # enforced run must zero the score exactly like a correctness failure.
+    from harness import run_single_benchmark
+
+    result = run_single_benchmark(
+        "smoke", 1.0, {}, simulate=True,
+        baseline_metrics={"smoke": {"prefill_tok_s": 2500.0}},
+        k=1.0, enforce_constraints=True,
+    )
+    assert result["constraint_violations"]
+    assert result["score"] == 0.0

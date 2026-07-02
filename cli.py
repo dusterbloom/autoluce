@@ -23,7 +23,9 @@ SCRIPTS = ROOT
 COMMANDS: dict[str, tuple[str, list[str], str]] = {
     "setup":     ("prepare.py",    [], "clone + build + download models (one-time)"),
     "baseline":  ("harness.py",    ["--baseline"], "measure the baseline score"),
+    "kl-base":   ("kl.py",         [], "generate the KL reference logits from the baseline build"),
     "run":       ("agent_loop.py", [], "one keep/revert experiment (the agent loop)"),
+    "shadow":    ("shadow.py",     [], "shadow bench from your own local traffic (proxy|build)"),
     "ideas":     ("ideas.py",      [], "list/rank untried ROADMAP ideas (--bound)"),
     "propose":   ("propose.py",    [], "ask the LLM for the next idea (needs OPENAI_BASE_URL)"),
     "harness":   ("harness.py",    [], "raw benchmark harness"),

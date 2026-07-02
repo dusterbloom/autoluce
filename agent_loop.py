@@ -56,12 +56,12 @@ def default_summary() -> dict:
     }
 
 
-def run_single_experiment(timeout: int = 3600, baseline: bool = False, simulate: bool = False) -> dict:
+def run_single_experiment(timeout: int = 3600, baseline: bool = False, simulate: bool = False, k: float = 1.0) -> dict:
     start_commit = git_current_commit()
     description = "baseline"
 
     try:
-        summary = run_harness(baseline=baseline, simulate=simulate)
+        summary = run_harness(baseline=baseline, simulate=simulate, k=k)
         description = summary.get("experiment", {}).get("description", "unknown")
     except subprocess.TimeoutExpired:
         return {
@@ -112,7 +112,7 @@ def main():
     print(f"Current best score: {best_score:.4f} ± {best_stddev:.4f}")
 
     t0 = time.time()
-    result = run_single_experiment(timeout=args.timeout, baseline=args.baseline, simulate=args.simulate)
+    result = run_single_experiment(timeout=args.timeout, baseline=args.baseline, simulate=args.simulate, k=args.significance)
     elapsed = time.time() - t0
 
     commit = result["commit"]

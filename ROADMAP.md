@@ -175,9 +175,9 @@ nsys/rocprof trace-parser that auto-produces the bound verdict is the deferred I
 - **Build/graph (8, 9):** CMake flags + patch helpers in `patches.py`; build-time diff
   via `build_time_s`, runtime diff via decode tok/s.
 - **Kernel (10, 11, 12):** source patches against `ggml/` and `common/speculative.cpp`;
-  correctness gate (perplexity, pending) must hold.
+  correctness gate (golden outputs + KL oracle, `kl.py`) must hold.
 - **Algorithmic (1, 2, 3, 4):** larger patches, possibly under `patches/` as files;
-  acceptance_rate and decode tok/s are the headline metrics.
+  decode tok/s is the headline metric (acceptance_rate is a logged diagnostic, not scored).
 - **Architectural (5, 6, 7):** cross-backend orchestration; depends on Phase 2 targets /
   serve-once work and the Strix Halo host.
 - **Meta (15, 16, 17):** harness-extension track, **not** a lucebox patch — maintainer

@@ -17,5 +17,12 @@
     "min_decode_tok_s": 50.0,
     "min_acceptance_rate": 0.4,
     "max_peak_mem_GiB": 24.0
+  },
+  "objective": {
+    "maximize": "decode_tok_s",
+    "constraints": {
+      "peak_mem_GiB": {"max": 24.0},
+      "prefill_tok_s": {"min_frac_of_baseline": 0.95}
+    }
   }
 }

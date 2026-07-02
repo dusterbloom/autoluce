@@ -2,7 +2,9 @@
 Tests for real metric parsing and the (fabrication-free) score formula.
 """
 
-from harness import compute_score, parse_acceptance_rate, parse_llama_bench_output, parse_peak_memory
+import pytest
+
+from harness import compute_score, parse_acceptance_rate, parse_llama_bench_output, parse_peak_memory, require_acceptance_rate
 
 
 def test_parse_llama_bench_output_captures_stddev():
@@ -25,7 +27,6 @@ def test_parse_peak_memory_converts_kib_to_gib():
 
 
 def test_parse_peak_memory_raises_on_missing_metric():
-    import pytest
     with pytest.raises(RuntimeError):
         parse_peak_memory("Command exited with non-zero status 1\n")
 
@@ -39,13 +40,21 @@ def test_parse_acceptance_rate_returns_none_when_absent():
     assert parse_acceptance_rate("| qwen2 1.5B Q4_0 | pp512 | 5765.41 |") is None
 
 
-def test_compute_score_is_honest_ratio():
+def test_compute_score_is_decode_throughput():
     metrics = {
         "decode_tok_s": 100.0,
         "prefill_tok_s": 2000.0,
-        "acceptance_rate": 0.5,
         "peak_mem_GiB": 16.0,
         "build_time_s": 100.0,
     }
-    assert compute_score(metrics, correct=True) == (100 * 2000 * 0.5) / 16
+    assert compute_score(metrics, correct=True) == 100.0
     assert compute_score(metrics, correct=False) == 0.0
+
+
+def test_speculative_run_without_acceptance_rate_raises():
+    with pytest.raises(RuntimeError, match="acceptance_rate"):
+        require_acceptance_rate("| qwen2 1.5B Q4_0 | pp512 | 5765.41 |", "llama-bench")
+
+
+def test_speculative_run_with_acceptance_rate_returns_it():
+    assert require_acceptance_rate("... acc: 0.6543 ...", "llama-bench") == 0.6543

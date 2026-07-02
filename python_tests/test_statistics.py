@@ -3,10 +3,6 @@ Tests for score-uncertainty propagation and the significance gate that
 replaces the old `score > best` keep/revert rule.
 """
 
-import math
-
-import pytest
-
 from uncertainty import is_significant_improvement, propagate_score_stddev
 
 
@@ -14,7 +10,6 @@ def _metrics(**overrides):
     base = {
         "decode_tok_s": 100.0,
         "prefill_tok_s": 2000.0,
-        "acceptance_rate": 1.0,
         "peak_mem_GiB": 16.0,
         "build_time_s": 100.0,
     }
@@ -22,15 +17,14 @@ def _metrics(**overrides):
     return base
 
 
-def test_propagate_score_stddev_relative_error():
-    score = (100.0 * 2000.0 * 1.0) / (16.0 * 100.0)  # 125.0
+def test_propagate_score_stddev_is_decode_stddev():
+    # Score == decode_tok_s, so the propagated sigma is the measured decode stddev.
     metrics = _metrics(decode_tok_s_stddev=4.0, prefill_tok_s_stddev=100.0)
-    expected = score * math.sqrt((4.0 / 100.0) ** 2 + (100.0 / 2000.0) ** 2)
-    assert propagate_score_stddev(metrics, score) == pytest.approx(expected)
+    assert propagate_score_stddev(metrics) == 4.0
 
 
 def test_propagate_score_stddev_zero_without_uncertainty():
-    assert propagate_score_stddev(_metrics(), 125.0) == 0.0
+    assert propagate_score_stddev(_metrics()) == 0.0
 
 
 def test_is_significant_improvement_within_noise_is_false():

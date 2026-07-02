@@ -1,28 +1,20 @@
 """
-Score-uncertainty propagation and the significance gate for keep/revert.
+Score-uncertainty and the significance gate for keep/revert.
 
-The score is a multiplicative combination of measured quantities, so a measured
-stddev on any component contributes to the score's stddev via relative-error
-propagation. Components without a measured stddev contribute nothing, which
-keeps the gate non-regressive: no variance data => strict `new > best`.
+The score is decode_tok_s directly (resource/regression bounds are enforced
+separately by objective.check_constraints), so the score's stddev is just the
+measured decode stddev. No variance data => 0.0, which keeps the gate
+non-regressive: strict `new > best`.
 """
 
 from __future__ import annotations
 
 import math
 
-SCORE_COMPONENTS = ("decode_tok_s", "prefill_tok_s", "acceptance_rate", "peak_mem_GiB")
 
-
-def propagate_score_stddev(metrics: dict[str, float], score: float) -> float:
-    """Relative-error propagation of the multiplicative score's stddev."""
-    rel_var = 0.0
-    for key in SCORE_COMPONENTS:
-        mean = metrics.get(key, 0.0)
-        sigma = metrics.get(f"{key}_stddev", 0.0)
-        if mean:
-            rel_var += (sigma / mean) ** 2
-    return score * math.sqrt(rel_var)
+def propagate_score_stddev(metrics: dict[str, float]) -> float:
+    """Score == decode_tok_s, so its sigma is the measured decode stddev."""
+    return metrics.get("decode_tok_s_stddev", 0.0)
 
 
 def is_significant_improvement(

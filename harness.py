@@ -23,6 +23,8 @@ import time
 from pathlib import Path
 
 from experiment import apply_experiment, get_cmake_flags, get_runtime_flags, reset_lucebox
+from kl import check_kl, kl_gate, resolve_kl_tau
+from objective import check_constraints
 from profiling import backend_cmake_flags, detect_backend, profile_command
 from uncertainty import propagate_score_stddev
 
@@ -31,6 +33,7 @@ WORK_DIR = ROOT / "work"
 Lucebox_DIR = WORK_DIR / "lucebox-ggml"
 BUILD_DIR = Lucebox_DIR / "build"
 BENCHMARKS_DIR = ROOT / "benchmarks"
+BASELINE_METRICS_PATH = WORK_DIR / "baseline_metrics.json"
 
 
 def run(cmd: list[str], cwd: Path | None = None, check: bool = True, timeout: int | None = None, env: dict | None = None) -> subprocess.CompletedProcess:
@@ -59,7 +62,7 @@ def build() -> float:
     env = os.environ.copy()
     run(cmake_args, env=env)
     t0 = time.time()
-    run(["cmake", "--build", str(BUILD_DIR), "-j", "--target", "llama-bench", "llama-cli"], env=env)
+    run(["cmake", "--build", str(BUILD_DIR), "-j", "--target", "llama-bench", "llama-cli", "llama-perplexity"], env=env)
     return time.time() - t0
 
 
@@ -133,6 +136,14 @@ def parse_acceptance_rate(stdout: str) -> float | None:
     return float(m.group(1)) if m else None
 
 
+def require_acceptance_rate(stdout: str, bench_name: str) -> float:
+    """Speculative runs must report acceptance; measure or raise (no neutral fallback)."""
+    acceptance = parse_acceptance_rate(stdout)
+    if acceptance is None:
+        raise RuntimeError(f"{bench_name} used a draft model but did not report acceptance_rate")
+    return acceptance
+
+
 def run_with_peak_memory(cmd: list[str], timeout: int | None) -> tuple[str, float]:
     """Run cmd under `time -v` and return (stdout, peak_mem_GiB)."""
     proc = run([gnu_time_binary(), "-v", *cmd], timeout=timeout)
@@ -186,13 +197,8 @@ def benchmark_with_llama_bench(
             raise RuntimeError(f"could not parse {required} from llama-bench output")
 
     if speculative:
-        acceptance = parse_acceptance_rate(stdout)
-        if acceptance is None:
-            print(f"WARNING: {bench.name} used a draft model but did not report acceptance_rate; using neutral 1.0")
-            acceptance = 1.0
-    else:
-        acceptance = 1.0
-    metrics["acceptance_rate"] = acceptance
+        # Logged diagnostic only (not part of the score); measured or the run raises.
+        metrics["acceptance_rate"] = require_acceptance_rate(stdout, bench.name)
     metrics["peak_mem_GiB"] = peak_mem
     return metrics
 
@@ -288,6 +294,21 @@ def check_correctness(
     return all_passed, results
 
 
+def resolve_correctness(
+    benchmark_name: str, spec: dict, model: Path, draft: Path | None, n_draft: int,
+    runtime_flags: dict[str, str],
+) -> tuple[bool, list[dict]]:
+    """
+    Golden-output comparison unless the benchmark declares "quality": "kl"
+    (shadow benches: user prompts have no goldens; KL against the frozen
+    baseline reference is the sole quality oracle, enforced in
+    run_single_benchmark via kl_text).
+    """
+    if spec.get("quality") == "kl":
+        return True, []
+    return check_correctness(benchmark_name, model, draft, n_draft, runtime_flags)
+
+
 # ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
@@ -295,16 +316,31 @@ def check_correctness(
 
 def compute_score(metrics: dict[str, float], correct: bool) -> float:
     """
-    Throughput per unit memory. Correctness is a hard constraint (0.0 on failure).
-    build_time is measured and reported but excluded: with ccache + preserved
-    build dir it is cache-state-dependent, so scoring it would make runs
-    non-reproducible. Every input is a real measurement; no hidden defaults.
+    The score is the single maximized axis: decode throughput. Correctness is a
+    hard constraint (0.0 on failure); resource/regression bounds are enforced
+    separately via objective.check_constraints, which zeroes the score on
+    violation exactly like a correctness failure.
     """
     if not correct:
         return 0.0
-    return (
-        metrics["decode_tok_s"] * metrics["prefill_tok_s"] * metrics["acceptance_rate"]
-    ) / metrics["peak_mem_GiB"]
+    return metrics["decode_tok_s"]
+
+
+def save_baseline_metrics(per_benchmark: list[dict]) -> None:
+    """Persist per-benchmark baseline metrics (numeric fields only) for candidate
+    runs to load as the reference for relative constraints."""
+    data = {
+        r["benchmark"]: {key: val for key, val in r.items() if isinstance(val, (int, float))}
+        for r in per_benchmark
+    }
+    BASELINE_METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    BASELINE_METRICS_PATH.write_text(json.dumps(data, indent=2))
+
+
+def load_baseline_metrics() -> dict | None:
+    if not BASELINE_METRICS_PATH.exists():
+        return None
+    return json.loads(BASELINE_METRICS_PATH.read_text())
 
 
 # ---------------------------------------------------------------------------
@@ -328,9 +364,19 @@ def _simulated_metrics() -> dict[str, float]:
     }
 
 
-def run_single_benchmark(benchmark_name: str, build_time: float, runtime_flags: dict[str, str], simulate: bool = False, profile_dir: str | None = None) -> dict:
+def run_single_benchmark(
+    benchmark_name: str,
+    build_time: float,
+    runtime_flags: dict[str, str],
+    simulate: bool = False,
+    profile_dir: str | None = None,
+    baseline_metrics: dict | None = None,
+    k: float = 1.0,
+    enforce_constraints: bool = False,
+) -> dict:
     benchmark = json.loads((BENCHMARKS_DIR / f"{benchmark_name}.json").read_text())
 
+    kl_violations: list[str] = []
     if simulate:
         metrics = _simulated_metrics()
         correct = True
@@ -346,16 +392,31 @@ def run_single_benchmark(benchmark_name: str, build_time: float, runtime_flags: 
         if profile_path:
             Path(profile_path).parent.mkdir(parents=True, exist_ok=True)
         metrics = benchmark_with_llama_bench(model, draft, n_draft, benchmark.get("llama_bench_args", {}), runtime_flags, profile_path=profile_path)
-        correct, details = check_correctness(benchmark_name, model, draft, n_draft, runtime_flags)
+        correct, details = resolve_correctness(benchmark_name, benchmark, model, draft, n_draft, runtime_flags)
+        # Tier-1 quality oracle: KL against the frozen baseline reference.
+        # check_kl raises when kl_text is declared but the reference is missing.
+        if benchmark.get("kl_text"):
+            kl_metrics = check_kl(benchmark_name, model, extra=apply_runtime_flags([], runtime_flags))
+            metrics.update(kl_metrics)
+            kl_violations = kl_gate(kl_metrics, resolve_kl_tau(benchmark))
+            for v in kl_violations:
+                print(f"KL VIOLATION [{benchmark_name}]: {v}")
 
     metrics["build_time_s"] = build_time
     metrics["correctness"] = "pass" if correct else "FAIL"
-    score = compute_score(metrics, correct)
+    violations: list[str] = list(kl_violations)
+    if enforce_constraints:
+        base = baseline_metrics.get(benchmark_name) if baseline_metrics else None
+        violations += check_constraints(metrics, base, benchmark, k)
+        for v in violations[len(kl_violations):]:
+            print(f"CONSTRAINT VIOLATION [{benchmark_name}]: {v}")
+    score = 0.0 if violations else compute_score(metrics, correct)
 
     return {
         "benchmark": benchmark_name,
         "score": score,
-        "score_stddev": propagate_score_stddev(metrics, score),
+        "score_stddev": propagate_score_stddev(metrics) if score else 0.0,
+        "constraint_violations": violations,
         **metrics,
         "correctness_details": details,
     }
@@ -366,14 +427,17 @@ def aggregate_scores(results: list[dict]) -> dict[str, float]:
         return {"score": 0.0, "score_stddev": 0.0}
     n = len(results)
     combined_sigma = math.sqrt(sum(r.get("score_stddev", 0.0) ** 2 for r in results)) / n
-    return {
+    agg = {
         "score": sum(r["score"] for r in results) / n,
         "score_stddev": combined_sigma,
         "decode_tok_s": sum(r["decode_tok_s"] for r in results) / n,
         "prefill_tok_s": sum(r["prefill_tok_s"] for r in results) / n,
-        "acceptance_rate": sum(r["acceptance_rate"] for r in results) / n,
         "peak_mem_GiB": sum(r["peak_mem_GiB"] for r in results) / n,
     }
+    rates = [r["acceptance_rate"] for r in results if "acceptance_rate" in r]
+    if rates:  # diagnostic only; absent when no benchmark used a draft model
+        agg["acceptance_rate"] = sum(rates) / len(rates)
+    return agg
 
 
 # ---------------------------------------------------------------------------
@@ -381,7 +445,7 @@ def aggregate_scores(results: list[dict]) -> dict[str, float]:
 # ---------------------------------------------------------------------------
 
 
-def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = False) -> dict:
+def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = False, k: float = 1.0) -> dict:
     profile_dir = str(ROOT / "results" / "profiles") if profile else None
     if simulate:
         exp_info = {"description": "baseline" if baseline else "simulated", "cmake_flags": [], "runtime_flags": {}}
@@ -399,7 +463,19 @@ def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = 
     benchmark_names = os.environ.get("AUTOGGML_BENCHMARKS", ",".join(list_benchmarks())).split(",")
     benchmark_names = [b.strip() for b in benchmark_names if b.strip()]
 
-    per_benchmark = [run_single_benchmark(name, build_time, runtime_flags, simulate=simulate, profile_dir=profile_dir) for name in benchmark_names]
+    # Constraints gate candidates only: the baseline defines the reference, and
+    # --simulate is a plumbing mode with no baseline file to compare against.
+    enforce = not baseline and not simulate
+    baseline_metrics = load_baseline_metrics() if enforce else None
+    per_benchmark = [
+        run_single_benchmark(
+            name, build_time, runtime_flags, simulate=simulate, profile_dir=profile_dir,
+            baseline_metrics=baseline_metrics, k=k, enforce_constraints=enforce,
+        )
+        for name in benchmark_names
+    ]
+    if baseline and not simulate:
+        save_baseline_metrics(per_benchmark)
     agg = aggregate_scores(per_benchmark)
     any_fail = any(r["correctness"] == "FAIL" for r in per_benchmark)
 
@@ -419,10 +495,11 @@ def main():
     parser.add_argument("--baseline", action="store_true")
     parser.add_argument("--simulate", action="store_true", help="Plumbing test with fake measurements; no real build or models required")
     parser.add_argument("--profile", action="store_true", help="Capture a profiler trace (nsys/rocprof) per benchmark to results/profiles/")
+    parser.add_argument("--significance", type=float, default=1.0, help="k in the k*sigma margin for objective constraints")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    summary = run_harness(baseline=args.baseline, simulate=args.simulate, profile=args.profile)
+    summary = run_harness(baseline=args.baseline, simulate=args.simulate, profile=args.profile, k=args.significance)
 
     if args.json:
         print(json.dumps(summary, indent=2, default=str))
@@ -437,7 +514,8 @@ def main():
     print(f"score_stddev:      {summary['score_stddev']:.4f}")
     print(f"decode_tok_s:      {summary['decode_tok_s']:.2f}")
     print(f"prefill_tok_s:     {summary['prefill_tok_s']:.2f}")
-    print(f"acceptance_rate:   {summary['acceptance_rate']:.4f}")
+    if "acceptance_rate" in summary:
+        print(f"acceptance_rate:   {summary['acceptance_rate']:.4f}")
     print(f"peak_mem_GiB:      {summary['peak_mem_GiB']:.2f}")
     print(f"build_time_s:      {summary['build_time_s']:.2f}")
     print(f"correctness:       {summary['correctness']}")
