@@ -1,7 +1,12 @@
 # NVFP4 CUDA Operator
 
 This directory is the device oracle and kernel laboratory for bringing Unsloth's
-`nvfp4-pack-quantized` tensors into Lucebox on pre-Blackwell CUDA GPUs.
+packed NVFP4 tensors into Lucebox on pre-Blackwell CUDA GPUs.
+
+The current `unsloth/Qwen3.6-27B-NVFP4` revision is a `compressed-tensors`
+mixed-precision checkpoint. Its first 56 MLP blocks use NVFP4; attention,
+linear-attention, the LM head, and the final 8 MLP blocks use FP8. Product loading must
+preserve those config groups rather than treating every linear tensor as NVFP4.
 
 The current ABI consumes:
 

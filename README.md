@@ -211,8 +211,9 @@ oracle; the benchmark compares the packed operator with the same naive FP16 GEMV
 
 This is the operator foundation, not complete Unsloth checkpoint support. Vendored GGML
 already builds an NVFP4 MMQ template, which is now the first product comparison target.
-Lucebox still needs the HF tensor loader/metadata contract and graph dispatch before an
-Unsloth NVFP4 model can be served end to end.
+The current Unsloth release is mixed FP8/NVFP4, so Lucebox still needs an HF tensor
+loader that preserves both config groups plus product graph dispatch before the model
+can be served end to end.
 
 The shared 3090 performance targets and measurement rules live in
 [`benchmarks/rtx3090-qwen36-27b-frontier.md`](benchmarks/rtx3090-qwen36-27b-frontier.md).

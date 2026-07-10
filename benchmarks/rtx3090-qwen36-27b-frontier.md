@@ -44,3 +44,8 @@ The downloaded checkpoint target is HF revision
 `dd75bc44c47d033c2a34234d020632fee738b18a` (21.83 GiB). Its tight fit means 64K and
 128K may require quantized KV, CPU placement for non-language components, or another
 memory reduction. A cell that does not fit is recorded as such, never extrapolated.
+
+That revision declares `compressed-tensors` mixed precision: group-16 E2M1/E4M3
+NVFP4 for the first 56 MLP blocks, FP8 for attention/linear-attention, the LM head,
+and the final 8 MLP blocks, with an MTP module present. Preserve this split when
+comparing loaders; a uniformly NVFP4 or GGUF model is a different artifact.
