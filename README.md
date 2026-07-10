@@ -209,9 +209,10 @@ and fused W4A16 GEMV. AutoLuce prefers CUDA 12.6 under `/usr/local/cuda`, target
 and caps the build at four jobs. The test compares CUDA output with an independent CPU
 oracle; the benchmark compares the packed operator with the same naive FP16 GEMV.
 
-This is the operator foundation, not complete Unsloth checkpoint support. Lucebox still
-needs an NVFP4 tensor loader/metadata contract and graph dispatch before an Unsloth
-NVFP4 model can be served end to end.
+This is the operator foundation, not complete Unsloth checkpoint support. Vendored GGML
+already builds an NVFP4 MMQ template, which is now the first product comparison target.
+Lucebox still needs the HF tensor loader/metadata contract and graph dispatch before an
+Unsloth NVFP4 model can be served end to end.
 
 ## Keep Lucebox Current
 

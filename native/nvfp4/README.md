@@ -23,5 +23,7 @@ and a deterministic CUDA GEMV against an independent CPU calculation.
 
 The RTX 3090 has no native FP4 tensor-core path. This kernel therefore performs
 software unpack/decode fused with W4A16 GEMV; it is not a claim of native NVFP4
-execution. The Lucebox loader, safetensors metadata mapping, padded scale layouts,
-and graph dispatch remain separate product work.
+execution. Lucebox's vendored GGML already builds an `mmq-instance-nvfp4` template;
+benchmark that implementation against this independent oracle before porting kernels.
+The Lucebox loader, safetensors metadata mapping, padded scale layouts, and product
+graph dispatch remain separate work.

@@ -14,7 +14,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   process/UMA telemetry, and compares deterministic completions with frozen goldens.
   Golden generation and remote `freeze` use the same client and server lifecycle, so
   measurement and quality cannot drift onto a standalone llama.cpp binary. Product KL
-  requirements fail closed because the current API does not expose token logits.
+  requirements fail closed because the current API does not expose token logits. The
+  adapter was also exercised end to end with the pinned product, a local Qwen3.6 GGUF,
+  and the RTX 3090 CUDA backend.
 - **RTX 3090 NVFP4 CUDA laboratory**: `autoluce nvfp4 test|bench` builds a bounded SM86
   target with CUDA 12.6 and at most four jobs. It includes packed E2M1 weights, E4M3
   block scales, a global FP32 scale, fused W4A16 GEMV, an independent CPU oracle, and a
