@@ -18,6 +18,21 @@ import sys
 
 # command -> (dotted module path, default_args, one-line help)
 COMMANDS: dict[str, tuple[str, list[str], str]] = {
+    "join":      ("autoggml.fleet_cli",        ["join"], "join this machine to the team"),
+    "submit":    ("autoggml.fleet_cli",        ["submit"], "submit a candidate to an available machine"),
+    "status":    ("autoggml.fleet_cli",        ["status"], "show machines and experiments in plain language"),
+    "pause":     ("autoggml.fleet_cli",        ["pause"], "stop assigning new work to this machine"),
+    "resume":    ("autoggml.fleet_cli",        ["resume"], "allow this machine to receive work"),
+    "leave":     ("autoggml.fleet_cli",        ["leave"], "remove this machine from the team"),
+    "worker":    ("autoggml.fleet_cli",        ["worker"], "run an assigned experiment through the safe pipeline"),
+    "coordinator": ("autoggml.coordinator_server", [], "run the restricted shared team coordinator"),
+    "doctor":    ("autoggml.doctor",            [], "inspect and fingerprint a local or remote target"),
+    "onboard":   ("autoggml.onboard",           [], "install a user-local launcher on an SSH target"),
+    "test-drive": ("autoggml.test_drive",        [], "check readiness or run a short live V4 canary"),
+    "consult":   ("autoggml.consult",           [], "create a machine-aware research contract"),
+    "freeze":    ("autoggml.freeze",            [], "freeze exact and KL quality references on a target"),
+    "profile-report": ("autoggml.profile_report", [], "summarize a rocprofv3 kernel capture"),
+    "verify":    ("autoggml.verify_remote",      [], "run interleaved remote A/B verification"),
     "setup":     ("autoggml.prepare",           [], "clone + build + download models (one-time)"),
     "baseline":  ("autoggml.bench.harness",     ["--baseline"], "measure the baseline score"),
     "kl-base":   ("autoggml.bench.kl",          [], "generate the KL reference logits from the baseline build"),

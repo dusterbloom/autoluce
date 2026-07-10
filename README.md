@@ -59,7 +59,121 @@ Clones the repo, installs `uv` + dependencies, and runs setup. Want to audit fir
 `curl -fsSL <url> -o install.sh && less install.sh`.
 
 Every script is also a subcommand of `uv run autoggml` (try `uv run autoggml help`):
-`setup`, `baseline`, `run`, `ideas`, `propose`, `harness`, `report`, `reproduce`, `kl-base`, `shadow`.
+`setup`, `doctor`, `consult`, `freeze`, `baseline`, `run`, `verify`, `profile-report`,
+`ideas`, `propose`, `harness`, `report`, `reproduce`, `kl-base`, `shadow`.
+
+## Team workflow
+
+The team interface has three everyday commands: `join`, `submit`, and `status`.
+Coordinator internals, queue labels, manifests, and research-contract YAML stay out of
+the normal path.
+
+One team lead starts the restricted coordinator on a machine reachable by the team
+(prefer an HTTPS reverse proxy or a private Tailscale address):
+
+```bash
+export AUTOGGML_COORDINATOR_TOKEN="$(openssl rand -hex 24)"
+uv run autoggml coordinator --listen 127.0.0.1 --port 8765
+```
+
+Each contributor connects once. Hardware and memory are detected automatically; the
+explicit flags below are only needed to correct detection:
+
+```bash
+autoggml join --team https://research.example.test --token <team-token> --name peppi-3090
+autoggml status
+```
+
+The connection is remembered in `~/.config/autoggml/team.json` with mode `0600`.
+Environment variables `AUTOGGML_COORDINATOR_URL` and
+`AUTOGGML_COORDINATOR_TOKEN` override that file for managed installations.
+
+Submitters provide a patch and the cells it must pass. The coordinator assigns at most
+one active experiment to each physical machine and copies the patch into immutable,
+content-addressed storage:
+
+```bash
+autoggml submit patches/my-candidate.patch --title "Fuse Sinkhorn" \
+  --backend hip --model deepseek-v4-flash
+autoggml status
+```
+
+On a joined machine, this processes one assigned experiment and returns its result:
+
+```bash
+autoggml worker --once
+```
+
+`worker` accepts typed candidate data only; the coordinator cannot send arbitrary shell
+commands. The worker runs the existing correctness-gated autoggml pipeline under the
+host accelerator lock, uses separate CUDA/HIP/Vulkan build directories, and caps builds
+at four jobs. `autoggml worker --once --simulate` tests the entire queue lifecycle
+without building or using an accelerator. Use `autoggml pause` before taking a personal
+machine offline, `autoggml resume` when it is available again, and `autoggml leave` to
+remove it from the team.
+
+The file-backed coordinator is deliberately a small deployment unit, not the public
+status page. Its service boundary can later be backed by GitHub or the Lucebox control
+plane without changing contributor commands.
+
+## Remote machine-aware workflow
+
+Remote targets live in the gitignored `~/.config/autoggml/targets.toml`; start from
+[`targets.example.toml`](targets.example.toml). SSH host names and absolute remote paths
+do not belong in a research contract or committed result.
+
+One-time onboarding installs a user-local launcher and a local target profile on the
+remote host:
+
+```bash
+uv run autoggml onboard --target strix-halo
+```
+
+After that, the everyday path is deliberately short:
+
+```bash
+ssh user@strix-host
+autoggml test-drive          # safe: inventory + model/patch check + simulated loop
+autoggml test-drive --live   # leased 4K/32-token DeepSeek V4 canary
+```
+
+The safe test drive never builds or loads the model. The live canary refuses to start
+when another worker holds the lease, accelerator/build activity is visible, or less
+than 12 GiB host memory is available. Canary numbers are not admitted to the research
+frontier.
+
+The Strix Halo vertical slice is:
+
+```bash
+# Lightweight and non-mutating. Writes a stable machine fingerprint when --output is used.
+uv run autoggml doctor --target strix-halo --model deepseek-v4-flash --json
+
+# Full model hashing holds the fail-fast GPU lease and aborts if the host is busy.
+uv run autoggml consult --target strix-halo --model deepseek-v4-flash \
+  --hash-model --output research/contracts/strix-halo-deepseek-v4.yaml
+
+# Each heavy command uses flock -n, refuses <12 GiB available RAM or foreign
+# accelerator/build activity, and caps compilation at four jobs.
+uv run autoggml setup --target strix-halo --backend hip
+uv run autoggml freeze --target strix-halo \
+  --contract research/contracts/strix-halo-deepseek-v4.yaml --backend hip
+uv run autoggml run --baseline --target strix-halo \
+  --contract research/contracts/strix-halo-deepseek-v4.yaml --backend hip
+uv run autoggml run --target strix-halo \
+  --contract research/contracts/strix-halo-deepseek-v4.yaml --backend hip \
+  --experiment-patch deepseek-v4-sinkhorn-77bccaa.patch --profile
+uv run autoggml verify --target strix-halo \
+  --contract research/contracts/strix-halo-deepseek-v4.yaml --backend hip \
+  --experiment-patch deepseek-v4-sinkhorn-77bccaa.patch --rounds 3
+```
+
+Use `setup --provision-tools` during an exclusive idle window to install `ccache`
+and, for a Vulkan target, `vulkan-tools`, `glslc`, and the Vulkan development headers.
+
+`doctor` reports observations, inferences, unknowns, and current contention separately.
+Baseline metrics, quality references, profiler captures, and frontiers are namespaced by
+machine fingerprint, model fingerprint, and backend. Changing the model, kernel, ROCm,
+or stable machine configuration therefore requires a fresh contract and baseline.
 
 ### Manual
 
