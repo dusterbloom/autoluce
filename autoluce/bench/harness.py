@@ -24,11 +24,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from experiment import apply_experiment, get_cmake_flags, get_runtime_flags, reset_lucebox
-from autoluce.bench.kl import check_kl, kl_gate, resolve_kl_tau
 from autoluce.bench.objective import check_constraints
 from autoluce.bench.profiling import detect_backend, profile_command
 from autoluce.bench.telemetry import TelemetryCollector
 from autoluce.bench.uncertainty import propagate_score_stddev
+from autoluce.runtime.dflash_http import DflashHttpRuntime
 from autoluce.source_layout import SourceLayout
 
 from autoluce import ROOT
@@ -409,6 +409,61 @@ def resolve_correctness(
     return check_correctness(benchmark_name, model, draft, n_draft, runtime_flags)
 
 
+def _http_benchmark_prompts(spec: dict) -> list[str]:
+    """Create deterministic, cache-distinct prompts near the requested prompt size."""
+    prompts = [str(prompt) for prompt in spec.get("prompts", [])]
+    if not prompts:
+        prompts = ["Measure this inference request."]
+    target_chars = max(32, int(spec.get("llama_bench_args", {}).get("-p", 512)) * 4)
+    filler = " measured inference workload"
+    result = []
+    for index, prompt in enumerate(prompts):
+        value = f"AutoLuce sample {index}. {prompt}"
+        if len(value) < target_chars:
+            value = (value + filler * (1 + (target_chars - len(value)) // len(filler)))[:target_chars]
+        result.append(value)
+    return result
+
+
+def benchmark_with_product_runtime(
+    benchmark_name: str,
+    spec: dict,
+    model: Path,
+    draft: Path | None,
+    runtime_flags: dict[str, str],
+    context_depth: int,
+    profile_path: str | None,
+    check_quality: bool,
+) -> tuple[dict, bool, list[dict]]:
+    """Measure one context cell through the product-owned dflash_server API."""
+    layout = SourceLayout.resolve()
+    backend = detect_backend()
+    runtime = DflashHttpRuntime(layout, backend, model, draft, runtime_flags, profile_path)
+    golden = None
+    quality = spec.get("quality", "exact")
+    if check_quality and quality == "exact":
+        golden = load_golden(benchmark_name)
+        if golden is None:
+            raise RuntimeError(f"no golden outputs for benchmark '{benchmark_name}'; run scripts/generate_golden.py")
+        if golden.get("generated_at") == "NOT_YET_GENERATED":
+            raise RuntimeError(f"golden outputs for benchmark '{benchmark_name}' are placeholders; run scripts/generate_golden.py")
+
+    bench_args = spec.get("llama_bench_args", {})
+    session = runtime.session(context_depth)
+    with session as (client, _server, _telemetry):
+        metrics = client.benchmark(
+            _http_benchmark_prompts(spec),
+            repetitions=int(bench_args.get("--repetitions", 3)),
+            max_tokens=int(bench_args.get("-n", 128)),
+        )
+        if golden is not None:
+            correct, details = client.compare_golden(golden)
+        else:
+            correct, details = True, []
+    metrics.update(session.final_metrics)
+    return metrics, correct, details
+
+
 # ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
@@ -452,7 +507,13 @@ def load_baseline_metrics() -> dict | None:
 
 
 def list_benchmarks() -> list[str]:
-    return sorted(p.stem for p in BENCHMARKS_DIR.glob("*.json") if p.name != "manifest.json")
+    result = []
+    for path in BENCHMARKS_DIR.glob("*.json"):
+        if path.name == "manifest.json":
+            continue
+        if json.loads(path.read_text()).get("frontier_eligible", True):
+            result.append(path.stem)
+    return sorted(result)
 
 
 def _simulated_metrics() -> dict[str, float]:
@@ -488,38 +549,44 @@ def run_single_benchmark(
         entry = benchmark.get("manifest_entry", benchmark_name)
         model = resolve_model(entry, "target")
         draft = resolve_model(entry, "draft")
-        n_draft = benchmark.get("n_draft", 15)
         if model is None or not model.exists():
             raise RuntimeError(f"target model for benchmark '{benchmark_name}' not found; run prepare.py (or use --simulate)")
+        quality = benchmark.get("quality", "exact")
+        if enforce_constraints and not benchmark.get("frontier_eligible", True):
+            raise RuntimeError(f"benchmark '{benchmark_name}' is a canary and cannot score a frontier candidate")
+        if quality == "kl" and not benchmark.get("kl_text"):
+            raise RuntimeError(f"benchmark '{benchmark_name}' declares KL quality without a kl_text corpus")
+        if benchmark.get("kl_text"):
+            raise RuntimeError(
+                f"benchmark '{benchmark_name}' requires KL quality, but dflash_server does not expose token logits; "
+                "freeze exact quality now or add a product logits endpoint before enabling this gate"
+            )
+        if quality not in {"exact", "canary"}:
+            raise RuntimeError(f"unsupported product quality mode: {quality}")
         profile_path = os.path.join(profile_dir, benchmark_name) if profile_dir else None
         if profile_path:
             Path(profile_path).parent.mkdir(parents=True, exist_ok=True)
         contexts = [int(value) for value in benchmark.get("contexts", [])]
         if contexts:
             cells = []
+            correct, details = True, []
             for depth in contexts:
                 cell_profile = f"{profile_path}-ctx{depth}" if profile_path else None
-                cell = benchmark_with_llama_bench(
-                    model, draft, n_draft, benchmark.get("llama_bench_args", {}), runtime_flags,
-                    profile_path=cell_profile, context_depth=depth,
+                cell, cell_correct, cell_details = benchmark_with_product_runtime(
+                    benchmark_name, benchmark, model, draft, runtime_flags, depth, cell_profile,
+                    check_quality=not cells,
                 )
+                correct = correct and cell_correct
+                details.extend(cell_details)
                 cell["context_depth"] = depth
                 cells.append(cell)
             metrics = aggregate_context_metrics(cells, int(benchmark.get("primary_context_count", 2)))
         else:
-            metrics = benchmark_with_llama_bench(
-                model, draft, n_draft, benchmark.get("llama_bench_args", {}), runtime_flags,
-                profile_path=profile_path,
+            default_context = int(benchmark.get("max_context", benchmark.get("context", 8192)))
+            metrics, correct, details = benchmark_with_product_runtime(
+                benchmark_name, benchmark, model, draft, runtime_flags, default_context, profile_path,
+                check_quality=True,
             )
-        correct, details = resolve_correctness(benchmark_name, benchmark, model, draft, n_draft, runtime_flags)
-        # Tier-1 quality oracle: KL against the frozen baseline reference.
-        # check_kl raises when kl_text is declared but the reference is missing.
-        if benchmark.get("kl_text"):
-            kl_metrics = check_kl(benchmark_name, model, extra=apply_runtime_flags([], runtime_flags))
-            metrics.update(kl_metrics)
-            kl_violations = kl_gate(kl_metrics, resolve_kl_tau(benchmark))
-            for v in kl_violations:
-                print(f"KL VIOLATION [{benchmark_name}]: {v}")
 
     metrics["build_time_s"] = build_time
     metrics["correctness"] = "pass" if correct else "FAIL"

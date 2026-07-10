@@ -65,6 +65,15 @@ def test_constraint_violation_zeroes_score():
     assert result["score"] == 0.0
 
 
-def test_real_harness_fails_closed_for_vendored_product_runtime():
-    with pytest.raises(RuntimeError, match="does not provide 'product-benchmark'"):
-        run_harness(baseline=True, simulate=False)
+def test_vendored_product_declares_http_benchmark_and_exact_quality_capabilities():
+    from autoluce.source_layout import SourceLayout
+
+    capabilities = SourceLayout.resolve().manifest.capabilities
+    assert "product-benchmark" in capabilities
+    assert "product-quality-exact" in capabilities
+
+
+def test_default_frontier_excludes_the_non_scoring_test_drive_canary():
+    from autoluce.bench.harness import list_benchmarks
+
+    assert "deepseek-v4-test-drive" not in list_benchmarks()

@@ -1,7 +1,8 @@
 {
   "name": "deepseek-v4-test-drive",
   "manifest_entry": "deepseek-v4-flash",
-  "quality": "kl",
+  "quality": "canary",
+  "frontier_eligible": false,
   "spec_type": null,
   "n_draft": 0,
   "contexts": [4096],

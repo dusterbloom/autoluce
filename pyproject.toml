@@ -21,7 +21,7 @@ autoluce = "cli:main"
 # cli.py (entry point) and experiment.py (the agent-editable file) stay at the repo
 # root; everything else lives in the autoluce package.
 py-modules = ["cli", "experiment"]
-packages = ["autoluce", "autoluce.bench", "autoluce.loop", "autoluce.ideation", "autoluce.parallel"]
+packages = ["autoluce", "autoluce.bench", "autoluce.loop", "autoluce.ideation", "autoluce.parallel", "autoluce.runtime"]
 
 [dependency-groups]
 dev = [

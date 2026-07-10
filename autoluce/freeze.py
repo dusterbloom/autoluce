@@ -1,4 +1,4 @@
-"""Freeze deterministic and KL quality references on a contracted target."""
+"""Freeze deterministic exact-quality references on a contracted target."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def contract_namespace(contract: ResearchContract, backend: str) -> str:
 
 
 def freeze(target: TargetConfig, contract: ResearchContract, backend: str = "hip") -> dict:
-    SourceLayout.resolve().require_capability("product-quality")
+    SourceLayout.resolve().require_capability("product-quality-exact")
     if backend not in contract.backends:
         raise ValueError(f"backend '{backend}' is not allowed by the research contract")
     worker = SSHWorker(target)
@@ -39,10 +39,6 @@ def freeze(target: TargetConfig, contract: ResearchContract, backend: str = "hip
         [*env, uv, "run", "python", "scripts/generate_golden.py", "--benchmark", contract.model, "--overwrite"],
         lease=True, timeout=7200,
     )
-    worker.run(
-        [*env, uv, "run", "python", "-m", "autoluce.bench.kl", contract.model],
-        lease=True, timeout=7200,
-    )
     output = Path("results") / "remote" / target.name / "state" / namespace
     output.mkdir(parents=True, exist_ok=True)
     proc = worker.runner(
@@ -56,6 +52,8 @@ def freeze(target: TargetConfig, contract: ResearchContract, backend: str = "hip
         "contract": contract.to_dict(),
         "backend": backend,
         "namespace": namespace,
+        "quality_oracles": ["exact"],
+        "unavailable_oracles": ["kl: dflash_server has no token-logits API"],
         "files": sorted(str(path.relative_to(output)) for path in output.rglob("*") if path.is_file()),
     }
     (output / "freeze-manifest.json").write_text(json.dumps(manifest, indent=2))

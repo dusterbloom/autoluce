@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,8 +17,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from autoluce.bench.harness import build_generation_command, extract_generated_text  # noqa: E402
 from autoluce.bench.profiling import detect_backend  # noqa: E402
+from autoluce.runtime.dflash_http import DflashHttpRuntime  # noqa: E402
 from autoluce.source_layout import SourceLayout  # noqa: E402
 
 WORK_DIR = ROOT / "work"
@@ -60,16 +59,10 @@ def resolve_model(benchmark_name: str, role: str) -> Path | None:
     return MODELS_DIR / entry["local"]
 
 
-def generate_one(llama_cli: Path, model: Path, draft: Path | None, prompt: str, params: dict) -> dict:
-    cmd = build_generation_command(llama_cli, model, draft, prompt, params, params.get("n_draft", 15))
-
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        raise RuntimeError(f"llama-cli failed: {result.stderr}")
-
+def generate_one(client, prompt: str, params: dict) -> dict:
     return {
         "prompt": prompt,
-        "text": extract_generated_text(result.stdout),
+        "text": client.complete(prompt, params).text,
         "tokens": [],
     }
 
@@ -81,15 +74,17 @@ def main():
     args = parser.parse_args()
 
     layout = SourceLayout.resolve()
-    layout.require_capability("llama-tools")
-    llama_cli = layout.build_dir(detect_backend()) / "bin" / "llama-cli"
-    if not llama_cli.exists():
-        print(f"ERROR: {llama_cli} not found. Run `uv run prepare.py` first.")
+    layout.require_capability("product-quality-exact")
+    backend = detect_backend()
+    server = layout.binary("dflash_server", backend)
+    if not server.exists():
+        print(f"ERROR: {server} not found. Run `uv run autoluce setup` first.")
         return 1
 
     benchmark = load_benchmark(args.benchmark)
-    model = resolve_model(args.benchmark, "target")
-    draft = resolve_model(args.benchmark, "draft")
+    manifest_entry = benchmark.get("manifest_entry", args.benchmark)
+    model = resolve_model(manifest_entry, "target")
+    draft = resolve_model(manifest_entry, "draft")
 
     if model is None or not model.exists():
         print(f"ERROR: target model not found: {model}")
@@ -104,10 +99,13 @@ def main():
     params = benchmark.get("parameters", {"temperature": 0.0, "top_k": 1, "top_p": 1.0, "n_predict": 64, "seed": 42})
     params["n_draft"] = benchmark.get("n_draft", 15)
 
+    max_context = max([int(value) for value in benchmark.get("contexts", [])] or [int(benchmark.get("max_context", 8192))])
+    runtime = DflashHttpRuntime(layout, backend, model, draft, {})
     outputs = []
-    for prompt in prompts:
-        print(f"Generating golden output for: {prompt[:60]}...")
-        outputs.append(generate_one(llama_cli, model, draft, prompt, params))
+    with runtime.session(max_context) as (client, _server, _telemetry):
+        for prompt in prompts:
+            print(f"Generating golden output for: {prompt[:60]}...")
+            outputs.append(generate_one(client, prompt, params))
 
     golden = {
         "benchmark": args.benchmark,

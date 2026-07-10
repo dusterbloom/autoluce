@@ -18,15 +18,10 @@ def verify(
     rounds: int,
     k: float,
 ) -> dict:
-    """Reject live verification until the HTTP product adapter owns the workflow.
-
-    The previous implementation drove standalone llama.cpp binaries and backend-op
-    tests that are not part of the vendored Lucebox product. Keeping that script
-    behind a nominal feature flag would make enabling the new adapter unsafe.
-    """
+    """Reject until interleaved A/B scheduling is ported to the HTTP runtime."""
     del target, contract, patch, backend, rounds, k
     SourceLayout.resolve().require_capability("product-benchmark")
-    raise RuntimeError("the Lucebox product benchmark adapter is not registered")
+    raise RuntimeError("interleaved remote A/B verification is not yet wired to dflash_server")
 
 
 def main() -> None:

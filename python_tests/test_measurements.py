@@ -5,6 +5,17 @@ Tests for real metric parsing and the (fabrication-free) score formula.
 import pytest
 
 from autoluce.bench.harness import compute_score, parse_acceptance_rate, parse_llama_bench_output, parse_peak_memory, require_acceptance_rate
+from autoluce.bench.telemetry import _parse_nvidia_smi
+
+
+def test_parse_nvidia_smi_uses_maximum_across_devices():
+    values = _parse_nvidia_smi("1024, 55, 210.5, 1695\n2048, 60, 250.0, 1800\n")
+    assert values == {
+        "vram_used_bytes": 2048 * 1024 * 1024,
+        "temperature_millic": 60_000,
+        "power_microw": 250_000_000,
+        "gpu_clock_hz": 1_800_000_000,
+    }
 
 
 def test_parse_llama_bench_output_captures_stddev():

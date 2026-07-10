@@ -14,7 +14,7 @@ supported_backends = ["cuda", "hip"]
 build_targets = ["dflash_server", "test_dflash", "test_deepseek4_unit"]
 submodules_by_backend = { cuda = ["server/deps/Block-Sparse-Attention"], hip = [] }
 runtime = "dflash-server-http"
-capabilities = ["product-build", "product-patch", "vendor-patch", "deepseek-unit"]
+capabilities = ["product-build", "product-benchmark", "product-quality-exact", "product-patch", "vendor-patch", "deepseek-unit"]
 
 [vendor]
 repository = "https://github.com/Luce-Org/lucebox-ggml"

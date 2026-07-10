@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import glob
+import shutil
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -50,8 +52,47 @@ def _max_glob(patterns: list[str]) -> int | None:
     return max(values) if values else None
 
 
+def _parse_nvidia_smi(text: str) -> dict[str, float]:
+    """Parse memory MiB, temperature C, power W, and SM clock MHz rows."""
+    rows = []
+    for line in text.splitlines():
+        try:
+            rows.append([float(value.strip()) for value in line.split(",")])
+        except ValueError:
+            continue
+    if not rows or any(len(row) != 4 for row in rows):
+        return {}
+    return {
+        "vram_used_bytes": max(row[0] for row in rows) * 1024 * 1024,
+        "temperature_millic": max(row[1] for row in rows) * 1000,
+        "power_microw": max(row[2] for row in rows) * 1_000_000,
+        "gpu_clock_hz": max(row[3] for row in rows) * 1_000_000,
+    }
+
+
+def _nvidia_sample() -> dict[str, float]:
+    if shutil.which("nvidia-smi") is None:
+        return {}
+    try:
+        process = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=memory.used,temperature.gpu,power.draw,clocks.sm",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {}
+    return _parse_nvidia_smi(process.stdout) if process.returncode == 0 else {}
+
+
 def sample() -> dict[str, int | float | None]:
     mem = _meminfo()
+    nvidia = _nvidia_sample()
     swap_used = None
     if "SwapTotal" in mem and "SwapFree" in mem:
         swap_used = mem["SwapTotal"] - mem["SwapFree"]
@@ -64,10 +105,13 @@ def sample() -> dict[str, int | float | None]:
         "vram_used_bytes": _max_glob([
             "/sys/class/drm/card*/device/mem_info_vram_used",
             "/sys/class/drm/card*/device/mem_info_vis_vram_used",
-        ]),
-        "temperature_millic": _max_glob(["/sys/class/drm/card*/device/hwmon/hwmon*/temp*_input"]),
-        "power_microw": _max_glob(["/sys/class/drm/card*/device/hwmon/hwmon*/power*_average"]),
-        "gpu_clock_hz": _max_glob(["/sys/class/drm/card*/device/hwmon/hwmon*/freq*_input"]),
+        ]) or nvidia.get("vram_used_bytes"),
+        "temperature_millic": _max_glob(["/sys/class/drm/card*/device/hwmon/hwmon*/temp*_input"])
+        or nvidia.get("temperature_millic"),
+        "power_microw": _max_glob(["/sys/class/drm/card*/device/hwmon/hwmon*/power*_average"])
+        or nvidia.get("power_microw"),
+        "gpu_clock_hz": _max_glob(["/sys/class/drm/card*/device/hwmon/hwmon*/freq*_input"])
+        or nvidia.get("gpu_clock_hz"),
     }
 
 
