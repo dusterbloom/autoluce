@@ -4,7 +4,7 @@ Synthetic-data tests for the constrained objective (objective.check_constraints)
 
 import pytest
 
-from autoggml.bench.objective import check_constraints
+from autoluce.bench.objective import check_constraints
 
 
 def _spec(constraints: dict) -> dict:

@@ -5,24 +5,24 @@ Live capture needs the target GPU + profiler; the command building is pure here.
 
 import pytest
 
-from autoggml.bench.profiling import classify_bottleneck, detect_backend, profile_command, summarize_rocprofv3_csv
+from autoluce.bench.profiling import classify_bottleneck, detect_backend, profile_command, summarize_rocprofv3_csv
 
 
 def test_detect_backend_env_overrides_hardware(monkeypatch):
     # Hardware may report anything; an explicit env override must win.
-    monkeypatch.setattr("autoggml.bench.profiling._probe_gpu", lambda: "cuda")
+    monkeypatch.setattr("autoluce.bench.profiling._probe_gpu", lambda: "cuda")
     assert detect_backend({"GGML_CUDA": "ON"}) == "cuda"
     assert detect_backend({"GGML_HIP": "ON"}) == "hip"
     assert detect_backend({"GGML_VULKAN": "ON"}) == "vulkan"
 
 
 def test_detect_backend_probes_hardware_when_no_env(monkeypatch):
-    monkeypatch.setattr("autoggml.bench.profiling._probe_gpu", lambda: "cuda")
+    monkeypatch.setattr("autoluce.bench.profiling._probe_gpu", lambda: "cuda")
     assert detect_backend({}) == "cuda"
 
 
 def test_detect_backend_falls_back_to_cpu(monkeypatch):
-    monkeypatch.setattr("autoggml.bench.profiling._probe_gpu", lambda: None)
+    monkeypatch.setattr("autoluce.bench.profiling._probe_gpu", lambda: None)
     assert detect_backend({}) == "cpu"
 
 

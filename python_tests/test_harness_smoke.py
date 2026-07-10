@@ -1,5 +1,5 @@
 """
-Smoke tests for the autoggml v2 harness.
+Smoke tests for the autoluce v2 harness.
 
 These tests run the harness in simulation mode (no real Lucebox product source
 required) and verify that it produces a valid, reproducible result bundle.
@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from autoggml.bench.harness import run_harness
-from autoggml.reproduce import capture_environment
+from autoluce.bench.harness import run_harness
+from autoluce.reproduce import capture_environment
 
 
 def test_baseline_returns_required_keys():
@@ -43,7 +43,7 @@ def test_reproducibility_bundle(tmp_path: Path):
 
 def test_simulated_summary_carries_score_stddev(monkeypatch):
     # Pin to one benchmark so the aggregate is independent of how many exist.
-    monkeypatch.setenv("AUTOGGML_BENCHMARKS", "smoke")
+    monkeypatch.setenv("AUTOLUCE_BENCHMARKS", "smoke")
     summary = run_harness(baseline=True, simulate=True)
     assert "score_stddev" in summary
     # Sim fixture: decode=120±4. Score IS decode_tok_s; constraints are separate.
@@ -54,7 +54,7 @@ def test_simulated_summary_carries_score_stddev(monkeypatch):
 def test_constraint_violation_zeroes_score():
     # smoke.json caps peak_mem_GiB at 8.0; the simulated fixture uses 18.0, so an
     # enforced run must zero the score exactly like a correctness failure.
-    from autoggml.bench.harness import run_single_benchmark
+    from autoluce.bench.harness import run_single_benchmark
 
     result = run_single_benchmark(
         "smoke", 1.0, {}, simulate=True,

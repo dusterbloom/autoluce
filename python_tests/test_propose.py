@@ -4,7 +4,7 @@ chat prompt. main() is a thin CLI (read state -> build -> complete -> print) and
 exercised by the no-op-when-disabled smoke, not unit-tested here.
 """
 
-from autoggml.ideation.propose import build_proposal_messages
+from autoluce.ideation.propose import build_proposal_messages
 
 
 def test_proposal_messages_include_best_score_and_ideas():

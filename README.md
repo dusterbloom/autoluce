@@ -1,4 +1,4 @@
-# autoggml
+# AutoLuce
 
 Coordinate people, coding agents, and shared GPUs to improve
 [Lucebox Hub](https://github.com/Luce-Org/lucebox-hub) and its vendored GGML with
@@ -7,13 +7,13 @@ reproducible evidence.
 ## TL;DR
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoggml/main/install.sh | bash
-cd autoggml
-uv run autoggml source status
-uv run autoggml reproduce --simulate
+curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoluce/main/install.sh | bash
+cd autoluce
+uv run autoluce source status
+uv run autoluce reproduce --simulate
 ```
 
-`autoggml` currently provides:
+AutoLuce currently provides:
 
 - One pinned Lucebox product and vendor contract.
 - CUDA and HIP product builds.
@@ -32,16 +32,16 @@ Affected commands fail clearly instead of benchmarking a different engine.
 
 ```bash
 uv sync
-uv run autoggml source status
-uv run autoggml source check --remote
-uv run autoggml reproduce --simulate
-uv run autoggml help
+uv run autoluce source status
+uv run autoluce source check --remote
+uv run autoluce reproduce --simulate
+uv run autoluce help
 ```
 
 ### Prepare a CUDA or HIP machine
 
 ```bash
-uv run autoggml setup
+uv run autoluce setup
 ```
 
 Setup:
@@ -75,35 +75,35 @@ updates the research frontier.
 One team lead starts the coordinator on a private address:
 
 ```bash
-export AUTOGGML_COORDINATOR_TOKEN="$(openssl rand -hex 24)"
-uv run autoggml coordinator --listen 127.0.0.1 --port 8765
+export AUTOLUCE_COORDINATOR_TOKEN="$(openssl rand -hex 24)"
+uv run autoluce coordinator --listen 127.0.0.1 --port 8765
 ```
 
 Expose it through HTTPS or a private network such as Tailscale. Each contributor joins
 once:
 
 ```bash
-uv run autoggml join \
+uv run autoluce join \
   --team "$TEAM_URL" --token "$TEAM_TOKEN" --name my-gpu
-uv run autoggml status
+uv run autoluce status
 ```
 
-The connection is stored in `~/.config/autoggml/team.json` with mode `0600`.
+The connection is stored in `~/.config/autoluce/team.json` with mode `0600`.
 
 Once the live product adapter is ready, submit a focused patch to compatible hardware:
 
 ```bash
-uv run autoggml submit patches/my-candidate.patch \
+uv run autoluce submit patches/my-candidate.patch \
   --title "Reduce expert gather overhead" \
   --backend hip --model deepseek-v4-flash
-uv run autoggml status
+uv run autoluce status
 ```
 
 A machine will process one assigned job at a time under its accelerator lease. Today,
 `--simulate` can test that lifecycle with a disposable job:
 
 ```bash
-uv run autoggml worker --once --simulate
+uv run autoluce worker --once --simulate
 ```
 
 Do not use a simulated result as research evidence or run simulation against a real
@@ -116,12 +116,12 @@ typed jobs and patch bytes, never arbitrary shell commands.
 
 Agents are researchers, not privileged hardware workers. They receive bounded task
 packets, work at a pinned commit, and submit a patch plus structured evidence.
-Run `uv run autoggml setup` once before starting agent worktrees.
+Run `uv run autoluce setup` once before starting agent worktrees.
 
 Create a challenge with distinct approaches:
 
 ```bash
-uv run autoggml agent challenge create \
+uv run autoluce agent challenge create \
   --title "Expert gather challenge" \
   --objective "Reduce batch-one routed expert overhead" \
   --why "A current product trace identifies expert gather as a bottleneck" \
@@ -134,15 +134,15 @@ uv run autoggml agent challenge create \
 An implementation agent joins and claims work:
 
 ```bash
-uv run autoggml agent join --name codex-kernel-1 --capability implement
-uv run autoggml agent next --json
-uv run autoggml agent start <task-id> --json
+uv run autoluce agent join --name codex-kernel-1 --capability implement
+uv run autoluce agent next --json
+uv run autoluce agent start <task-id> --json
 ```
 
 `start` creates an isolated worktree from `work/lucebox`. Submit the result:
 
 ```bash
-uv run autoggml agent submit <task-id> --patch candidate.patch \
+uv run autoluce agent submit <task-id> --patch candidate.patch \
   --rationale "Focused product change" \
   --observation "What changed" \
   --risk "What might regress" --json
@@ -167,22 +167,22 @@ Copy `targets.example.toml` to the gitignored target configuration and edit the 
 root, and model paths:
 
 ```bash
-mkdir -p ~/.config/autoggml
-cp targets.example.toml ~/.config/autoggml/targets.toml
+mkdir -p ~/.config/autoluce
+cp targets.example.toml ~/.config/autoluce/targets.toml
 ```
 
 Then onboard the host:
 
 ```bash
-uv run autoggml onboard --target strix-halo
-uv run autoggml doctor --target strix-halo \
+uv run autoluce onboard --target strix-halo
+uv run autoluce doctor --target strix-halo \
   --model deepseek-v4-flash --json
 ```
 
 For a Strix Halo build:
 
 ```bash
-uv run autoggml setup --target strix-halo --backend hip
+uv run autoluce setup --target strix-halo --backend hip
 ```
 
 Remote heavy commands use a nonblocking accelerator lock and cap compilation at four
@@ -196,15 +196,15 @@ contains the Hub commit, tracked branch, layout, build targets, backends, capabi
 runtime, submodules, and expected GGML vendor provenance.
 
 ```bash
-uv run autoggml source check --remote
-uv run autoggml source status --json
+uv run autoluce source check --remote
+uv run autoluce source status --json
 ```
 
 A scheduled GitHub workflow checks for Hub movement every Monday. When it moves:
 
 1. Review the new Hub commit.
 2. Update the product pin and any changed `VENDOR.md` fields together.
-3. Run `autoggml setup`, Ruff, and the test suite.
+3. Run `autoluce setup`, Ruff, and the test suite.
 4. Add runtime or build changes to the manifest, not scattered path checks.
 
 Never update the GGML vendor commit independently of the product commit. Hub's
@@ -233,11 +233,11 @@ custom fused HC CUDA/HIP paths. Re-profile the current product before porting it
 ```text
 sources/lucebox.toml       Product and vendor source contract
 experiment.py              Applies one product or vendor experiment
-autoggml/source_layout.py  Authoritative paths and capabilities
-autoggml/bench/            Measurement, quality, telemetry, statistics
-autoggml/loop/             Experiment and verification lifecycle
-autoggml/agent_*.py        Agent challenges, evidence, review, credit
-autoggml/coordination.py   Shared machine queue
+autoluce/source_layout.py  Authoritative paths and capabilities
+autoluce/bench/            Measurement, quality, telemetry, statistics
+autoluce/loop/             Experiment and verification lifecycle
+autoluce/agent_*.py        Agent challenges, evidence, review, credit
+autoluce/coordination.py   Shared machine queue
 benchmarks/                Fixed workloads and constraints
 python_tests/              Unit and end-to-end tests
 program.md                 Detailed autonomous-agent rules
@@ -250,14 +250,14 @@ ROADMAP.md                 Research ideas and priorities
 uv sync
 uv run ruff check .
 uv run pytest -q
-uv run autoggml reproduce --simulate
+uv run autoluce reproduce --simulate
 ```
 
 CUDA builds must remain at `-j4` or lower. Do not run heavy containers and accelerator
 builds at the same time on shared machines.
 
-Use `uv run autoggml help` for the full command inventory and
-`uv run autoggml <command> --help` for command-specific options.
+Use `uv run autoluce help` for the full command inventory and
+`uv run autoluce <command> --help` for command-specific options.
 
 ## License
 

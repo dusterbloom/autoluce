@@ -9,7 +9,7 @@ fixtures shaped like llama-perplexity's real --kl-divergence stdout
 
 import pytest
 
-from autoggml.bench.kl import (
+from autoluce.bench.kl import (
     DEFAULT_KL_TAU,
     build_kl_base_cmd,
     build_kl_check_cmd,
@@ -151,5 +151,5 @@ def test_cli_routes_kl_base():
     from cli import resolve
 
     module, args = resolve(["kl-base", "smoke"])
-    assert module == "autoggml.bench.kl"
+    assert module == "autoluce.bench.kl"
     assert args == ["smoke"]

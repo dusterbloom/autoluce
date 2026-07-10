@@ -1,4 +1,4 @@
-name: autoggml v2 CI
+name: AutoLuce CI
 
 on:
   push:
@@ -27,10 +27,10 @@ jobs:
         run: uv run pytest -q
 
       - name: Smoke test harness (simulation mode)
-        run: uv run autoggml baseline --simulate
+        run: uv run autoluce baseline --simulate
 
       - name: Smoke test reproducibility suite
-        run: uv run autoggml reproduce --simulate
+        run: uv run autoluce reproduce --simulate
 
   container-build:
     runs-on: ubuntu-latest
@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build deterministic container
-        run: docker build -t autoggml .
+        run: docker build -t autoluce .
 
       - name: Run lint and smoke tests in container
-        run: docker run --rm autoggml uv run autoggml reproduce --simulate
+        run: docker run --rm autoluce uv run autoluce reproduce --simulate

@@ -1,13 +1,13 @@
-# Deterministic environment for autoggml v2 experiments.
+# Deterministic environment for AutoLuce experiments.
 #
 # Build:
-#   docker build -t autoggml .
+#   docker build -t autoluce .
 #
-# Run baseline harness in container:
-#   docker run --rm -it -v $(pwd)/work:/app/work autoggml uv run autoggml baseline
+# Run the simulated harness in the container:
+#   docker run --rm -it -v $(pwd)/work:/app/work autoluce uv run autoluce baseline --simulate
 #
 # Run full reproduction suite:
-#   docker run --rm -it -v $(pwd)/work:/app/work autoggml uv run autoggml reproduce
+#   docker run --rm -it -v $(pwd)/work:/app/work autoluce uv run autoluce reproduce
 
 FROM ubuntu:24.04
 
@@ -38,7 +38,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 WORKDIR /app
 
 # Copy dependency manifest and lockfile first to leverage Docker layer caching:
-# install only third-party deps here (the autoggml package itself doesn't exist yet).
+# install only third-party deps here (the autoluce package itself doesn't exist yet).
 COPY pyproject.toml .python-version uv.lock README.md ./
 RUN uv sync --frozen --no-install-project
 
@@ -47,4 +47,4 @@ COPY . .
 RUN uv sync --frozen
 
 # Default: run lint and smoke tests.
-CMD ["uv", "run", "autoggml", "reproduce"]
+CMD ["uv", "run", "autoluce", "reproduce", "--simulate"]

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from autoggml.source_layout import (
+from autoluce.source_layout import (
     SourceDrift,
     SourceLayout,
     SourceManifest,
@@ -49,14 +49,14 @@ def test_repository_normalization_does_not_strip_valid_name_characters(monkeypat
     checkout = _hub_checkout(tmp_path)
     vendor_manifest = checkout / "server" / "deps" / "llama.cpp" / "VENDOR.md"
     vendor_manifest.write_text(vendor_manifest.read_text().replace("lucebox-ggml", "lucebox-ggml.git"))
-    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(checkout))
+    monkeypatch.setenv("AUTOLUCE_SOURCE_ROOT", str(checkout))
 
     assert SourceLayout.resolve(root=tmp_path).validate_vendor_provenance().source_branch == "luce-dflash"
 
 
 def test_layout_has_one_authoritative_path_map(monkeypatch, tmp_path):
     checkout = _hub_checkout(tmp_path)
-    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(checkout))
+    monkeypatch.setenv("AUTOLUCE_SOURCE_ROOT", str(checkout))
     layout = SourceLayout.resolve(root=tmp_path)
 
     assert layout.checkout == checkout
@@ -75,7 +75,7 @@ def test_layout_has_one_authoritative_path_map(monkeypatch, tmp_path):
 
 def test_layout_detects_hub_and_refuses_wrong_or_missing_shape(monkeypatch, tmp_path):
     checkout = _hub_checkout(tmp_path)
-    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(checkout))
+    monkeypatch.setenv("AUTOLUCE_SOURCE_ROOT", str(checkout))
     assert SourceLayout.resolve(root=tmp_path).detect() == "lucebox-hub-vendored"
 
     (checkout / "server" / "deps" / "llama.cpp" / "VENDOR.md").unlink()
@@ -85,7 +85,7 @@ def test_layout_detects_hub_and_refuses_wrong_or_missing_shape(monkeypatch, tmp_
 
 def test_backend_flags_and_targets_belong_to_layout(monkeypatch, tmp_path):
     checkout = _hub_checkout(tmp_path)
-    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(checkout))
+    monkeypatch.setenv("AUTOLUCE_SOURCE_ROOT", str(checkout))
     layout = SourceLayout.resolve(root=tmp_path)
 
     assert layout.cmake_backend_flags("cuda") == ["-DDFLASH27B_GPU_BACKEND=cuda"]
@@ -99,7 +99,7 @@ def test_backend_flags_and_targets_belong_to_layout(monkeypatch, tmp_path):
 
 def test_vendor_manifest_is_machine_readable_and_checked(monkeypatch, tmp_path):
     checkout = _hub_checkout(tmp_path)
-    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(checkout))
+    monkeypatch.setenv("AUTOLUCE_SOURCE_ROOT", str(checkout))
     layout = SourceLayout.resolve(root=tmp_path)
     provenance = parse_vendor_manifest(layout.vendor_manifest_path)
 

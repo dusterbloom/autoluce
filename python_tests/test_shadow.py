@@ -14,8 +14,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from autoggml import shadow
-from autoggml.shadow import build_shadow_benchmark, extract_prompt, select_shadow_prompts
+from autoluce import shadow
+from autoluce.shadow import build_shadow_benchmark, extract_prompt, select_shadow_prompts
 
 NOW = datetime(2026, 7, 2, 12, 0, 0)
 
@@ -105,7 +105,7 @@ def test_build_shadow_benchmark_does_not_mutate_template():
 
 
 def test_build_shadow_benchmark_default_kl_text_under_shadow_dir(monkeypatch, tmp_path):
-    monkeypatch.setenv("AUTOGGML_SHADOW_DIR", str(tmp_path))
+    monkeypatch.setenv("AUTOLUCE_SHADOW_DIR", str(tmp_path))
     bench = build_shadow_benchmark(["a"], TEMPLATE)
     assert bench["kl_text"] == str(tmp_path / "shadow.kl_text.txt")
 
@@ -156,7 +156,7 @@ class _Upstream(BaseHTTPRequestHandler):
 
 
 def test_proxy_forwards_and_tees_prompt(monkeypatch, tmp_path):
-    monkeypatch.setenv("AUTOGGML_SHADOW_DIR", str(tmp_path))
+    monkeypatch.setenv("AUTOLUCE_SHADOW_DIR", str(tmp_path))
     upstream = ThreadingHTTPServer(("127.0.0.1", 0), _Upstream)
     threading.Thread(target=upstream.serve_forever, daemon=True).start()
     proxy = shadow.make_proxy_server(0, f"http://127.0.0.1:{upstream.server_port}")
@@ -186,7 +186,7 @@ def test_cmd_build_writes_benchmark_and_kl_text(monkeypatch, tmp_path):
     bench_dir = tmp_path / "benchmarks"
     bench_dir.mkdir()
     (bench_dir / "smoke.json").write_text(json.dumps(TEMPLATE))
-    monkeypatch.setenv("AUTOGGML_SHADOW_DIR", str(shadow_dir))
+    monkeypatch.setenv("AUTOLUCE_SHADOW_DIR", str(shadow_dir))
     monkeypatch.setattr(shadow, "BENCHMARKS_DIR", bench_dir)
     shadow_dir.mkdir(parents=True)
     log = shadow_dir / "prompts.jsonl"
@@ -204,7 +204,7 @@ def test_cmd_build_writes_benchmark_and_kl_text(monkeypatch, tmp_path):
 
 
 def test_cmd_build_no_prompts_exits_nonzero(monkeypatch, tmp_path):
-    monkeypatch.setenv("AUTOGGML_SHADOW_DIR", str(tmp_path))
+    monkeypatch.setenv("AUTOLUCE_SHADOW_DIR", str(tmp_path))
     monkeypatch.setattr(shadow, "BENCHMARKS_DIR", tmp_path / "benchmarks")
     with pytest.raises(SystemExit):
         shadow.cmd_build()
@@ -214,7 +214,7 @@ def test_cmd_build_no_prompts_exits_nonzero(monkeypatch, tmp_path):
 
 
 def test_harness_skips_golden_when_quality_kl(monkeypatch, tmp_path):
-    from autoggml.bench import harness
+    from autoluce.bench import harness
     spec = dict(TEMPLATE, name="shadow", quality="kl", kl_text=str(tmp_path / "k.txt"))
 
     def fail(*a, **k):
@@ -228,7 +228,7 @@ def test_harness_skips_golden_when_quality_kl(monkeypatch, tmp_path):
 
 
 def test_harness_still_requires_golden_without_quality_kl(monkeypatch):
-    from autoggml.bench import harness
+    from autoluce.bench import harness
     monkeypatch.setattr(harness, "load_golden", lambda name: None)
     with pytest.raises(RuntimeError, match="golden"):
         harness.resolve_correctness("smoke", dict(TEMPLATE), None, None, 0, {})

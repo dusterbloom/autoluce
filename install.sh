@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# autoggml one-liner installer.
+# AutoLuce one-liner installer.
 #
-#   curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoggml/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoluce/main/install.sh | bash
 #
 # Clones the repo, ensures `uv` is installed, syncs dependencies, and prints next steps.
-# Override the source with AUTOGGML_REPO_URL / AUTOGGML_DEST. Lucebox product builds
+# Override the source with AUTOLUCE_REPO_URL / AUTOLUCE_DEST. Lucebox product builds
 # currently require a CUDA or HIP toolkit.
 set -euo pipefail
 
-REPO_URL="${AUTOGGML_REPO_URL:-https://github.com/dusterbloom/autoggml.git}"
-DEST="${AUTOGGML_DEST:-autoggml}"
+REPO_URL="${AUTOLUCE_REPO_URL:-https://github.com/dusterbloom/autoluce.git}"
+DEST="${AUTOLUCE_DEST:-autoluce}"
 
-echo "==> autoggml installer"
+echo "==> AutoLuce installer"
 echo "    repo: $REPO_URL"
 echo "    dest: $DEST"
 
@@ -42,9 +42,9 @@ uv sync
 cat <<'NEXT'
 
 ==> installed. Next:
-    uv run autoggml source status            # inspect the pinned Lucebox contract
-    uv run autoggml source check --remote    # verify the Hub pin is current
-    uv run autoggml reproduce --simulate     # test the control plane without a GPU
-    uv run autoggml setup                    # clone/build product (CUDA or HIP)
-    uv run autoggml help                     # all commands
+    uv run autoluce source status            # inspect the pinned Lucebox contract
+    uv run autoluce source check --remote    # verify the Hub pin is current
+    uv run autoluce reproduce --simulate     # test the control plane without a GPU
+    uv run autoluce setup                    # clone/build product (CUDA or HIP)
+    uv run autoluce help                     # all commands
 NEXT

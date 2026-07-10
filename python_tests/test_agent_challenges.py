@@ -12,7 +12,7 @@ from dataclasses import replace
 
 import pytest
 
-from autoggml.agent_challenges import (
+from autoluce.agent_challenges import (
     AgentJoinRequest,
     AgentOutput,
     AgentRunner,
@@ -22,10 +22,10 @@ from autoggml.agent_challenges import (
     FakeAgentBackend,
     FileAgentRepository,
 )
-from autoggml.agent_cli import _source_commit, _source_root
-from autoggml.coordination import FileCoordinationRepository, FleetService, JoinRequest
-from autoggml.coordinator_http import AgentCoordinatorClient, create_server
-from autoggml.team_worker import TeamWorker
+from autoluce.agent_cli import _source_commit, _source_root
+from autoluce.coordination import FileCoordinationRepository, FleetService, JoinRequest
+from autoluce.coordinator_http import AgentCoordinatorClient, create_server
+from autoluce.team_worker import TeamWorker
 
 
 def _patch(symbol: str) -> bytes:
@@ -137,9 +137,9 @@ def test_agent_workspace_uses_the_pinned_product_checkout(monkeypatch, tmp_path)
     source = tmp_path / "work" / "lucebox"
     source.mkdir(parents=True)
     (tmp_path / "work" / "lucebox.pin").write_text("abc123\n")
-    monkeypatch.setattr("autoggml.agent_cli.ROOT", tmp_path)
-    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(source))
-    monkeypatch.delenv("AUTOGGML_SOURCE_COMMIT", raising=False)
+    monkeypatch.setattr("autoluce.agent_cli.ROOT", tmp_path)
+    monkeypatch.setenv("AUTOLUCE_SOURCE_ROOT", str(source))
+    monkeypatch.delenv("AUTOLUCE_SOURCE_COMMIT", raising=False)
 
     assert _source_root() == source
     assert _source_commit() == "abc123"
@@ -263,9 +263,9 @@ def test_agent_http_client_can_choose_claim_and_submit_a_candidate(tmp_path):
 
 def _cli(state: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
-    env["AUTOGGML_COORDINATION_DIR"] = str(state)
-    env["AUTOGGML_AGENT_CONFIG"] = str(state / "agent.json")
-    env["AUTOGGML_SOURCE_COMMIT"] = "test-product-pin"
+    env["AUTOLUCE_COORDINATION_DIR"] = str(state)
+    env["AUTOLUCE_AGENT_CONFIG"] = str(state / "agent.json")
+    env["AUTOLUCE_SOURCE_COMMIT"] = "test-product-pin"
     return subprocess.run(
         [sys.executable, "-m", "cli", *args], text=True, capture_output=True, env=env, check=False,
     )

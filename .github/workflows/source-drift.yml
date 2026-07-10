@@ -23,4 +23,4 @@ jobs:
         run: uv sync --frozen
 
       - name: Check tracked Lucebox revision
-        run: uv run autoggml source check --remote
+        run: uv run autoluce source check --remote

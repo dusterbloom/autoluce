@@ -1,4 +1,4 @@
-# Docker build context exclusions for autoggml.
+# Docker build context exclusions for autoluce.
 work/
 __pycache__/
 *.pyc

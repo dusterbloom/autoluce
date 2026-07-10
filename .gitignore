@@ -11,7 +11,7 @@ work/
 results/
 results.tsv
 .best_score.json
-.autoggml.lock
+.autoluce.lock
 .worktrees/
 .env
 !.env.example
@@ -20,7 +20,7 @@ patches/*.patch
 !patches/deepseek-v4-sinkhorn-77bccaa.patch
 
 # shadow bench: user prompts + benchmark built from them never leave the box
-.autoggml/
+.autoluce/
 benchmarks/shadow.json
 # KL reference logits: machine-generated binaries; the shadow one embeds
 # the user's prompt tokens

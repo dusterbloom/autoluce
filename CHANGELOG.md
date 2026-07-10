@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to autoggml are documented here. The project has not tagged
+All notable changes to AutoLuce are documented here. The project has not tagged
 a release yet; everything currently lives under `[Unreleased]`.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
@@ -11,15 +11,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Manifest-driven Lucebox ownership**: `sources/lucebox.toml` pins the complete
   `Luce-Org/lucebox-hub` product and declares its checkout layout, product CMake root,
   supported CUDA/HIP backends, build targets, runtime, capabilities, and expected GGML
-  vendor provenance. `autoggml source status` reports the contract and `autoggml source
+  vendor provenance. `autoluce source status` reports the contract and `autoluce source
   check --remote` detects upstream movement; scheduled CI runs the drift check weekly.
 - **Vendored-source guardrails**: setup, reset, patch application, agent worktrees, and
   agent patch allowlists now share `SourceLayout`. Product patches are Hub-relative;
-  vendor patches use the explicit `AUTOGGML_PATCH_SCOPE=vendor` boundary. Setup validates
+  vendor patches use the explicit `AUTOLUCE_PATCH_SCOPE=vendor` boundary. Setup validates
   `server/deps/llama.cpp/VENDOR.md` before building the real `dflash_server`,
   `test_dflash`, and `test_deepseek4_unit` product targets, and initializes the declared
   Block-Sparse Attention submodule so CUDA does not silently lose BSA.
-- **Cooperative agent challenges** (`autoggml agent ...`): agents register `implement`,
+- **Cooperative agent challenges** (`autoluce agent ...`): agents register `implement`,
   `review`, or `recombine` capabilities; choose bounded task packets; claim expiring
   leases; and work from a challenge-pinned commit in isolated Git worktrees. Parallel
   implementations remain blind until measured, then feed a review and credited
@@ -48,22 +48,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   research evidence. It is marked `requires-port-and-reprofile` because it targets the
   former standalone tree, while current Hub code owns DeepSeek V4 separately and already
   contains custom fused HC CUDA/HIP device paths.
-- **KL quality oracle** (`kl.py`, `autoggml kl-base <benchmark>`): the original
+- **KL quality oracle** (`kl.py`, `autoluce kl-base <benchmark>`): the original
   standalone adapter checks candidates against frozen reference logits and rejects mean
   or maximum KL violations. Its parser and gates remain tested, but product execution is
   fail-closed until equivalent capture exists through Lucebox Hub.
-- **Shadow bench** (`shadow.py`, `autoggml shadow proxy|build`): a local capture proxy
+- **Shadow bench** (`shadow.py`, `autoluce shadow proxy|build`): a local capture proxy
   turns private traffic into a deduplicated workload. Capture and benchmark construction
   remain available; KL scoring awaits the product adapter. Prompts stay in gitignored
   local storage.
-- Unified `autoggml` CLI (`cli.py`): `uv run autoggml <command>` routes to focused
-  package modules without reimplementing their behavior; `autoggml help` is the current
+- Unified `autoluce` CLI (`cli.py`): `uv run autoluce <command>` routes to focused
+  package modules without reimplementing their behavior; `autoluce help` is the current
   command inventory. One-liner `install.sh` (`curl | bash`) clones, ensures `uv`, syncs,
   and prints next steps.
 - Product GPU auto-detection: setup selects CUDA or HIP and fails before CMake when the
   detected backend is outside the Hub product contract. Existing GGUFs are reused from
-  the HF cache, LM Studio, `~/models`, and `AUTOGGML_MODELS` before downloading.
-- Parallel-safe shared leaderboard (`concurrency.LockedFrontier`): file-locked `.best_score.json` + `results.tsv`; `claim_best_if_significant` re-verifies against the **live** frontier under the lock, so concurrent workers can't keep a stale-snapshot win. `worktree.py` isolates per-worker trees; `runner.run_parallel` fans out and funnels through the frontier; `agent_loop` honors `AUTOGGML_FRONTIER` so worktree workers share one leaderboard.
+  the HF cache, LM Studio, `~/models`, and `AUTOLUCE_MODELS` before downloading.
+- Parallel-safe shared leaderboard (`concurrency.LockedFrontier`): file-locked `.best_score.json` + `results.tsv`; `claim_best_if_significant` re-verifies against the **live** frontier under the lock, so concurrent workers can't keep a stale-snapshot win. `worktree.py` isolates per-worker trees; `runner.run_parallel` fans out and funnels through the frontier; `agent_loop` honors `AUTOLUCE_FRONTIER` so worktree workers share one leaderboard.
 - Profile-driven ideation (`selector.rank_by_bottleneck`): `ideas --bound <memory|compute|overhead>` ranks untried `ROADMAP.md` items so those targeting the active bottleneck come first.
 - Optional embedded LLM (`llm.py` + `propose.py`): one OpenAI-compatible client for cloud or local (`llama-server`/Ollama/vLLM/LM Studio), env-gated by `OPENAI_BASE_URL` (disabled by default; never fires silently). `propose` asks the model for the next experiment given the ranked ideas + current best.
 - `ROADMAP.md` "Meta" section (#15–18): the machine × workload grid reframed as a quality-diversity archive (one elite per cell) with novelty + recombination (#18) as the operator that moves beyond hill-climbing — grounded in AutoKernel (`arXiv:2603.21331`) / AlphaEvolve prior art.
@@ -92,6 +92,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pytest` runs in CI.
 
 ### Changed
+- Renamed the project and public namespace to **AutoLuce**: the console command is
+  `autoluce`, the Python package is `autoluce`, environment variables use `AUTOLUCE_*`,
+  and user configuration/state lives under `~/.config/autoluce`,
+  `~/.local/share/autoluce`, and `~/.autoluce`. This is an intentional breaking rename
+  with no legacy command or package alias. Existing contributors should run `uv sync`
+  and rejoin or move their local configuration into the new paths.
 - Replaced the 500-line cumulative README with a task-oriented guide organized around
   first use, current capability status, team participation, agent participation, remote
   Lucebox onboarding, source maintenance, and development. Commands that await the
@@ -111,9 +117,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Identical candidate content now reuses completed or failed hardware evidence as well
   as active jobs, avoiding duplicate accelerator work and deterministic job-ID clashes
   when competing agents converge on the same patch.
-- **Repo restructured into the `autoggml/` package** (was 21 flat top-level modules). Root now holds only `cli.py` (entry point) and `experiment.py` (the agent-editable file); the engine lives in `autoggml/` grouped by purpose: `bench/` (harness, objective, kl, uncertainty, profiling), `loop/` (agent_loop, verify, patches), `ideation/` (ideas, selector, propose, llm), `parallel/` (runner, concurrency, worktree), plus `prepare`/`shadow`/`report`/`reproduce`. The CLI dispatches `python -m autoggml.<module>` instead of script paths; direct `uv run <file>.py` invocations become `uv run autoggml <cmd>`. Pure reorganization — no behavior change; history preserved via `git mv`.
-- **Constrained objective replaces the product score**: `score = decode_tok_s` only; `peak_mem_GiB` / `prefill_tok_s` are now constraints declared per benchmark in an `"objective"` block (`objective.check_constraints`, k·σ significance margin; `min_frac_of_baseline` compares against `work/baseline_metrics.json` persisted by `autoggml baseline`). A violation zeroes the score exactly like a correctness failure. Speculative runs that don't report `acceptance_rate` now **raise** (the neutral-1.0 fallback is gone); acceptance stays as a logged diagnostic only. **Existing `.best_score.json` / baselines are invalid — re-measure.**
-- `pyproject.toml` gains `[build-system]` (setuptools) + `py-modules`, so `uv` installs the project and the `autoggml` console script is generated (previously `[project.scripts]` was silently ignored — no `[build-system]` meant a virtual project).
+- **Repository organized as the `autoluce/` package.** Root holds `cli.py` and the
+  agent-editable `experiment.py`; the engine is grouped into `bench`, `loop`,
+  `ideation`, and `parallel` modules plus the focused coordination and setup modules.
+  The CLI dispatches `python -m autoluce.<module>`.
+- **Constrained objective replaces the product score**: `score = decode_tok_s` only; `peak_mem_GiB` / `prefill_tok_s` are now constraints declared per benchmark in an `"objective"` block (`objective.check_constraints`, k·σ significance margin; `min_frac_of_baseline` compares against `work/baseline_metrics.json` persisted by `autoluce baseline`). A violation zeroes the score exactly like a correctness failure. Speculative runs that don't report `acceptance_rate` now **raise** (the neutral-1.0 fallback is gone); acceptance stays as a logged diagnostic only. **Existing `.best_score.json` / baselines are invalid — re-measure.**
+- `pyproject.toml` gains `[build-system]` (setuptools) + `py-modules`, so `uv` installs the project and the `autoluce` console script is generated (previously `[project.scripts]` was silently ignored — no `[build-system]` meant a virtual project).
 - `agent_loop.py` routes all four outcomes (baseline/keep/discard/crash) through `LockedFrontier`; the old direct file writes (`load_best*`/`save_best_score`/`log_result`) are removed.
 - `profiling.ROADMAP_FOR_BOUND` and `ideas.descriptions_from_results` are now public (shared by `selector`/`propose`).
 - Keep/revert decision is now significance-gated (was raw `score > best`).
@@ -127,7 +136,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - `agent start` now creates its isolated worktree from the pinned
-  `work/lucebox` product checkout rather than the autoggml control repository, so
+  `work/lucebox` product checkout rather than the autoluce control repository, so
   the approved engine paths in submitted patches correspond to the source agents edit.
 - `experiment.py` no longer crashes on `apply_experiment()` (missing patch imports)
   and ships as a neutral no-op baseline.

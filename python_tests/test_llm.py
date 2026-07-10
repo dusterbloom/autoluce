@@ -9,7 +9,7 @@ because they all speak /v1/chat/completions -- the only difference is OPENAI_BAS
 
 import pytest
 
-from autoggml.ideation.llm import LLMConfig, build_request, complete, config_from_env, parse_completion
+from autoluce.ideation.llm import LLMConfig, build_request, complete, config_from_env, parse_completion
 
 
 # --- config resolution ---------------------------------------------------------
@@ -31,7 +31,7 @@ def test_config_reads_all_overrides():
     cfg = config_from_env({
         "OPENAI_BASE_URL": "https://api.openai.com/v1",
         "OPENAI_API_KEY": "sk-cloud",
-        "AUTOGGML_MODEL": "gpt-4o",
+        "AUTOLUCE_MODEL": "gpt-4o",
     })
     assert cfg.base_url == "https://api.openai.com/v1"
     assert cfg.api_key == "sk-cloud"

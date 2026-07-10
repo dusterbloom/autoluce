@@ -8,39 +8,39 @@ behavior of helpers that already existed when the tests were added.
 
 import pytest
 
-from autoggml.prepare import (
+from autoluce.prepare import (
     _link_into,
     build_commands,
     discover_model,
     model_search_paths,
     validate_product_backend,
 )
-from autoggml.bench.profiling import backend_cmake_flags
-from autoggml.source_layout import SourceLayout
+from autoluce.bench.profiling import backend_cmake_flags
+from autoluce.source_layout import SourceLayout
 
 
 # --- model discovery (characterization) ----------------------------------------
 
 def test_model_search_paths_prepends_env_and_keeps_existing(monkeypatch, tmp_path):
-    monkeypatch.setenv("AUTOGGML_MODELS", str(tmp_path))
+    monkeypatch.setenv("AUTOLUCE_MODELS", str(tmp_path))
     paths = model_search_paths()
     assert paths[0] == tmp_path
     assert all(p.exists() for p in paths)
 
 
 def test_model_search_paths_skips_nonexistent_env_entries(monkeypatch):
-    monkeypatch.setenv("AUTOGGML_MODELS", "/definitely/does/not/exist")
+    monkeypatch.setenv("AUTOLUCE_MODELS", "/definitely/does/not/exist")
     assert all(p.exists() for p in model_search_paths())
 
 
 def test_discover_model_finds_existing_gguf(tmp_path, monkeypatch):
     (tmp_path / "Qwen3-1.7B-Q4_K_M.gguf").write_bytes(b"x")
-    monkeypatch.setenv("AUTOGGML_MODELS", str(tmp_path))
+    monkeypatch.setenv("AUTOLUCE_MODELS", str(tmp_path))
     assert discover_model("Qwen3-1.7B-Q4_K_M.gguf") == tmp_path / "Qwen3-1.7B-Q4_K_M.gguf"
 
 
 def test_discover_model_returns_none_when_missing(tmp_path, monkeypatch):
-    monkeypatch.setenv("AUTOGGML_MODELS", str(tmp_path))
+    monkeypatch.setenv("AUTOLUCE_MODELS", str(tmp_path))
     assert discover_model("nope.gguf") is None
 
 
@@ -49,7 +49,7 @@ def test_discover_model_descends_subdirectories(tmp_path, monkeypatch):
     nested.mkdir(parents=True)
     target = nested / "model.gguf"
     target.write_bytes(b"x")
-    monkeypatch.setenv("AUTOGGML_MODELS", str(tmp_path))
+    monkeypatch.setenv("AUTOLUCE_MODELS", str(tmp_path))
     assert discover_model("model.gguf") == target
 
 
@@ -78,7 +78,7 @@ def test_product_build_commands_use_server_and_real_targets(monkeypatch, tmp_pat
     (checkout / "server" / "deps" / "llama.cpp" / "ggml").mkdir(parents=True)
     (checkout / "server" / "CMakeLists.txt").write_text("project(dflash)\n")
     (checkout / "server" / "deps" / "llama.cpp" / "VENDOR.md").write_text("placeholder")
-    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(checkout))
+    monkeypatch.setenv("AUTOLUCE_SOURCE_ROOT", str(checkout))
     layout = SourceLayout.resolve(root=tmp_path)
 
     configure, build = build_commands(layout, "hip", jobs=4, use_ccache=True)
@@ -92,7 +92,7 @@ def test_product_build_commands_use_server_and_real_targets(monkeypatch, tmp_pat
 
 def test_product_backend_validation_rejects_legacy_vulkan(monkeypatch, tmp_path):
     checkout = tmp_path / "work" / "lucebox"
-    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(checkout))
+    monkeypatch.setenv("AUTOLUCE_SOURCE_ROOT", str(checkout))
     layout = SourceLayout.resolve(root=tmp_path)
 
     validate_product_backend(layout, "hip")

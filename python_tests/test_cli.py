@@ -1,8 +1,8 @@
 """
-Tests for the unified autoggml CLI.
+Tests for the unified autoluce CLI.
 
 The CLI is a thin router: it maps a subcommand to a dotted module path inside the
-autoggml package and dispatches it as a subprocess (`python -m <module>`; each module
+autoluce package and dispatches it as a subprocess (`python -m <module>`; each module
 keeps its own argparse; nothing is reimplemented). resolve() is the pure, tested routing
 logic; main() is the thin dispatcher with an injectable runner so the wiring is verified
 without spawning real builds/benchmarks.
@@ -17,31 +17,31 @@ from cli import COMMANDS, CliError, CliHelp, main, resolve
 
 def test_resolve_known_command_passthrough_args():
     module, args = resolve(["ideas", "--bound", "memory"])
-    assert module == "autoggml.ideation.ideas"
+    assert module == "autoluce.ideation.ideas"
     assert args == ["--bound", "memory"]
 
 
 def test_resolve_baseline_injects_default_flag_then_passthrough():
     module, args = resolve(["baseline", "--simulate"])
-    assert module == "autoggml.bench.harness"
+    assert module == "autoluce.bench.harness"
     assert args == ["--baseline", "--simulate"]  # default flag first, user args after
 
 
 def test_resolve_run_with_passthrough():
     module, args = resolve(["run", "--dry-run"])
-    assert module == "autoggml.loop.agent_loop"
+    assert module == "autoluce.loop.agent_loop"
     assert args == ["--dry-run"]
 
 
 def test_resolve_setup_maps_to_prepare():
     module, _ = resolve(["setup"])
-    assert module == "autoggml.prepare"
+    assert module == "autoluce.prepare"
 
 
 @pytest.mark.parametrize("cmd", sorted(COMMANDS))
 def test_every_advertised_command_resolves_to_package_module(cmd):
     module, _ = resolve([cmd])
-    assert module.startswith("autoggml")
+    assert module.startswith("autoluce")
     assert not module.endswith(".py")  # dotted module path, not a script filename
 
 
@@ -79,7 +79,7 @@ def test_main_dispatches_module_via_dash_m_and_propagates_returncode(monkeypatch
     assert rc == 7
     assert len(calls) == 1
     assert calls[0][1] == "-m"                      # [python, -m, module, *args]
-    assert calls[0][2] == "autoggml.ideation.ideas"
+    assert calls[0][2] == "autoluce.ideation.ideas"
     assert calls[0][3:] == ["--bound", "compute"]
 
 

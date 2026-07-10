@@ -11,15 +11,15 @@ from pathlib import Path
 
 import pytest
 
-from autoggml.coordination import (
+from autoluce.coordination import (
     CandidateRequest,
     FileCoordinationRepository,
     FleetService,
     JoinRequest,
     NoCompatibleWorkerError,
 )
-from autoggml.coordinator_http import CoordinatorClient, create_server
-from autoggml.team_worker import TeamWorker
+from autoluce.coordinator_http import CoordinatorClient, create_server
+from autoluce.team_worker import TeamWorker
 
 
 def _service(tmp_path: Path) -> FleetService:
@@ -115,7 +115,7 @@ def test_leave_refuses_worker_with_assigned_work(tmp_path):
 
 def _cli(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
-    env["AUTOGGML_COORDINATION_DIR"] = str(repo)
+    env["AUTOLUCE_COORDINATION_DIR"] = str(repo)
     return subprocess.run(
         [sys.executable, "-m", "cli", *args],
         text=True,
@@ -207,7 +207,7 @@ def test_cli_join_persists_team_connection_for_later_commands(tmp_path):
     thread.start()
     config = tmp_path / "client" / "team.json"
     env = os.environ.copy()
-    env["AUTOGGML_TEAM_CONFIG"] = str(config)
+    env["AUTOLUCE_TEAM_CONFIG"] = str(config)
     try:
         url = f"http://127.0.0.1:{server.server_port}"
         joined = subprocess.run(

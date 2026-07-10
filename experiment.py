@@ -1,5 +1,5 @@
 """
-Agent-editable experiment file for autoggml v2.
+Agent-editable experiment file for autoluce v2.
 
 Modify the functions below to implement one idea per experiment.
 The harness calls apply_experiment() before building and benchmarking.
@@ -11,7 +11,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from autoggml.source_layout import SourceLayout
+from autoluce.source_layout import SourceLayout
 
 ROOT = Path(__file__).resolve().parent
 WORK_DIR = ROOT / "work"
@@ -49,7 +49,7 @@ def apply_patch(patch_name: str, scope: str | None = None) -> None:
     patch_path = PATCHES_DIR / patch_name
     if not patch_path.exists():
         raise FileNotFoundError(f"Patch not found: {patch_path}")
-    scope = scope or os.environ.get("AUTOGGML_PATCH_SCOPE", "product")
+    scope = scope or os.environ.get("AUTOLUCE_PATCH_SCOPE", "product")
     patch_root = source_layout().patch_root(scope)
     subprocess.run(
         ["git", "apply", str(patch_path)],
@@ -70,13 +70,13 @@ def apply_experiment() -> dict[str, any]:
 
         # apply_patch("my_idea.patch")   # git-apply a file from patches/
     """
-    patch_name = os.environ.get("AUTOGGML_EXPERIMENT_PATCH")
+    patch_name = os.environ.get("AUTOLUCE_EXPERIMENT_PATCH")
     if patch_name:
         apply_patch(patch_name)
     return {
         "description": f"patch: {patch_name}" if patch_name else "baseline (no changes)",
         "patch": patch_name,
-        "patch_scope": os.environ.get("AUTOGGML_PATCH_SCOPE", "product"),
+        "patch_scope": os.environ.get("AUTOLUCE_PATCH_SCOPE", "product"),
         "cmake_flags": get_cmake_flags(),
         "runtime_flags": get_runtime_flags(),
     }

@@ -18,14 +18,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from autoggml.bench.harness import build_generation_command, extract_generated_text  # noqa: E402
-from autoggml.bench.profiling import detect_backend  # noqa: E402
-from autoggml.source_layout import SourceLayout  # noqa: E402
+from autoluce.bench.harness import build_generation_command, extract_generated_text  # noqa: E402
+from autoluce.bench.profiling import detect_backend  # noqa: E402
+from autoluce.source_layout import SourceLayout  # noqa: E402
 
 WORK_DIR = ROOT / "work"
 MODELS_DIR = WORK_DIR / "models"
 BENCHMARKS_DIR = ROOT / "benchmarks"
-GOLDEN_DIR = Path(os.environ.get("AUTOGGML_GOLDEN_DIR", str(BENCHMARKS_DIR / "golden")))
+GOLDEN_DIR = Path(os.environ.get("AUTOLUCE_GOLDEN_DIR", str(BENCHMARKS_DIR / "golden")))
 
 
 def load_prompts(benchmark: dict) -> list[str]:

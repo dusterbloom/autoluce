@@ -1,4 +1,4 @@
-# autoggml v2
+# autoluce v2
 
 Autonomous research harness for improving
 [`Luce-Org/lucebox-hub`](https://github.com/Luce-Org/lucebox-hub) and its vendored GGML.
@@ -19,21 +19,21 @@ improvements** to that exact product source:
 ## Setup
 
 1. **Agree on a run tag** with the user, e.g., `jun29`.
-2. **Create a branch**: `git checkout -b autoggml/<tag>` from `main`.
+2. **Create a branch**: `git checkout -b autoluce/<tag>` from `main`.
 3. **Read the in-scope files**:
    - `README.md` — project overview.
    - `program.md` — this file.
-   - `autoggml/prepare.py` — setup. Do not modify.
-   - `autoggml/bench/harness.py` — benchmark harness. Do not modify.
-   - `autoggml/loop/agent_loop.py` — keep/revert loop. Do not modify.
+   - `autoluce/prepare.py` — setup. Do not modify.
+   - `autoluce/bench/harness.py` — benchmark harness. Do not modify.
+   - `autoluce/loop/agent_loop.py` — keep/revert loop. Do not modify.
    - `sources/lucebox.toml` — authoritative source pin, layout, backends, and capabilities. Do not modify during an experiment.
-   - `autoggml/source_layout.py` — product/vendor ownership boundary. Do not modify.
-   - `autoggml/loop/patches.py` — legacy patch helpers. Do not modify; call from `experiment.py` only when compatible with the declared scope.
-   - `autoggml/reproduce.py` — reproducibility suite. Do not modify.
-   - `autoggml/report.py` — result aggregation. Do not modify.
+   - `autoluce/source_layout.py` — product/vendor ownership boundary. Do not modify.
+   - `autoluce/loop/patches.py` — legacy patch helpers. Do not modify; call from `experiment.py` only when compatible with the declared scope.
+   - `autoluce/reproduce.py` — reproducibility suite. Do not modify.
+   - `autoluce/report.py` — result aggregation. Do not modify.
    - `experiment.py` — this is what you edit.
-4. **Run setup**: `uv run autoggml setup` (one-time; can take 10–30 minutes depending on hardware).
-5. **Verify source ownership**: `uv run autoggml source status`.
+4. **Run setup**: `uv run autoluce setup` (one-time; can take 10–30 minutes depending on hardware).
+5. **Verify source ownership**: `uv run autoluce source status`.
 6. **Check runtime capability** before live work. The vendored migration currently
    fails live benchmark/quality commands closed until the `dflash_server` adapter lands.
 7. **Initialize `results.tsv`** with just the header row (or let the loop create it).
@@ -43,14 +43,14 @@ improvements** to that exact product source:
 **What you CAN do:**
 - Modify `experiment.py` to implement one idea per experiment.
 - Add small helper functions inside `experiment.py`.
-- Call patch helpers from `autoggml/loop/patches.py` (e.g., `apply_march_native`, `apply_speculative_candidates`).
+- Call patch helpers from `autoluce/loop/patches.py` (e.g., `apply_march_native`, `apply_speculative_candidates`).
 - Place patch files in `patches/` and reference them from `experiment.py`.
 
 **What you CANNOT do:**
-- Modify anything under `autoggml/` (the harness, loop, patches, reproduce, report machinery).
+- Modify anything under `autoluce/` (the harness, loop, patches, reproduce, report machinery).
 - Install new packages beyond `pyproject.toml`.
 - Change the metric or correctness check.
-- Modify autoggml verifier, source manifest, benchmark, golden, contract, or model files.
+- Modify autoluce verifier, source manifest, benchmark, golden, contract, or model files.
 - Treat `server/deps/llama.cpp` as a submodule. It is a normal vendored tree in the
   Lucebox product commit.
 
@@ -80,7 +80,7 @@ benchmark's `"objective"` block (see README "Metric").
   `server/src/deepseek4/...` and `server/CMakeLists.txt`.
 - GGML changes are relative to the same checkout under
   `server/deps/llama.cpp/ggml/...`.
-- `AUTOGGML_PATCH_SCOPE=product` is the default. Use `vendor` only for a patch whose
+- `AUTOLUCE_PATCH_SCOPE=product` is the default. Use `vendor` only for a patch whose
   paths are relative to `server/deps/llama.cpp`.
 - CUDA and HIP are the current product backends. Do not claim Vulkan compatibility
   based on the historical standalone GGML fork.
@@ -110,17 +110,17 @@ commit	score	score_stddev	decode_tok_s	prefill_tok_s	acceptance_rate	peak_mem_Gi
 LOOP FOREVER:
 
 1. Look at the git state and `results.tsv`.
-2. Pick the next idea: `uv run autoggml ideas` prints untried `ROADMAP.md` items. If the queue is empty, re-profile (`--profile`), search literature (below), and add ideas.
+2. Pick the next idea: `uv run autoluce ideas` prints untried `ROADMAP.md` items. If the queue is empty, re-profile (`--profile`), search literature (below), and add ideas.
 3. Modify `experiment.py` with one experimental idea.
 4. `git commit`.
-5. Run the loop: `uv run autoggml run > run.log 2>&1`.
+5. Run the loop: `uv run autoluce run > run.log 2>&1`.
 6. Read results: `grep "^score:\|^score_stddev:\|^correctness:" run.log`.
 7. If output is empty, the run crashed. Read `tail -n 50 run.log`, attempt a fix.
-8. the loop (`autoggml run`) appends to `results.tsv` and keeps or reverts the commit automatically (significance-gated; see `autoggml/bench/uncertainty.py`).
+8. the loop (`autoluce run`) appends to `results.tsv` and keeps or reverts the commit automatically (significance-gated; see `autoluce/bench/uncertainty.py`).
 9. If the improvement is significant, the commit is kept; otherwise the loop resets back to the previous best.
 
-For a dry run that does not modify git state, use `uv run autoggml run --dry-run`.
-For the baseline, use `uv run autoggml run --baseline` or `uv run autoggml baseline`.
+For a dry run that does not modify git state, use `uv run autoluce run --dry-run`.
+For the baseline, use `uv run autoluce run --baseline` or `uv run autoluce baseline`.
 
 **Timeout**: If the harness takes more than 60 minutes, kill it and treat as a failure.
 
@@ -167,7 +167,7 @@ When the ideas queue runs low, mine human knowledge before brainstorming from co
 3. **arXiv / Google Scholar** — papers on optimizing this project or its domain (speculative decoding, KV cache, kernel fusion). Save PDFs to `papers/`.
 4. **Technique papers** — general methods (EAGLE/Medusa, operator fusion, cache-oblivious algorithms, lock-free structures).
 
-Rank findings in `ROADMAP.md` (the living, numbered ideas queue; `uv run autoggml ideas` reports what's untried).
+Rank findings in `ROADMAP.md` (the living, numbered ideas queue; `uv run autoluce ideas` reports what's untried).
 
 **Tagging convention:** when an experiment targets a `ROADMAP.md` item, prefix its description with the item number and cite the source, e.g. `[#3] adaptive K controller (EAGLE-2, Li 2024)`. This lets the ideas tracker track coverage and records the provenance that later goes into a PR body.
 
@@ -176,8 +176,8 @@ Rank findings in `ROADMAP.md` (the living, numbered ideas queue; `uv run autoggm
 Use the provided `Dockerfile` to pin OS, compiler, and `uv` versions:
 
 ```bash
-docker build -t autoggml .
-docker run --rm -it -v $(pwd)/work:/app/work autoggml
+docker build -t autoluce .
+docker run --rm -it -v $(pwd)/work:/app/work autoluce
 ```
 
 CI builds this container on every push. Results obtained inside the container are considered the canonical reproducibility target.

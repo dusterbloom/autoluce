@@ -6,15 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from autoggml.bench.harness import aggregate_context_metrics, check_context_regressions, parse_llama_bench_json
-from autoggml.bench.telemetry import summarize
-from autoggml.contracts import ResearchContract
-from autoggml.models import ModelEntry, profile_model, resolve_entry_files
-from autoggml.onboard import INSTALL
-from autoggml.profiles import MachineProfile
-from autoggml.remote import RemoteBusyError, SSHWorker
-from autoggml.targets import TargetConfig
-from autoggml.test_drive import _lease, _patch_ready, safe_test_drive
+from autoluce.bench.harness import aggregate_context_metrics, check_context_regressions, parse_llama_bench_json
+from autoluce.bench.telemetry import summarize
+from autoluce.contracts import ResearchContract
+from autoluce.models import ModelEntry, profile_model, resolve_entry_files
+from autoluce.onboard import INSTALL
+from autoluce.profiles import MachineProfile
+from autoluce.remote import RemoteBusyError, SSHWorker
+from autoluce.targets import TargetConfig
+from autoluce.test_drive import _lease, _patch_ready, safe_test_drive
 
 
 def test_target_config_loads_named_ssh_target(monkeypatch, tmp_path):
@@ -23,11 +23,11 @@ def test_target_config_loads_named_ssh_target(monkeypatch, tmp_path):
         "[targets.strix-halo]\n"
         'transport = "ssh"\n'
         'host = "user@example"\n'
-        'root = "/home/user/autoggml"\n'
+        'root = "/home/user/autoluce"\n'
         'model_root = "/opt/models"\n'
         "build_jobs = 4\n"
     )
-    monkeypatch.delenv("AUTOGGML_TARGET_HOST", raising=False)
+    monkeypatch.delenv("AUTOLUCE_TARGET_HOST", raising=False)
     target = TargetConfig.load("strix-halo", config)
     assert target.host == "user@example"
     assert target.model_root == "/opt/models"
@@ -139,7 +139,7 @@ class _FakeRunner:
 
 
 def _ssh_target():
-    return TargetConfig("strix", "ssh", "user@host", "/home/user/autoggml", "/opt/models")
+    return TargetConfig("strix", "ssh", "user@host", "/home/user/autoluce", "/opt/models")
 
 
 def test_ssh_worker_quotes_remote_command_as_one_argument():
@@ -160,21 +160,21 @@ def test_ssh_worker_maps_nonblocking_lease_failure_to_busy():
 
 def test_onboard_installs_launcher_and_preserves_other_targets(tmp_path):
     home = tmp_path / "home"
-    config = home / ".config" / "autoggml" / "targets.toml"
+    config = home / ".config" / "autoluce" / "targets.toml"
     config.parent.mkdir(parents=True)
     config.write_text('[targets.other]\ntransport = "local"\n')
     env = os.environ.copy()
     env["HOME"] = str(home)
     subprocess.run(
-        [sys.executable, "-", "/srv/autoggml", "/opt/models", "lucebox3", "/tmp/gpu.lock", "4"],
+        [sys.executable, "-", "/srv/autoluce", "/opt/models", "lucebox3", "/tmp/gpu.lock", "4"],
         input=INSTALL, text=True, capture_output=True, check=True, env=env,
     )
     text = config.read_text()
     assert "[targets.other]" in text
     assert "[targets.lucebox3]" in text
-    launcher = home / ".local" / "bin" / "autoggml"
+    launcher = home / ".local" / "bin" / "autoluce"
     assert launcher.stat().st_mode & 0o111
-    assert "AUTOGGML_DEFAULT_TARGET=lucebox3" in launcher.read_text()
+    assert "AUTOLUCE_DEFAULT_TARGET=lucebox3" in launcher.read_text()
     assert '.local/bin:$PATH' in (home / ".profile").read_text()
 
 
@@ -186,8 +186,8 @@ def test_test_drive_safe_mode_reports_busy_without_live_work(monkeypatch):
         "busy_reasons": ["available_memory_below_12_gib"],
         "models": [{"path": "/opt/models/model.gguf", "size_bytes": 80 * 1024**3, "readable": True}],
     })
-    monkeypatch.setattr("autoggml.test_drive.build_profile", lambda target: profile)
-    monkeypatch.setattr("autoggml.bench.harness.run_harness", lambda **kwargs: {"correctness": "pass"})
+    monkeypatch.setattr("autoluce.test_drive.build_profile", lambda target: profile)
+    monkeypatch.setattr("autoluce.bench.harness.run_harness", lambda **kwargs: {"correctness": "pass"})
     result = safe_test_drive(TargetConfig("local", "local"))
     assert result["status"] == "busy"
     assert result["simulated_loop"] == "pass"

@@ -1,4 +1,4 @@
-# autoggml optimization roadmap — beating llama.cpp
+# autoluce optimization roadmap — beating llama.cpp
 
 Living document. The frame, the ranked ideas, and the execution order. Source of
 truth for experiment selection so we don't chase noise.
@@ -139,13 +139,13 @@ to the grid.
 **Coordination layer — shipped.** `concurrency.LockedFrontier` (file-locked frontier +
 atomic `claim_best_if_significant`, re-verifying against the live best), `worktree`
 helpers, and `runner.run_parallel` (live-frontier funnel) are in. `agent_loop` now routes
-every shared-state write through the lock and honors `AUTOGGML_FRONTIER`, so N workers in
+every shared-state write through the lock and honors `AUTOLUCE_FRONTIER`, so N workers in
 N worktrees -- or N hosts into one shared checkout -- converge safely instead of racing on
 `.best_score.json` / `results.tsv` / the build dir. This is the foundation #15 and #17
 build on; it does **not** yet make the score a per-target vector, which is the remaining
 #15 work.
 
-**Move 1 — shipped.** `selector.rank_by_bottleneck` + `autoggml ideas --bound
+**Move 1 — shipped.** `selector.rank_by_bottleneck` + `autoluce ideas --bound
 <memory|compute|overhead>` rank untried items so those targeting the active profiling
 bottleneck come first (the AutoKernel Amdahl-targeting move). Pure decision, tested; the
 nsys/rocprof trace-parser that auto-produces the bound verdict is the deferred I/O seam.
@@ -172,16 +172,16 @@ nsys/rocprof trace-parser that auto-produces the bound verdict is the deferred I
 
 - **Runtime (13, 14):** `experiment.get_runtime_flags()` + adaptive controller patch →
   measurable now, no kernel work.
-- **Build/graph (8, 9):** CMake flags + patch helpers in `autoggml/loop/patches.py`; build-time diff
+- **Build/graph (8, 9):** CMake flags + patch helpers in `autoluce/loop/patches.py`; build-time diff
   via `build_time_s`, runtime diff via decode tok/s.
 - **Kernel (10, 11, 12):** source patches against `ggml/` and `common/speculative.cpp`;
-  correctness gate (golden outputs + KL oracle, `autoggml/bench/kl.py`) must hold.
+  correctness gate (golden outputs + KL oracle, `autoluce/bench/kl.py`) must hold.
 - **Algorithmic (1, 2, 3, 4):** larger patches, possibly under `patches/` as files;
   decode tok/s is the headline metric (acceptance_rate is a logged diagnostic, not scored).
 - **Architectural (5, 6, 7):** cross-backend orchestration; depends on Phase 2 targets /
   serve-once work and the Strix Halo host.
 - **Meta (15, 16, 17):** harness-extension track, **not** a lucebox patch — maintainer
   work, outside the experiment agent's read-only contract on the harness / runner.
-  `benchmarks/` → workload grid (16); `autoggml/parallel/runner.py` → multi-target dispatch (15); new
+  `benchmarks/` → workload grid (16); `autoluce/parallel/runner.py` → multi-target dispatch (15); new
   `select_config` surface in `experiment.py` (17). Scored as a Pareto policy over the
   hardware × workload grid, significance-gated across the joint distribution.

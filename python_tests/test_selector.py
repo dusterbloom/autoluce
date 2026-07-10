@@ -7,7 +7,7 @@ trace-parser that produces the bound verdict is separate I/O; this function take
 the bound as given, so it is fully deterministic.
 """
 
-from autoggml.ideation.selector import rank_by_bottleneck
+from autoluce.ideation.selector import rank_by_bottleneck
 
 ITEMS = [(3, "self-speculative"), (8, "cuda-graph verify"), (10, "KV rollback"), (11, "draft quant"), (12, "Q4_K vulkan")]
 RELEVANCE = {"memory": [10, 11, 14], "compute": [9, 12], "overhead": [8, 9]}

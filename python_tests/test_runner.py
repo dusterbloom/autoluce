@@ -11,8 +11,8 @@ import subprocess
 import time
 from pathlib import Path
 
-from autoggml.parallel.concurrency import LockedFrontier
-from autoggml.parallel.runner import ExperimentSpec, _harness_command, _parse_harness_json, dispatch, local_run, run_parallel, screen
+from autoluce.parallel.concurrency import LockedFrontier
+from autoluce.parallel.runner import ExperimentSpec, _harness_command, _parse_harness_json, dispatch, local_run, run_parallel, screen
 
 
 def _spec(i: int) -> ExperimentSpec:
@@ -135,7 +135,7 @@ def test_run_parallel_records_real_commit_from_result_not_spec_id(tmp_path):
 def test_harness_command_is_uv_run_python_harness_json():
     cmd = _harness_command(Path("/tmp/wt"))
     assert cmd[:3] == ["uv", "run", "python"]
-    assert "autoggml.bench.harness" in cmd
+    assert "autoluce.bench.harness" in cmd
     assert "--json" in cmd
 
 
