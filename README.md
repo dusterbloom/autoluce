@@ -2,6 +2,32 @@
 
 Autonomous research harness for **verifiably and reproducibly improving GGML-based inference engines**, starting with [`Luce-Org/lucebox-ggml`](https://github.com/Luce-Org/lucebox-ggml).
 
+## TL;DR
+
+`autoggml` tests small GGML engine changes, rejects correctness or quality regressions,
+and keeps only statistically meaningful speedups. It supports local CUDA, HIP, and
+Vulkan machines plus leased remote targets such as AMD Strix Halo.
+
+```bash
+# Install and run a small local end-to-end experiment.
+curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoggml/main/install.sh | bash
+cd autoggml
+AUTOGGML_BENCHMARKS=smoke uv run autoggml setup
+AUTOGGML_BENCHMARKS=smoke uv run autoggml baseline
+
+# Or join an existing team and contribute this machine.
+uv run autoggml join --team "$TEAM_URL" --token "$TEAM_TOKEN" --name my-gpu
+uv run autoggml worker --once
+
+# Submit a candidate from any connected checkout.
+uv run autoggml submit patches/my-candidate.patch --title "My optimization" \
+  --backend hip --model deepseek-v4-flash
+uv run autoggml status
+```
+
+Use `uv run autoggml help` for all commands. On a remotely onboarded Lucebox, the
+installed user launcher allows the shorter `autoggml test-drive` form.
+
 ## In plain words
 
 If you run an AI model on your own computer, autoggml is a tireless lab assistant for the engine underneath it. It tries one small change at a time, carefully measures whether the model now answers faster — without getting dumber or using more memory — keeps the changes that genuinely help, and undoes the rest. It can even watch how *you* actually use your model (privately, on your own disk) and tune the engine for your real workload instead of a synthetic benchmark.
@@ -58,13 +84,15 @@ AUTOGGML_BENCHMARKS=smoke uv run autoggml setup     # ~1 GB model + build
 Clones the repo, installs `uv` + dependencies, and runs setup. Want to audit first?
 `curl -fsSL <url> -o install.sh && less install.sh`.
 
-Every script is also a subcommand of `uv run autoggml` (try `uv run autoggml help`):
-`setup`, `doctor`, `consult`, `freeze`, `baseline`, `run`, `verify`, `profile-report`,
-`ideas`, `propose`, `harness`, `report`, `reproduce`, `kl-base`, `shadow`.
+Every workflow is available through `uv run autoggml`:
+
+- Team: `join`, `submit`, `status`, `pause`, `resume`, `leave`, `worker`, `coordinator`.
+- Research: `setup`, `doctor`, `consult`, `freeze`, `baseline`, `run`, `verify`, `profile-report`.
+- Supporting tools: `ideas`, `propose`, `harness`, `report`, `reproduce`, `kl-base`, `shadow`, `test-drive`, `onboard`.
 
 ## Team workflow
 
-The team interface has three everyday commands: `join`, `submit`, and `status`.
+The everyday team interface is `join`, `submit`, `status`, and `worker`.
 Coordinator internals, queue labels, manifests, and research-contract YAML stay out of
 the normal path.
 
@@ -76,12 +104,16 @@ export AUTOGGML_COORDINATOR_TOKEN="$(openssl rand -hex 24)"
 uv run autoggml coordinator --listen 127.0.0.1 --port 8765
 ```
 
+That address is suitable for a same-machine test. For a shared deployment, publish it
+through HTTPS or bind it to a private Tailscale address, then give contributors that
+reachable URL as `TEAM_URL`.
+
 Each contributor connects once. Hardware and memory are detected automatically; the
 explicit flags below are only needed to correct detection:
 
 ```bash
-autoggml join --team https://research.example.test --token <team-token> --name peppi-3090
-autoggml status
+uv run autoggml join --team "$TEAM_URL" --token "$TEAM_TOKEN" --name peppi-3090
+uv run autoggml status
 ```
 
 The connection is remembered in `~/.config/autoggml/team.json` with mode `0600`.
@@ -93,24 +125,24 @@ one active experiment to each physical machine and copies the patch into immutab
 content-addressed storage:
 
 ```bash
-autoggml submit patches/my-candidate.patch --title "Fuse Sinkhorn" \
+uv run autoggml submit patches/my-candidate.patch --title "Fuse Sinkhorn" \
   --backend hip --model deepseek-v4-flash
-autoggml status
+uv run autoggml status
 ```
 
 On a joined machine, this processes one assigned experiment and returns its result:
 
 ```bash
-autoggml worker --once
+uv run autoggml worker --once
 ```
 
 `worker` accepts typed candidate data only; the coordinator cannot send arbitrary shell
 commands. The worker runs the existing correctness-gated autoggml pipeline under the
 host accelerator lock, uses separate CUDA/HIP/Vulkan build directories, and caps builds
-at four jobs. `autoggml worker --once --simulate` tests the entire queue lifecycle
-without building or using an accelerator. Use `autoggml pause` before taking a personal
-machine offline, `autoggml resume` when it is available again, and `autoggml leave` to
-remove it from the team.
+at four jobs. `uv run autoggml worker --once --simulate` tests the entire queue lifecycle
+without building or using an accelerator. Use `uv run autoggml pause` before taking a
+personal machine offline, `uv run autoggml resume` when it is available again, and
+`uv run autoggml leave` to remove it from the team.
 
 The file-backed coordinator is deliberately a small deployment unit, not the public
 status page. Its service boundary can later be backed by GitHub or the Lucebox control
