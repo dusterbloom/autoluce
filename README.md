@@ -214,6 +214,9 @@ already builds an NVFP4 MMQ template, which is now the first product comparison 
 Lucebox still needs the HF tensor loader/metadata contract and graph dispatch before an
 Unsloth NVFP4 model can be served end to end.
 
+The shared 3090 performance targets and measurement rules live in
+[`benchmarks/rtx3090-qwen36-27b-frontier.md`](benchmarks/rtx3090-qwen36-27b-frontier.md).
+
 ## Keep Lucebox Current
 
 [`sources/lucebox.toml`](sources/lucebox.toml) is the only source ownership manifest. It
