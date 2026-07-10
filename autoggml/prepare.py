@@ -1,7 +1,7 @@
 """
 Read-only setup for autoggml v2.
 
-Clones the pinned lucebox-ggml revision, downloads benchmark models,
+Clones the pinned Lucebox product revision, downloads benchmark models,
 and builds the project. Safe to run multiple times (idempotent).
 """
 
@@ -18,23 +18,16 @@ from pathlib import Path
 from huggingface_hub import hf_hub_download
 
 from autoggml import ROOT
-from autoggml.bench.profiling import backend_cmake_flags, detect_backend
+from autoggml.bench.profiling import detect_backend
 from autoggml.models import load_catalog, resolve_entry_files
+from autoggml.source_layout import SourceLayout
 
 # ---------------------------------------------------------------------------
-# Pinning
+# Paths
 # ---------------------------------------------------------------------------
-
-Lucebox_GGML_URL = "https://github.com/Luce-Org/lucebox-ggml.git"
-Lucebox_GGML_REF = os.environ.get(
-    "AUTOGGML_LUCEBOX_REF",
-    "8c146a8366304c871efc26057cc90370ccf58dad",
-)
 
 WORK_DIR = ROOT / "work"
-Lucebox_DIR = WORK_DIR / "lucebox-ggml"
 MODELS_DIR = WORK_DIR / "models"
-BUILD_DIR = Lucebox_DIR / os.environ.get("AUTOGGML_BUILD_SUBDIR", "build")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -60,20 +53,35 @@ def sha256_file(path: Path) -> str:
 
 
 def clone_lucebox() -> None:
-    """Clone or update lucebox-ggml to the pinned ref."""
+    """Clone or update the manifest-pinned Lucebox product checkout."""
+    layout = SourceLayout.resolve()
+    manifest = layout.manifest
+    repository = os.environ.get("AUTOGGML_SOURCE_URL", manifest.repository)
+    ref = os.environ.get("AUTOGGML_SOURCE_REF", manifest.ref)
     WORK_DIR.mkdir(parents=True, exist_ok=True)
-    if not Lucebox_DIR.exists():
-        run(["git", "clone", "--no-checkout", "--filter=blob:none", Lucebox_GGML_URL, str(Lucebox_DIR)])
-    run(["git", "fetch", "--depth", "1", "origin", Lucebox_GGML_REF], cwd=Lucebox_DIR)
-    result = run(["git", "rev-parse", "FETCH_HEAD"], cwd=Lucebox_DIR, check=True, capture_output=True)
+    if not layout.checkout.exists():
+        run(["git", "clone", "--no-checkout", "--filter=blob:none", repository, str(layout.checkout)])
+    run(["git", "remote", "set-url", "origin", repository], cwd=layout.checkout)
+    run(["git", "fetch", "--depth", "1", "origin", ref], cwd=layout.checkout)
+    result = run(["git", "rev-parse", "FETCH_HEAD"], cwd=layout.checkout, check=True, capture_output=True)
     commit = result.stdout.strip()
-    pin_file = WORK_DIR / "lucebox-ggml.pin"
-    pin_file.write_text(commit + "\n")
-    source_file = WORK_DIR / "lucebox-ggml.source"
-    source_file.write_text(f"{Lucebox_GGML_URL}\n{Lucebox_GGML_REF}\n")
-    print(f"Pinned lucebox-ggml: {commit}")
-    # Detach at the current HEAD so experiments are deterministic.
-    run(["git", "checkout", "--detach", commit], cwd=Lucebox_DIR)
+    if len(ref) == 40 and commit != ref:
+        raise RuntimeError(f"resolved Lucebox commit {commit} does not match manifest pin {ref}")
+    layout.pin_file.parent.mkdir(parents=True, exist_ok=True)
+    layout.pin_file.write_text(commit + "\n")
+    layout.source_record_file.write_text(json.dumps({
+        "repository": repository, "requested_ref": ref, "commit": commit, "layout": manifest.layout,
+    }, indent=2) + "\n")
+    print(f"Pinned Lucebox product: {commit}")
+    run(["git", "checkout", "--detach", commit], cwd=layout.checkout)
+    backend = detect_backend()
+    submodules = layout.submodules(backend) if backend in manifest.supported_backends else []
+    if submodules:
+        run(
+            ["git", "submodule", "update", "--init", "--recursive", "--", *submodules],
+            cwd=layout.checkout,
+        )
+    layout.validate()
 
 
 def _referenced_manifest_keys() -> set[str]:
@@ -233,56 +241,60 @@ def download_models() -> None:
             hf_hub_download(repo_id=info["repo"], filename=info["file"], local_dir=str(MODELS_DIR))
 
 
-def should_refuse_cpu_build(backend: str, env: dict[str, str] | None = None) -> bool:
-    """True when a CPU build would be a silent fallback the user didn't ask for.
+def validate_product_backend(layout: SourceLayout, backend: str) -> None:
+    """Fail before configuring when host detection chose a non-product backend."""
+    if backend not in layout.manifest.supported_backends:
+        raise RuntimeError(
+            f"Lucebox product backend '{backend}' is unavailable; supported backends are "
+            f"{', '.join(layout.manifest.supported_backends)}"
+        )
 
-    The guardrail rule, stated once: refuse CPU unless AUTOGGML_ALLOW_CPU=1. Pure so
-    the rule is unit-testable independent of cmake/subprocess.
-    """
-    env = env if env is not None else os.environ
-    return backend == "cpu" and env.get("AUTOGGML_ALLOW_CPU") != "1"
+
+def build_commands(
+    layout: SourceLayout, backend: str, jobs: int, *, use_ccache: bool,
+) -> tuple[list[str], list[str]]:
+    build_dir = layout.build_dir(backend)
+    configure = [
+        "cmake", "-G", "Ninja",
+        "-S", str(layout.cmake_source),
+        "-B", str(build_dir),
+        "-DCMAKE_BUILD_TYPE=Release",
+        *layout.cmake_backend_flags(backend),
+    ]
+    if use_ccache:
+        configure += [
+            "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
+        ]
+    build = [
+        "cmake", "--build", str(build_dir), "-j", str(jobs), "--target", *layout.build_targets,
+    ]
+    return configure, build
 
 
 def build_lucebox() -> None:
-    """Configure and build lucebox-ggml for the best available accelerator."""
+    """Configure and build the Lucebox product for the detected accelerator."""
     if shutil.which("cmake") is None:
         print("ERROR: cmake is not installed.", file=sys.stderr)
         sys.exit(1)
 
     backend = detect_backend()
-    if should_refuse_cpu_build(backend):
-        print(
-            "ERROR: no GPU toolkit detected (nvcc / hipcc / vulkaninfo / Metal).\n"
-            "       A CPU build would give numbers unrelated to the GPU roadmap.\n"
-            "       To force a CPU build anyway, set AUTOGGML_ALLOW_CPU=1.",
-            file=sys.stderr,
-        )
+    layout = SourceLayout.resolve()
+    layout.validate()
+    layout.require_capability("product-build")
+    try:
+        validate_product_backend(layout, backend)
+    except RuntimeError as error:
+        print(f"ERROR: {error}", file=sys.stderr)
         sys.exit(1)
-    if backend == "cpu":
-        print("WARNING: building CPU-only (AUTOGGML_ALLOW_CPU=1); "
-              "numbers will not reflect the GPU roadmap.")
-
-    BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    cmake_args = [
-        "cmake",
-        "-G", "Ninja",
-        "-S", str(Lucebox_DIR),
-        "-B", str(BUILD_DIR),
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DLLAMA_BUILD_TESTS=OFF",
-    ]
-    if shutil.which("ccache"):
-        cmake_args += [
-            "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
-            "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
-        ]
-    cmake_args += backend_cmake_flags(backend)
+    jobs = min(4, max(1, int(os.environ.get("AUTOGGML_BUILD_JOBS", "4"))))
+    cmake_args, build_args = build_commands(layout, backend, jobs, use_ccache=bool(shutil.which("ccache")))
+    layout.build_dir(backend).mkdir(parents=True, exist_ok=True)
     print(f"Building for backend: {backend}")
 
     run(cmake_args)
-    jobs = min(4, max(1, int(os.environ.get("AUTOGGML_BUILD_JOBS", "4"))))
-    run(["cmake", "--build", str(BUILD_DIR), "-j", str(jobs), "--target", "llama-bench", "llama-server", "llama-cli"])
-    print(f"Build complete: {BUILD_DIR} (backend={backend})")
+    run(build_args)
+    print(f"Build complete: {layout.build_dir(backend)} (backend={backend})")
 
 
 def _run_remote_setup(target_name: str, backend: str, provision_tools: bool = False) -> None:
@@ -296,15 +308,13 @@ def _run_remote_setup(target_name: str, backend: str, provision_tools: bool = Fa
     root = target.root.rstrip("/")
     if provision_tools:
         packages = ["ccache"]
-        if backend == "vulkan":
-            packages += ["vulkan-tools", "glslc", "libvulkan-dev"]
         worker.run(["sudo", "-n", "apt-get", "update"], lease=True, timeout=1800)
         worker.run(
             ["sudo", "-n", "apt-get", "install", "-y", *packages],
             lease=True,
             timeout=1800,
         )
-    backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP", "vulkan": "GGML_VULKAN"}[backend]
+    backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP"}[backend]
     env_args = [
         "env", "AUTOGGML_REMOTE_WORKER=1", f"{backend_var}=ON",
         f"AUTOGGML_MODEL_ROOT={target.model_root or root + '/work/models'}",
@@ -323,8 +333,8 @@ def main() -> None:
     import argparse
     parser = argparse.ArgumentParser(description="Prepare local or remote autoggml worker")
     parser.add_argument("--target")
-    parser.add_argument("--backend", choices=["cuda", "hip", "vulkan"], default="hip")
-    parser.add_argument("--provision-tools", action="store_true", help="Install missing ccache/Vulkan packages remotely")
+    parser.add_argument("--backend", choices=["cuda", "hip"], default="hip")
+    parser.add_argument("--provision-tools", action="store_true", help="Install missing ccache remotely")
     args = parser.parse_args()
     if args.target and os.environ.get("AUTOGGML_REMOTE_WORKER") != "1":
         _run_remote_setup(args.target, args.backend, args.provision_tools)
@@ -335,7 +345,7 @@ def main() -> None:
     clone_lucebox()
     download_models()
     build_lucebox()
-    print("\nSetup complete. Run `uv run harness.py --baseline` next.")
+    print("\nSetup complete. Run `uv run autoggml source status` next.")
 
 
 if __name__ == "__main__":

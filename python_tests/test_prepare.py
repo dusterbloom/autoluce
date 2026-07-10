@@ -6,23 +6,17 @@ The discovery tests below are characterization: they lock the 35 GB-critical reu
 behavior of helpers that already existed when the tests were added.
 """
 
-from autoggml.prepare import _link_into, discover_model, model_search_paths, should_refuse_cpu_build
+import pytest
+
+from autoggml.prepare import (
+    _link_into,
+    build_commands,
+    discover_model,
+    model_search_paths,
+    validate_product_backend,
+)
 from autoggml.bench.profiling import backend_cmake_flags
-
-
-# --- CPU-refusal decision (pure; Red-first) ------------------------------------
-
-def test_should_refuse_cpu_build_when_cpu_and_no_opt_in():
-    assert should_refuse_cpu_build("cpu", {}) is True
-
-
-def test_should_not_refuse_cpu_when_opted_in():
-    assert should_refuse_cpu_build("cpu", {"AUTOGGML_ALLOW_CPU": "1"}) is False
-
-
-def test_should_not_refuse_cpu_when_gpu():
-    assert should_refuse_cpu_build("cuda", {}) is False
-    assert should_refuse_cpu_build("vulkan", {}) is False
+from autoggml.source_layout import SourceLayout
 
 
 # --- model discovery (characterization) ----------------------------------------
@@ -77,3 +71,30 @@ def test_backend_cmake_flags_maps_each_backend():
 
 def test_backend_cmake_flags_empty_for_cpu():
     assert backend_cmake_flags("cpu") == []
+
+
+def test_product_build_commands_use_server_and_real_targets(monkeypatch, tmp_path):
+    checkout = tmp_path / "work" / "lucebox"
+    (checkout / "server" / "deps" / "llama.cpp" / "ggml").mkdir(parents=True)
+    (checkout / "server" / "CMakeLists.txt").write_text("project(dflash)\n")
+    (checkout / "server" / "deps" / "llama.cpp" / "VENDOR.md").write_text("placeholder")
+    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(checkout))
+    layout = SourceLayout.resolve(root=tmp_path)
+
+    configure, build = build_commands(layout, "hip", jobs=4, use_ccache=True)
+
+    assert configure[configure.index("-S") + 1] == str(checkout / "server")
+    assert configure[configure.index("-B") + 1] == str(checkout / "build-hip")
+    assert "-DDFLASH27B_GPU_BACKEND=hip" in configure
+    assert "-DLLAMA_BUILD_TESTS=OFF" not in configure
+    assert build[-3:] == ["dflash_server", "test_dflash", "test_deepseek4_unit"]
+
+
+def test_product_backend_validation_rejects_legacy_vulkan(monkeypatch, tmp_path):
+    checkout = tmp_path / "work" / "lucebox"
+    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(checkout))
+    layout = SourceLayout.resolve(root=tmp_path)
+
+    validate_product_backend(layout, "hip")
+    with pytest.raises(RuntimeError, match="backend 'vulkan' is unavailable"):
+        validate_product_backend(layout, "vulkan")

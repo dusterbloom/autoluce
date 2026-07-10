@@ -22,7 +22,7 @@ from autoggml.agent_challenges import (
     FakeAgentBackend,
     FileAgentRepository,
 )
-from autoggml.agent_cli import _engine_commit, _engine_root
+from autoggml.agent_cli import _source_commit, _source_root
 from autoggml.coordination import FileCoordinationRepository, FleetService, JoinRequest
 from autoggml.coordinator_http import AgentCoordinatorClient, create_server
 from autoggml.team_worker import TeamWorker
@@ -30,9 +30,9 @@ from autoggml.team_worker import TeamWorker
 
 def _patch(symbol: str) -> bytes:
     return (
-        f"diff --git a/src/{symbol}.cpp b/src/{symbol}.cpp\n"
-        "--- a/src/old.cpp\n"
-        "+++ b/src/new.cpp\n"
+        f"diff --git a/server/src/{symbol}.cpp b/server/src/{symbol}.cpp\n"
+        "--- a/server/src/old.cpp\n"
+        "+++ b/server/src/new.cpp\n"
         "@@ -1 +1 @@\n"
         "-old\n"
         "+new\n"
@@ -118,26 +118,31 @@ def test_challenge_identity_changes_with_the_research_contract(tmp_path):
 
 def test_candidate_gate_allows_engine_patch_and_rejects_research_or_traversal_changes():
     gate = CandidatePatchGate()
-    assert gate.validate(_patch("sinkhorn")) == ["src/sinkhorn.cpp"]
+    assert gate.validate(_patch("sinkhorn")) == ["server/src/sinkhorn.cpp"]
+    vendor = b"diff --git a/server/deps/llama.cpp/ggml/src/op.cpp b/server/deps/llama.cpp/ggml/src/op.cpp\n"
+    assert gate.validate(vendor) == ["server/deps/llama.cpp/ggml/src/op.cpp"]
 
     protected = b"diff --git a/benchmarks/golden.json b/benchmarks/golden.json\n"
-    traversal = b"diff --git a/src/../../quality.py b/src/../../quality.py\n"
-    with pytest.raises(ValueError, match="not an approved engine path"):
+    legacy_root = b"diff --git a/src/old.cpp b/src/old.cpp\n"
+    traversal = b"diff --git a/server/src/../../quality.py b/server/src/../../quality.py\n"
+    with pytest.raises(ValueError, match="not an approved Lucebox product path"):
         gate.validate(protected)
     with pytest.raises(ValueError, match="unsafe patch path"):
         gate.validate(traversal)
+    with pytest.raises(ValueError, match="not an approved Lucebox product path"):
+        gate.validate(legacy_root)
 
 
-def test_agent_workspace_uses_the_pinned_engine_checkout(monkeypatch, tmp_path):
-    engine = tmp_path / "work" / "lucebox-ggml"
-    engine.mkdir(parents=True)
-    (tmp_path / "work" / "lucebox-ggml.pin").write_text("abc123\n")
+def test_agent_workspace_uses_the_pinned_product_checkout(monkeypatch, tmp_path):
+    source = tmp_path / "work" / "lucebox"
+    source.mkdir(parents=True)
+    (tmp_path / "work" / "lucebox.pin").write_text("abc123\n")
     monkeypatch.setattr("autoggml.agent_cli.ROOT", tmp_path)
-    monkeypatch.delenv("AUTOGGML_AGENT_ENGINE_ROOT", raising=False)
-    monkeypatch.delenv("AUTOGGML_AGENT_BASE_COMMIT", raising=False)
+    monkeypatch.setenv("AUTOGGML_SOURCE_ROOT", str(source))
+    monkeypatch.delenv("AUTOGGML_SOURCE_COMMIT", raising=False)
 
-    assert _engine_root() == engine
-    assert _engine_commit() == "abc123"
+    assert _source_root() == source
+    assert _source_commit() == "abc123"
 
 
 def test_parallel_agents_compete_then_review_and_recombine_with_shared_credit(tmp_path):
@@ -260,7 +265,7 @@ def _cli(state: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["AUTOGGML_COORDINATION_DIR"] = str(state)
     env["AUTOGGML_AGENT_CONFIG"] = str(state / "agent.json")
-    env["AUTOGGML_AGENT_BASE_COMMIT"] = "test-engine-pin"
+    env["AUTOGGML_SOURCE_COMMIT"] = "test-product-pin"
     return subprocess.run(
         [sys.executable, "-m", "cli", *args], text=True, capture_output=True, env=env, check=False,
     )

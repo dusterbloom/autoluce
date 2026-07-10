@@ -30,6 +30,7 @@ from autoggml.parallel.concurrency import LockedFrontier
 from autoggml.bench.harness import run_harness
 
 from autoggml import ROOT
+from autoggml.source_layout import SourceLayout
 
 
 def _run_remote(args) -> int:
@@ -38,6 +39,7 @@ def _run_remote(args) -> int:
     from autoggml.remote import SSHWorker
     from autoggml.targets import TargetConfig
 
+    SourceLayout.resolve().require_capability("product-benchmark")
     if not args.contract:
         raise ValueError("remote run requires --contract")
     contract = ResearchContract.read(args.contract)
@@ -47,7 +49,7 @@ def _run_remote(args) -> int:
     namespace = contract_namespace(contract, args.backend)
     root = target.root.rstrip("/")
     state = f"{root}/work/state/{namespace}"
-    backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP", "vulkan": "GGML_VULKAN"}[args.backend]
+    backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP"}[args.backend]
     remote_args = ["--significance", str(args.significance)]
     if args.baseline:
         remote_args.append("--baseline")
@@ -149,7 +151,7 @@ def main():
     parser.add_argument("--significance", type=float, default=1.0, help="Keep only if improvement exceeds k*combined_sigma")
     parser.add_argument("--target", help="Run on a configured SSH target")
     parser.add_argument("--contract", type=Path)
-    parser.add_argument("--backend", choices=["cuda", "hip", "vulkan"], default="hip")
+    parser.add_argument("--backend", choices=["cuda", "hip"], default="hip")
     parser.add_argument("--experiment-patch", help="Patch filename under patches/ to apply remotely")
     parser.add_argument("--profile", action="store_true")
     args = parser.parse_args()

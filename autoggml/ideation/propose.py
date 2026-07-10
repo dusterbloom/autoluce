@@ -35,7 +35,7 @@ def build_proposal_messages(untried_items: list[tuple[int, str]], best_score: fl
         f"Current best score: {best_score}\n"
         f"Untried ROADMAP ideas:\n{idea_lines}{bound_note}\n\n"
         f"Propose the single next experiment to try. Give a one-line rationale and the "
-        f"concrete change (cmake flag, runtime flag, or patch target in lucebox-ggml)."
+        "concrete change (product CMake flag, runtime flag, or Lucebox Hub/vendor patch target)."
     )
     return [
         {"role": "system", "content": (

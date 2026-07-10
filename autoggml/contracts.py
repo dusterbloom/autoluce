@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml
 
+from autoggml.source_layout import SourceManifest
+
 
 @dataclass
 class ResearchContract:
@@ -18,7 +20,7 @@ class ResearchContract:
     primary_objective: str = "interactive_decode"
     workload: str = "interactive_single_user"
     contexts: list[int] = field(default_factory=lambda: [8192, 32768, 131072])
-    backends: list[str] = field(default_factory=lambda: ["hip", "vulkan"])
+    backends: list[str] = field(default_factory=lambda: ["hip", "cuda"])
     primary_backend: str = "hip"
     host_headroom_gib: float = 12.0
     power_mode: str = "maximum_performance"
@@ -30,8 +32,12 @@ class ResearchContract:
     schema_version: int = 1
 
     def validate(self) -> None:
+        supported = set(SourceManifest.load().supported_backends)
         if self.primary_backend not in self.backends:
             raise ValueError("primary_backend must be allowed by backends")
+        unsupported = sorted(set(self.backends) - supported)
+        if unsupported:
+            raise ValueError(f"backends not supported by the Lucebox product: {', '.join(unsupported)}")
         if not self.contexts or any(ctx <= 0 for ctx in self.contexts):
             raise ValueError("contexts must contain positive token depths")
         if not 1 <= self.build_jobs <= 4:

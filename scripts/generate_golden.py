@@ -19,9 +19,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from autoggml.bench.harness import build_generation_command, extract_generated_text  # noqa: E402
+from autoggml.bench.profiling import detect_backend  # noqa: E402
+from autoggml.source_layout import SourceLayout  # noqa: E402
 
 WORK_DIR = ROOT / "work"
-BUILD_DIR = WORK_DIR / "lucebox-ggml" / os.environ.get("AUTOGGML_BUILD_SUBDIR", "build")
 MODELS_DIR = WORK_DIR / "models"
 BENCHMARKS_DIR = ROOT / "benchmarks"
 GOLDEN_DIR = Path(os.environ.get("AUTOGGML_GOLDEN_DIR", str(BENCHMARKS_DIR / "golden")))
@@ -79,7 +80,9 @@ def main():
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
-    llama_cli = BUILD_DIR / "bin" / "llama-cli"
+    layout = SourceLayout.resolve()
+    layout.require_capability("llama-tools")
+    llama_cli = layout.build_dir(detect_backend()) / "bin" / "llama-cli"
     if not llama_cli.exists():
         print(f"ERROR: {llama_cli} not found. Run `uv run prepare.py` first.")
         return 1

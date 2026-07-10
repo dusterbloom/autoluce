@@ -1,0 +1,26 @@
+schema_version = 1
+name = "lucebox"
+repository = "https://github.com/Luce-Org/lucebox-hub.git"
+ref = "5e302cbb483819cd21e72f5dd8becaa609eca8cf"
+track = "refs/heads/main"
+layout = "lucebox-hub-vendored"
+checkout_subdir = "work/lucebox"
+pin_subpath = "work/lucebox.pin"
+source_record_subpath = "work/lucebox.source"
+cmake_source_subdir = "server"
+vendor_subdir = "server/deps/llama.cpp"
+vendor_manifest_subpath = "server/deps/llama.cpp/VENDOR.md"
+supported_backends = ["cuda", "hip"]
+build_targets = ["dflash_server", "test_dflash", "test_deepseek4_unit"]
+submodules_by_backend = { cuda = ["server/deps/Block-Sparse-Attention"], hip = [] }
+runtime = "dflash-server-http"
+capabilities = ["product-build", "product-patch", "vendor-patch", "deepseek-unit"]
+
+[vendor]
+repository = "https://github.com/Luce-Org/lucebox-ggml"
+branch = "luce-dflash"
+base_commit = "6fbe72d67069136bbd370be703e1d4f441b5e942"
+included_commits = [
+  "0fe65d9354b7c5da52a7741d2e37ba85f0d0c925",
+  "0699be81480428f01b9b7ac49a09a2d51c77f8df",
+]

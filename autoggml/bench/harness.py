@@ -1,7 +1,7 @@
 """
 Read-only benchmark harness for autoggml v2.
 
-Applies the experiment from experiment.py, builds lucebox-ggml,
+Applies the experiment from experiment.py, builds the pinned Lucebox product,
 runs benchmarks, checks correctness against golden outputs, and computes a score.
 
 Real mode (default) requires a prepared work/ tree and measures every metric;
@@ -26,14 +26,13 @@ from pathlib import Path
 from experiment import apply_experiment, get_cmake_flags, get_runtime_flags, reset_lucebox
 from autoggml.bench.kl import check_kl, kl_gate, resolve_kl_tau
 from autoggml.bench.objective import check_constraints
-from autoggml.bench.profiling import backend_cmake_flags, detect_backend, profile_command
+from autoggml.bench.profiling import detect_backend, profile_command
 from autoggml.bench.telemetry import TelemetryCollector
 from autoggml.bench.uncertainty import propagate_score_stddev
+from autoggml.source_layout import SourceLayout
 
 from autoggml import ROOT
 WORK_DIR = ROOT / "work"
-Lucebox_DIR = WORK_DIR / "lucebox-ggml"
-BUILD_DIR = Lucebox_DIR / os.environ.get("AUTOGGML_BUILD_SUBDIR", "build")
 BENCHMARKS_DIR = ROOT / "benchmarks"
 STATE_DIR = Path(os.environ.get("AUTOGGML_STATE_DIR", str(WORK_DIR)))
 GOLDEN_DIR = Path(os.environ.get("AUTOGGML_GOLDEN_DIR", str(BENCHMARKS_DIR / "golden")))
@@ -45,33 +44,26 @@ def run(cmd: list[str], cwd: Path | None = None, check: bool = True, timeout: in
 
 
 def has_valid_source() -> bool:
-    return (Lucebox_DIR / "CMakeLists.txt").exists() and (Lucebox_DIR / ".git").exists()
+    layout = SourceLayout.resolve()
+    return layout.checkout.exists() and layout.detect() == layout.manifest.layout
 
 
 def build() -> float:
-    """Build lucebox-ggml and return build wall time. Raises if the source is absent."""
+    """Build current Lucebox product targets and return wall time."""
     if not has_valid_source():
-        raise RuntimeError("lucebox-ggml source not found; run prepare.py (or use --simulate)")
-    BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    cmake_args = [
-        "cmake",
-        "-G", "Ninja",
-        "-S", str(Lucebox_DIR),
-        "-B", str(BUILD_DIR),
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DLLAMA_BUILD_TESTS=OFF",
-    ]
-    if shutil.which("ccache"):
-        cmake_args += [
-            "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
-            "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
-        ]
-    cmake_args += backend_cmake_flags(detect_backend()) + get_cmake_flags()
+        raise RuntimeError("Lucebox product source not found; run `uv run autoggml setup` (or use --simulate)")
+    from autoggml.prepare import build_commands
+
+    layout = SourceLayout.resolve()
+    backend = detect_backend()
+    jobs = min(4, max(1, int(os.environ.get("AUTOGGML_BUILD_JOBS", "4"))))
+    cmake_args, build_args = build_commands(layout, backend, jobs, use_ccache=bool(shutil.which("ccache")))
+    cmake_args += get_cmake_flags()
+    layout.build_dir(backend).mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
     run(cmake_args, env=env)
     t0 = time.time()
-    jobs = min(4, max(1, int(os.environ.get("AUTOGGML_BUILD_JOBS", "4"))))
-    run(["cmake", "--build", str(BUILD_DIR), "-j", str(jobs), "--target", "llama-bench", "llama-cli", "llama-perplexity"], env=env)
+    run(build_args, env=env)
     return time.time() - t0
 
 
@@ -221,7 +213,9 @@ def benchmark_with_llama_bench(
     context_depth: int | None = None,
 ) -> dict[str, float]:
     """Run llama-bench and parse real metrics. Raises if it cannot measure."""
-    bench = BUILD_DIR / "bin" / "llama-bench"
+    layout = SourceLayout.resolve()
+    layout.require_capability("llama-tools")
+    bench = layout.build_dir(detect_backend()) / "bin" / "llama-bench"
     if not bench.exists():
         raise RuntimeError(f"{bench} not found; run prepare.py (or use --simulate)")
 
@@ -376,7 +370,9 @@ def check_correctness(
     if golden is None:
         raise RuntimeError(f"no golden outputs for benchmark '{benchmark_name}'; run scripts/generate_golden.py")
 
-    llama_cli = BUILD_DIR / "bin" / "llama-cli"
+    layout = SourceLayout.resolve()
+    layout.require_capability("llama-tools")
+    llama_cli = layout.build_dir(detect_backend()) / "bin" / "llama-cli"
     if not llama_cli.exists():
         raise RuntimeError(f"{llama_cli} not found; run prepare.py (or use --simulate)")
     if golden.get("generated_at") == "NOT_YET_GENERATED":
@@ -577,6 +573,7 @@ def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = 
         exp_info = {"description": "baseline" if baseline else "simulated", "cmake_flags": [], "runtime_flags": {}}
         build_time = 1.0
     else:
+        SourceLayout.resolve().require_capability("product-benchmark")
         if baseline:
             reset_lucebox()
             exp_info = {"description": "baseline", "cmake_flags": get_cmake_flags(), "runtime_flags": get_runtime_flags()}
@@ -633,7 +630,7 @@ def main():
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--target", help="Run through a configured SSH target")
     parser.add_argument("--contract", type=Path, help="Research contract used to namespace remote state")
-    parser.add_argument("--backend", choices=["cuda", "hip", "vulkan"], default="hip")
+    parser.add_argument("--backend", choices=["cuda", "hip"], default="hip")
     args = parser.parse_args()
 
     if args.target and os.environ.get("AUTOGGML_REMOTE_WORKER") != "1":
@@ -649,7 +646,7 @@ def main():
             f"{contract.machine_fingerprint[:16]}-{contract.model_fingerprint[:16]}-{args.backend}"
             if contract else f"uncontracted-{args.backend}"
         )
-        backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP", "vulkan": "GGML_VULKAN"}[args.backend]
+        backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP"}[args.backend]
         remote_args = []
         if args.baseline:
             remote_args.append("--baseline")

@@ -48,8 +48,6 @@ def _backends() -> list[str]:
         found.append("cuda")
     if shutil.which("hipcc") or Path("/dev/kfd").exists():
         found.append("hip")
-    if shutil.which("vulkaninfo"):
-        found.append("vulkan")
     return found
 
 
@@ -68,14 +66,14 @@ def _parser(action: str) -> argparse.ArgumentParser:
     if action == "join":
         parser.add_argument("--name", default=platform.node())
         parser.add_argument("--machine-id", default=_machine_id())
-        parser.add_argument("--backend", action="append", choices=["cuda", "hip", "vulkan"])
+        parser.add_argument("--backend", action="append", choices=["cuda", "hip"])
         parser.add_argument("--memory-gib", type=float, default=_memory_gib())
         parser.add_argument("--team", help="shared coordinator URL (remembered after joining)")
         parser.add_argument("--token", help="shared team token (stored with user-only permissions)")
     elif action == "submit":
         parser.add_argument("patch", type=Path)
         parser.add_argument("--title")
-        parser.add_argument("--backend", action="append", required=True, choices=["cuda", "hip", "vulkan"])
+        parser.add_argument("--backend", action="append", required=True, choices=["cuda", "hip"])
         parser.add_argument("--model", required=True)
     elif action == "status":
         parser.add_argument("--json", action="store_true")

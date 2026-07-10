@@ -2,7 +2,7 @@
 KL-to-baseline quality oracle (Tier-1) for autoggml v2.
 
 Reuses llama.cpp's built-in KL tooling (llama-perplexity); no custom logit
-storage. Verified against work/lucebox-ggml (common/arg.cpp,
+storage. This legacy adapter requires a source layout with llama.cpp tools
 tools/perplexity/perplexity.cpp):
 
     save base logits:  llama-perplexity -m MODEL -f TEXT --kl-divergence-base BASE
@@ -14,7 +14,8 @@ Summary lines parsed: 'Mean    KLD:', 'Maximum KLD:', '99.9%   KLD:'.
 CRITICAL DESIGN INVARIANT: the KL reference is generated ONCE from the ORIGINAL
 baseline engine build and never regenerated from the rolling best — quality
 drift cannot compound. generate_kl_base refuses to overwrite an existing
-reference, and `autoggml kl-base` resets lucebox-ggml to the pinned baseline
+reference. This legacy adapter is unavailable for the vendored Lucebox product;
+`autoggml kl-base` fails closed until product quality capture is implemented
 before building. The reference lives next to the golden outputs
 (benchmarks/golden/<benchmark>.kl_base.bin).
 
@@ -32,9 +33,10 @@ import sys
 from pathlib import Path
 
 from autoggml import ROOT
+from autoggml.bench.profiling import detect_backend
+from autoggml.source_layout import SourceLayout
 BENCHMARKS_DIR = ROOT / "benchmarks"
 GOLDEN_DIR = Path(os.environ.get("AUTOGGML_GOLDEN_DIR", str(BENCHMARKS_DIR / "golden")))
-BUILD_DIR = ROOT / "work" / "lucebox-ggml" / os.environ.get("AUTOGGML_BUILD_SUBDIR", "build")
 
 DEFAULT_KL_TAU = 0.01
 
@@ -116,7 +118,9 @@ def run(cmd: list[str], cwd: Path | None = None, check: bool = True, timeout: in
 
 
 def _perplexity_bin() -> Path:
-    binary = BUILD_DIR / "bin" / "llama-perplexity"
+    layout = SourceLayout.resolve()
+    layout.require_capability("llama-tools")
+    binary = layout.build_dir(detect_backend()) / "bin" / "llama-perplexity"
     if not binary.exists():
         raise RuntimeError(f"{binary} not found; run prepare.py / the harness build first")
     return binary

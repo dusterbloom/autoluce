@@ -1,7 +1,7 @@
 """
 Smoke tests for the autoggml v2 harness.
 
-These tests run the harness in simulation mode (no real lucebox-ggml source
+These tests run the harness in simulation mode (no real Lucebox product source
 required) and verify that it produces a valid, reproducible result bundle.
 """
 
@@ -63,3 +63,8 @@ def test_constraint_violation_zeroes_score():
     )
     assert result["constraint_violations"]
     assert result["score"] == 0.0
+
+
+def test_real_harness_fails_closed_for_vendored_product_runtime():
+    with pytest.raises(RuntimeError, match="does not provide 'product-benchmark'"):
+        run_harness(baseline=True, simulate=False)

@@ -2,7 +2,7 @@
 Git worktree lifecycle: an isolated source tree per worker, sharing one object store.
 
 Each parallel worker gets its own working tree + build dir, so N concurrent builds no
-longer clobber one shared work/lucebox-ggml/build. This is the local-host equivalent of
+longer clobber one shared Lucebox product build. This is the local-host equivalent of
 runner.run_fn's remote/VM isolation: a worker built on a worktree is as isolated as one
 built on a separate box, but without the second clone.
 """

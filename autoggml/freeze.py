@@ -8,6 +8,7 @@ from pathlib import Path
 
 from autoggml.contracts import ResearchContract
 from autoggml.remote import SSHWorker
+from autoggml.source_layout import SourceLayout
 from autoggml.targets import TargetConfig
 
 
@@ -16,6 +17,7 @@ def contract_namespace(contract: ResearchContract, backend: str) -> str:
 
 
 def freeze(target: TargetConfig, contract: ResearchContract, backend: str = "hip") -> dict:
+    SourceLayout.resolve().require_capability("product-quality")
     if backend not in contract.backends:
         raise ValueError(f"backend '{backend}' is not allowed by the research contract")
     worker = SSHWorker(target)
@@ -24,7 +26,7 @@ def freeze(target: TargetConfig, contract: ResearchContract, backend: str = "hip
     root = target.root.rstrip("/")
     namespace = contract_namespace(contract, backend)
     state = f"{root}/work/state/{namespace}"
-    backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP", "vulkan": "GGML_VULKAN"}[backend]
+    backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP"}[backend]
     env = [
         "env", "AUTOGGML_REMOTE_WORKER=1", f"{backend_var}=ON",
         f"AUTOGGML_MODEL_ROOT={target.model_root or root + '/work/models'}",
@@ -64,7 +66,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Freeze quality references on a remote target")
     parser.add_argument("--target", required=True)
     parser.add_argument("--contract", type=Path, required=True)
-    parser.add_argument("--backend", choices=["cuda", "hip", "vulkan"], default="hip")
+    parser.add_argument("--backend", choices=["cuda", "hip"], default="hip")
     args = parser.parse_args()
     result = freeze(TargetConfig.load(args.target), ResearchContract.read(args.contract), args.backend)
     print(json.dumps(result, indent=2))

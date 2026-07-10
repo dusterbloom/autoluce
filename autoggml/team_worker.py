@@ -10,6 +10,7 @@ from typing import Any, Callable, Protocol
 
 from autoggml import ROOT
 from autoggml.coordination import Claim, Job
+from autoggml.source_layout import SourceLayout
 from autoggml.test_drive import _lease
 
 
@@ -58,13 +59,17 @@ class LocalExperimentExecutor:
         patch_path.write_bytes(claim.patch)
         results = []
         try:
+            layout = SourceLayout.resolve()
+            layout.require_capability("product-benchmark")
             with _lease(self.lock_path):
                 for backend in claim.candidate.backends:
+                    if backend not in layout.manifest.supported_backends:
+                        raise ValueError(f"Lucebox product does not support backend '{backend}'")
                     env = os.environ.copy()
                     for variable in ("GGML_CUDA", "GGML_HIP", "GGML_VULKAN"):
                         env.pop(variable, None)
                     env.update({
-                        {"cuda": "GGML_CUDA", "hip": "GGML_HIP", "vulkan": "GGML_VULKAN"}[backend]: "ON",
+                        {"cuda": "GGML_CUDA", "hip": "GGML_HIP"}[backend]: "ON",
                         "AUTOGGML_BENCHMARKS": claim.candidate.model,
                         "AUTOGGML_BUILD_JOBS": str(min(4, int(env.get("AUTOGGML_BUILD_JOBS", "4")))),
                         "AUTOGGML_BUILD_SUBDIR": f"build-{backend}",

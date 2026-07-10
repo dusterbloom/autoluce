@@ -18,6 +18,7 @@ import sys
 
 # command -> (dotted module path, default_args, one-line help)
 COMMANDS: dict[str, tuple[str, list[str], str]] = {
+    "source":    ("autoggml.source_cli",       [], "inspect Lucebox ownership, vendor provenance, and drift"),
     "agent":     ("autoggml.agent_cli",        [], "choose, build, review, and combine research tasks"),
     "join":      ("autoggml.fleet_cli",        ["join"], "join this machine to the team"),
     "submit":    ("autoggml.fleet_cli",        ["submit"], "submit a candidate to an available machine"),

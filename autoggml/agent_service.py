@@ -103,8 +103,11 @@ class AgentService:
             approach=approach,
             why=challenge.why,
             evidence=challenge.evidence,
-            allowed_paths=["ggml/", "src/", "common/", "tools/", "tests/", "include/", "cmake/"],
-            forbidden_paths=["benchmarks/", "autoggml/", "models/", "research contracts", "golden outputs"],
+            allowed_paths=["server/src/", "server/include/", "server/deps/llama.cpp/ggml/", "server/CMakeLists.txt"],
+            forbidden_paths=[
+                "benchmarks/", "autoggml/", "models/", "server/test/", "server/tests/",
+                "research contracts", "golden outputs",
+            ],
             token_budget=challenge.token_budget,
             time_budget_minutes=challenge.time_budget_minutes,
             done_when=[

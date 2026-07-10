@@ -1,7 +1,7 @@
 """
-Patch toolkit for common lucebox-ggml / llama.cpp modifications.
+Patch toolkit for explicit Lucebox product or vendored-ggml roots.
 
-Each patch function accepts the path to the lucebox-ggml checkout and
+Each patch function accepts the exact source scope it mutates and
 mutates one or more source files. Patches are reversible with git.
 
 Intended use from experiment.py:
@@ -9,7 +9,10 @@ Intended use from experiment.py:
     from autoggml.loop.patches import apply_march_native, apply_speculative_candidates
     from pathlib import Path
 
-    repo = Path("work/lucebox-ggml")
+    from autoggml.source_layout import SourceLayout
+    layout = SourceLayout.resolve()
+    repo = layout.cmake_source       # product CMake/source helpers
+    vendor = layout.vendor_root      # upstream-compatible ggml helpers
     patches.apply_march_native(repo)
     patches.apply_speculative_candidates(repo, n_draft=8)
 """
@@ -50,7 +53,7 @@ def revert_all(repo: Path, files: list[str]) -> None:
         _git_checkout(repo, rel)
 
 
-CMAKE_PROJECT_ANCHOR = "project(llama.cpp C CXX)"
+CMAKE_PROJECT_ANCHORS = ("project(dflash LANGUAGES", "project(llama.cpp C CXX)")
 
 
 def _anchor_insert(text: str, anchor: str, insertion: str) -> str | None:
@@ -80,7 +83,8 @@ if ((CMAKE_C_COMPILER_ID MATCHES "GNU|Clang") AND NOT EMSCRIPTEN)
     add_compile_options({flag_str})
 endif()
 """
-    new_text = _anchor_insert(text, CMAKE_PROJECT_ANCHOR, insertion)
+    anchor = next((candidate for candidate in CMAKE_PROJECT_ANCHORS if candidate in text), None)
+    new_text = _anchor_insert(text, anchor, insertion) if anchor else None
     if new_text is None:
         return {"patch": "march_native", "status": "no_anchor", "flags": flag_str}
 
@@ -101,7 +105,8 @@ def apply_lto(repo: Path) -> dict[str, str]:
 {marker}
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 """
-    new_text = _anchor_insert(text, CMAKE_PROJECT_ANCHOR, insertion)
+    anchor = next((candidate for candidate in CMAKE_PROJECT_ANCHORS if candidate in text), None)
+    new_text = _anchor_insert(text, anchor, insertion) if anchor else None
     if new_text is None:
         return {"patch": "lto", "status": "no_anchor"}
 

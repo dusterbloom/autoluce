@@ -3,7 +3,7 @@ Synthetic-data tests for the KL-to-baseline quality oracle (kl.py).
 
 No GPU, no subprocess: pure parsing/gating/command-builder logic against
 fixtures shaped like llama-perplexity's real --kl-divergence stdout
-(verified against work/lucebox-ggml tools/perplexity/perplexity.cpp:
+(verified against the historical standalone tools/perplexity/perplexity.cpp:
 'Mean    KLD:', 'Maximum KLD:', '99.9%   KLD:').
 """
 

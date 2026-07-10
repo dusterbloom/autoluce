@@ -2,6 +2,8 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
+
 import pytest
 
 from autoggml.bench.harness import aggregate_context_metrics, check_context_regressions, parse_llama_bench_json
@@ -12,7 +14,7 @@ from autoggml.onboard import INSTALL
 from autoggml.profiles import MachineProfile
 from autoggml.remote import RemoteBusyError, SSHWorker
 from autoggml.targets import TargetConfig
-from autoggml.test_drive import _lease, safe_test_drive
+from autoggml.test_drive import _lease, _patch_ready, safe_test_drive
 
 
 def test_target_config_loads_named_ssh_target(monkeypatch, tmp_path):
@@ -52,6 +54,14 @@ def test_contract_round_trip_and_validation(tmp_path):
     assert ResearchContract.read(path) == contract
     contract.build_jobs = 8
     with pytest.raises(ValueError, match="build_jobs"):
+        contract.validate()
+
+
+def test_contract_rejects_backend_missing_from_product_manifest():
+    contract = ResearchContract(
+        "strix", "machine", "model", "digest", backends=["hip", "vulkan"], primary_backend="hip",
+    )
+    with pytest.raises(ValueError, match="not supported by the Lucebox product: vulkan"):
         contract.validate()
 
 
@@ -182,6 +192,10 @@ def test_test_drive_safe_mode_reports_busy_without_live_work(monkeypatch):
     assert result["status"] == "busy"
     assert result["simulated_loop"] == "pass"
     assert "retry" in result["next"]
+
+
+def test_archived_standalone_patch_is_not_product_ready():
+    assert _patch_ready(Path(__file__).resolve().parent.parent) is False
 
 
 def test_local_test_drive_lease_is_nonblocking(tmp_path):

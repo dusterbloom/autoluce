@@ -7,6 +7,9 @@
   "patch_file": "deepseek-v4-sinkhorn-77bccaa.patch",
   "patch_sha256": "3c6017e45ac5a55acb5c17ba139702a2969a8e1bfd4ec96f0c214ce09a0938bf",
   "target_luce_commit": "8c146a8",
+  "target_layout": "standalone-lucebox-ggml",
+  "compatibility": "requires-port-and-reprofile",
+  "review_note": "Current Lucebox Hub owns DeepSeek V4 under server/src/deepseek4 and already has custom fused HC CUDA/HIP device paths; this standalone-tree patch is retained as research evidence, not an applicable candidate.",
   "apply_check": "pass",
   "upstream_state_at_capture": "open-draft"
 }

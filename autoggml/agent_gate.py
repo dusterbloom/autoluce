@@ -6,8 +6,12 @@ import re
 from pathlib import PurePosixPath
 
 
-APPROVED_ROOTS = {"cmake", "common", "examples", "ggml", "include", "src", "tests", "tools"}
-APPROVED_FILES = {"CMakeLists.txt", "Makefile"}
+APPROVED_PREFIXES = (
+    "server/src/",
+    "server/include/",
+    "server/deps/llama.cpp/ggml/",
+)
+APPROVED_FILES = {"server/CMakeLists.txt"}
 
 
 class CandidatePatchGate:
@@ -24,8 +28,8 @@ class CandidatePatchGate:
                 path = PurePosixPath(value)
                 if path.is_absolute() or ".." in path.parts:
                     raise ValueError(f"unsafe patch path: {value}")
-                if path.parts[0] not in APPROVED_ROOTS and value not in APPROVED_FILES:
-                    raise ValueError(f"not an approved engine path: {value}")
+                if not value.startswith(APPROVED_PREFIXES) and value not in APPROVED_FILES:
+                    raise ValueError(f"not an approved Lucebox product path: {value}")
             paths.append(destination)
         if not paths:
             raise ValueError("candidate patch has no git diff headers")

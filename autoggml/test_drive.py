@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from autoggml.doctor import build_profile
+from autoggml.source_layout import SourceLayout
 from autoggml.targets import TargetConfig
 
 
@@ -28,7 +29,15 @@ def _lease(path: str):
 def _patch_ready(root: Path) -> bool:
     patch = root / "patches" / "deepseek-v4-sinkhorn-77bccaa.patch"
     provenance = patch.with_suffix(".json")
-    return patch.is_file() and provenance.is_file()
+    if not patch.is_file() or not provenance.is_file():
+        return False
+    metadata = json.loads(provenance.read_text())
+    manifest = SourceLayout.resolve(root=root).manifest
+    return (
+        metadata.get("compatibility") == "ready"
+        and metadata.get("target_layout") == manifest.layout
+        and metadata.get("target_luce_commit") == manifest.ref
+    )
 
 
 def safe_test_drive(target: TargetConfig) -> dict:
@@ -40,12 +49,16 @@ def safe_test_drive(target: TargetConfig) -> dict:
     busy = bool(profile.observed.get("busy_reasons"))
     model_ready = bool(model.get("readable")) and not model.get("missing")
     hip_ready = bool(profile.observed.get("hipcc"))
+    runtime_ready = "product-benchmark" in SourceLayout.resolve().manifest.capabilities
+    patch_ready = _patch_ready(Path(__file__).resolve().parent.parent)
     if busy:
         status, next_step = "busy", "retry when the host is idle"
     elif not model_ready:
         status, next_step = "needs-model", "check the configured model_root"
     elif not hip_ready:
         status, next_step = "needs-hip", "install or repair the HIP toolchain"
+    elif not runtime_ready:
+        status, next_step = "needs-runtime-adapter", "product source/build are ready; product benchmark adapter is pending"
     else:
         status, next_step = "ready", "autoggml test-drive --live"
     return {
@@ -55,7 +68,8 @@ def safe_test_drive(target: TargetConfig) -> dict:
         "memory_available_gib": round(float(profile.observed.get("mem_available_bytes") or 0) / 1024**3, 2),
         "model": {"path": model.get("path"), "size_gib": round(float(model.get("size_bytes") or 0) / 1024**3, 2),
                   "readable": model.get("readable", False)},
-        "patch_ready": _patch_ready(Path(__file__).resolve().parent.parent),
+        "patch_ready": patch_ready,
+        "patch_status": "ready" if patch_ready else "requires-port",
         "simulated_loop": "pass" if simulation.get("correctness") == "pass" else "FAIL",
         "busy_reasons": profile.observed.get("busy_reasons", []),
         "next": next_step,
@@ -63,6 +77,7 @@ def safe_test_drive(target: TargetConfig) -> dict:
 
 
 def live_test_drive(target: TargetConfig) -> dict:
+    SourceLayout.resolve().require_capability("product-benchmark")
     with _lease(target.lock_path):
         before = build_profile(target)
         if before.observed.get("busy_reasons"):
@@ -116,7 +131,7 @@ def main() -> None:
         state = "readable" if model.get("readable") else "missing"
         print(f"  model:      {model.get('size_gib', 0):.2f} GiB, {state}")
     if "patch_ready" in result:
-        print(f"  experiment: {'ready' if result['patch_ready'] else 'missing patch'}")
+        print(f"  experiment: {result.get('patch_status', 'unknown')}")
     if "simulated_loop" in result:
         print(f"  harness:    {result['simulated_loop'].lower()}")
     if "decode_tok_s" in result:
