@@ -42,17 +42,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   fingerprints; versioned research contracts; external and sharded GGUF catalog entries;
   HIP remote execution; UMA memory, fault, swap, GTT/VRAM, temperature, power, and
   clock telemetry; context-conditioned 8K/32K/128K cells; and machine-scoped evidence.
+  Inventory, contracts, and onboarding remain active; live measurement commands await
+  the product HTTP adapter described under Changed.
 - **DeepSeek V4 fused Sinkhorn reference**: checksummed upstream patch retained as
   research evidence. It is marked `requires-port-and-reprofile` because it targets the
   former standalone tree, while current Hub code owns DeepSeek V4 separately and already
   contains custom fused HC CUDA/HIP device paths.
-- **KL quality oracle** (`kl.py`, `autoggml kl-base <benchmark>`): candidates are checked against frozen reference logits via llama.cpp's built-in `--kl-divergence`; a gate violation (`mean_kld > tau` or `max_kld > 10·tau`, `tau` per benchmark via `objective.kl_tau`, default 0.01) zeroes the score like a correctness failure. The reference is generated **once** from the pinned baseline build and never regenerated, so quality drift cannot compound. Opt-in per benchmark via `"kl_text"`.
-- **Shadow bench** (`shadow.py`, `autoggml shadow proxy|build`): optimize for your own traffic. A stdlib capture proxy in front of your local `llama-server` tees prompts to `~/.autoggml/shadow/prompts.jsonl`; `shadow build` turns the last day's deduplicated prompts into a `shadow` benchmark whose quality gate is KL divergence on those very prompts. Prompt files and the KL reference are gitignored — nothing leaves the machine.
+- **KL quality oracle** (`kl.py`, `autoggml kl-base <benchmark>`): the original
+  standalone adapter checks candidates against frozen reference logits and rejects mean
+  or maximum KL violations. Its parser and gates remain tested, but product execution is
+  fail-closed until equivalent capture exists through Lucebox Hub.
+- **Shadow bench** (`shadow.py`, `autoggml shadow proxy|build`): a local capture proxy
+  turns private traffic into a deduplicated workload. Capture and benchmark construction
+  remain available; KL scoring awaits the product adapter. Prompts stay in gitignored
+  local storage.
 - Unified `autoggml` CLI (`cli.py`): `uv run autoggml <command>` routes to focused
   package modules without reimplementing their behavior; `autoggml help` is the current
   command inventory. One-liner `install.sh` (`curl | bash`) clones, ensures `uv`, syncs,
   and prints next steps.
-- GPU auto-detection: `prepare.py`/`harness.py` probe for `nvcc`/`hipcc`/`vulkaninfo`/Metal and build for the best backend by default — no `GGML_CUDA=ON` needed. CPU-only is refused unless `AUTOGGML_ALLOW_CPU=1`. Existing GGUFs are reused from the HF cache / LM Studio / `~/models` (`AUTOGGML_MODELS` extends the search) before downloading.
+- Product GPU auto-detection: setup selects CUDA or HIP and fails before CMake when the
+  detected backend is outside the Hub product contract. Existing GGUFs are reused from
+  the HF cache, LM Studio, `~/models`, and `AUTOGGML_MODELS` before downloading.
 - Parallel-safe shared leaderboard (`concurrency.LockedFrontier`): file-locked `.best_score.json` + `results.tsv`; `claim_best_if_significant` re-verifies against the **live** frontier under the lock, so concurrent workers can't keep a stale-snapshot win. `worktree.py` isolates per-worker trees; `runner.run_parallel` fans out and funnels through the frontier; `agent_loop` honors `AUTOGGML_FRONTIER` so worktree workers share one leaderboard.
 - Profile-driven ideation (`selector.rank_by_bottleneck`): `ideas --bound <memory|compute|overhead>` ranks untried `ROADMAP.md` items so those targeting the active bottleneck come first.
 - Optional embedded LLM (`llm.py` + `propose.py`): one OpenAI-compatible client for cloud or local (`llama-server`/Ollama/vLLM/LM Studio), env-gated by `OPENAI_BASE_URL` (disabled by default; never fires silently). `propose` asks the model for the next experiment given the ranked ideas + current best.
@@ -82,6 +92,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pytest` runs in CI.
 
 ### Changed
+- Replaced the 500-line cumulative README with a task-oriented guide organized around
+  first use, current capability status, team participation, agent participation, remote
+  Lucebox onboarding, source maintenance, and development. Commands that await the
+  `dflash_server` adapter are now listed once in an explicit status table instead of
+  appearing as runnable quick starts elsewhere in the document.
 - Lucebox Hub's July 2026 vendorization is now the source-of-truth boundary. The old
   standalone `lucebox-ggml` checkout, root CMake flags, and `llama-bench`/`llama-cli`/
   `llama-perplexity` execution paths are not treated as product capabilities. Live

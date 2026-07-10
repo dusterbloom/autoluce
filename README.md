@@ -1,209 +1,124 @@
-# autoggml v2
+# autoggml
 
-Autonomous research harness for **verifiably and reproducibly improving the
-[Lucebox product](https://github.com/Luce-Org/lucebox-hub) and its vendored GGML**.
+Coordinate people, coding agents, and shared GPUs to improve
+[Lucebox Hub](https://github.com/Luce-Org/lucebox-hub) and its vendored GGML with
+reproducible evidence.
 
 ## TL;DR
 
-`autoggml` pins the complete Lucebox Hub product, verifies the provenance of its
-vendored GGML, and tests focused product or vendor changes on CUDA and HIP machines.
-One manifest owns repository, revision, layout, targets, backends, and capabilities.
-
 ```bash
-# Install, inspect the source contract, and exercise the control plane.
 curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoggml/main/install.sh | bash
 cd autoggml
+uv run autoggml source status
+uv run autoggml reproduce --simulate
+```
+
+`autoggml` currently provides:
+
+- One pinned Lucebox product and vendor contract.
+- CUDA and HIP product builds.
+- Safe machine inventory and research contracts.
+- A shared queue for people and machines.
+- Bounded challenges where agents can implement, review, and recombine ideas.
+- Reproducible simulation and end-to-end coordination tests.
+
+Live performance and quality measurements are temporarily blocked while the old
+standalone `llama-*` adapter is replaced with a Lucebox `dflash_server` HTTP adapter.
+Affected commands fail clearly instead of benchmarking a different engine.
+
+## Start Here
+
+### Inspect without a GPU
+
+```bash
+uv sync
 uv run autoggml source status
 uv run autoggml source check --remote
 uv run autoggml reproduce --simulate
-
-# Or join an existing team and contribute this machine.
-uv run autoggml join --team "$TEAM_URL" --token "$TEAM_TOKEN" --name my-gpu
-uv run autoggml worker --once
-
-# Submit a candidate from any connected checkout.
-uv run autoggml submit patches/my-candidate.patch --title "My optimization" \
-  --backend hip --model deepseek-v4-flash
-uv run autoggml status
-
-# Or participate as a research agent.
-uv run autoggml agent join --name codex-one --capability implement
-uv run autoggml agent next
+uv run autoggml help
 ```
 
-Use `uv run autoggml help` for all commands. On a remotely onboarded Lucebox, the
-installed user launcher allows the shorter `autoggml test-drive` form.
-
-**Migration status:** source checkout, provenance validation, product builds, product
-and vendor patching, agent worktrees, and drift monitoring use the vendored layout.
-Real benchmark and quality commands intentionally fail closed until their old
-`llama-*` implementation is replaced by the Lucebox `dflash_server` HTTP adapter.
-Simulation mode remains available for onboarding and coordination tests.
-
-### Source maintenance
-
-Routine Lucebox updates touch one file: `sources/lucebox.toml`. A scheduled GitHub
-workflow compares its full commit pin with Hub `main` every Monday. Locally:
+### Prepare a CUDA or HIP machine
 
 ```bash
-uv run autoggml source check --remote   # exits 3 when Hub moved
-uv run autoggml source status --json    # layout, capabilities, vendor provenance
+uv run autoggml setup
 ```
 
-When Hub moves, review the new product commit, update the manifest pin and any changed
-`VENDOR.md` fields together, then run `autoggml setup` and the test suite. Do not update
-the vendor commit independently of the product commit: Hub's `VENDOR.md` is the
-reconstruction contract. A backend, build target, or runtime change belongs in this
-manifest rather than another hard-coded path map.
+Setup:
 
-## In plain words
+1. Checks out the pinned Lucebox Hub commit in `work/lucebox`.
+2. Validates `server/deps/llama.cpp/VENDOR.md`.
+3. Initializes Block-Sparse Attention when building CUDA.
+4. Reuses existing GGUF files before downloading models.
+5. Builds `dflash_server`, `test_dflash`, and `test_deepseek4_unit` with at most four jobs.
 
-If you run an AI model on your own computer, autoggml is a tireless lab assistant for the engine underneath it. It tries one small change at a time, carefully measures whether the model now answers faster — without getting dumber or using more memory — keeps the changes that genuinely help, and undoes the rest. It can even watch how *you* actually use your model (privately, on your own disk) and tune the engine for your real workload instead of a synthetic benchmark.
+The product currently supports CUDA and HIP. Vulkan, Metal, and CPU are rejected at
+the product boundary rather than silently using a different build.
 
-## What this is
+## Current Status
 
-`autoggml` is a self-contained experimentation framework. An AI agent or a human
-proposes a change to Lucebox Hub or its vendored GGML; the harness builds the product,
-runs a fixed benchmark suite, checks correctness, and records whether the change
-improved the metric.
+| Workflow | Status |
+|---|---|
+| Source inspection and drift detection | Ready |
+| CUDA/HIP product checkout and build | Ready |
+| Doctor, consult, and machine contracts | Ready |
+| Team coordinator and simulated workers | Ready |
+| Agent challenges and isolated worktrees | Ready |
+| `baseline`, `run`, `freeze`, `verify`, KL, live worker | Waiting for product HTTP adapter |
+| Live `test-drive` | Waiting for product HTTP adapter |
 
-The focus of v2 is **verifiability and reproducibility**:
+Simulation is only a control-plane test. It never produces performance evidence or
+updates the research frontier.
 
-- `sources/lucebox.toml` pins Lucebox Hub and records the expected vendor provenance;
-  `autoggml/source_layout.py` is the single path and capability authority.
-- Setup checks out `work/lucebox`, writes `work/lucebox.pin`, validates
-  `server/deps/llama.cpp/VENDOR.md`, initializes the declared Block-Sparse Attention
-  submodule only for CUDA, and builds only declared product targets.
-- Benchmarks use fixed prompts, seeds, and model configurations.
-- The environment (OS, compiler, GPU, dependency versions) is recorded for every run.
-- Correctness is checked two ways: generated outputs are compared against golden outputs, and (per benchmark, opt-in) KL divergence against frozen baseline logits catches quality regressions that exact-match can't (`autoggml/bench/kl.py`).
-- Results are logged in a machine-readable format with full provenance.
-- **Real mode measures every metric or raises** — no silent fallbacks. `--simulate` is the opt-in plumbing mode for CI/no-GPU smoke.
-- **Keep/revert is significance-gated**, not raw-improvement, so noise can't drive a random walk.
-- `--profile` captures `nsys`/`rocprof` traces and `profiling.classify_bottleneck` reports whether decode is memory-, compute-, or overhead-bound.
+## Work As A Team
 
-The optimization plan — ranked ideas (algorithmic / kernel / graph / runtime), the Strix-Halo unified-memory angle, and execution order — lives in [`ROADMAP.md`](ROADMAP.md).
-
-## Finding your way around
-
-Start with these areas; everything else is docs and config:
-
-```
-cli.py            Start here: the `autoggml <command>` entry point (routes to autoggml/ modules)
-experiment.py     The ONE file you (or the agent) edit to try a change
-autoggml/         The engine — read-only during experiments, organized by question:
-│  ├── bench/       "Is it better?"      harness, objective (constraints), kl (quality), uncertainty, profiling
-│  ├── loop/        "Try it, keep it?"   agent_loop (keep/revert), verify (clean A/B), patches
-│  ├── ideation/    "What to try next?"  ideas, selector (rank by bottleneck), propose + llm (optional LLM)
-│  ├── parallel/    "Many at once"       runner (fan-out), concurrency (locked leaderboard), worktree
-│  ├── agent_*.py   "Research together"  challenges, task packets, leases, review, recombination, credit
-│  ├── coordination.py / coordinator_http.py
-│  │                 "Share hardware"     typed fleet queue, immutable candidates, restricted HTTP transport
-│  ├── source_layout.py / source_cli.py
-│  │                 "What is owned?"      product/vendor paths, capabilities, provenance, upstream drift
-│  ├── prepare.py   Setup: clone, build, download models (GPU auto-detected, GGUFs reused)
-│  ├── shadow.py    Shadow bench: benchmark built from your own traffic
-│  ├── report.py    Result aggregation and diff
-│  └── reproduce.py Reproducibility suite
-benchmarks/       What gets measured: fixed prompts, expected outputs, per-benchmark objectives
-python_tests/     Proof it works (`uv run pytest -q`)
-```
-
-Supporting cast: `program.md` (the autonomous agent's instructions), `ROADMAP.md` (ranked ideas queue), `scripts/` (golden-output generation), `patches/` (patch files used by experiment.py), `install.sh`, `Dockerfile`, `.github/workflows/` (CI). `results.tsv` and `work/` are created by runs, not committed.
-
-## Quick start
-
-### One-liner
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoggml/main/install.sh | bash
-cd autoggml
-uv run autoggml source status
-uv run autoggml reproduce --simulate
-```
-
-Clones the repo, installs `uv` + dependencies, and runs setup. Want to audit first?
-`curl -fsSL <url> -o install.sh && less install.sh`.
-
-Every workflow is available through `uv run autoggml`:
-
-- Team: `join`, `submit`, `status`, `pause`, `resume`, `leave`, `worker`, `coordinator`, `agent`.
-- Research: `setup`, `doctor`, `consult`, `freeze`, `baseline`, `run`, `verify`, `profile-report`.
-- Supporting tools: `ideas`, `propose`, `harness`, `report`, `reproduce`, `kl-base`, `shadow`, `test-drive`, `onboard`.
-
-## Team workflow
-
-The everyday team interface is `join`, `submit`, `status`, and `worker`.
-Coordinator internals, queue labels, manifests, and research-contract YAML stay out of
-the normal path.
-
-One team lead starts the restricted coordinator on a machine reachable by the team
-(prefer an HTTPS reverse proxy or a private Tailscale address):
+One team lead starts the coordinator on a private address:
 
 ```bash
 export AUTOGGML_COORDINATOR_TOKEN="$(openssl rand -hex 24)"
 uv run autoggml coordinator --listen 127.0.0.1 --port 8765
 ```
 
-That address is suitable for a same-machine test. For a shared deployment, publish it
-through HTTPS or bind it to a private Tailscale address, then give contributors that
-reachable URL as `TEAM_URL`.
-
-Each contributor connects once. Hardware and memory are detected automatically; the
-explicit flags below are only needed to correct detection:
+Expose it through HTTPS or a private network such as Tailscale. Each contributor joins
+once:
 
 ```bash
-uv run autoggml join --team "$TEAM_URL" --token "$TEAM_TOKEN" --name peppi-3090
+uv run autoggml join \
+  --team "$TEAM_URL" --token "$TEAM_TOKEN" --name my-gpu
 uv run autoggml status
 ```
 
-The connection is remembered in `~/.config/autoggml/team.json` with mode `0600`.
-Environment variables `AUTOGGML_COORDINATOR_URL` and
-`AUTOGGML_COORDINATOR_TOKEN` override that file for managed installations.
+The connection is stored in `~/.config/autoggml/team.json` with mode `0600`.
 
-Submitters provide a patch and the cells it must pass. The coordinator assigns at most
-one active experiment to each physical machine and copies the patch into immutable,
-content-addressed storage:
+Once the live product adapter is ready, submit a focused patch to compatible hardware:
 
 ```bash
-uv run autoggml submit patches/my-candidate.patch --title "My focused optimization" \
+uv run autoggml submit patches/my-candidate.patch \
+  --title "Reduce expert gather overhead" \
   --backend hip --model deepseek-v4-flash
 uv run autoggml status
 ```
 
-On a joined machine, this processes one assigned experiment and returns its result:
+A machine will process one assigned job at a time under its accelerator lease. Today,
+`--simulate` can test that lifecycle with a disposable job:
 
 ```bash
-uv run autoggml worker --once
+uv run autoggml worker --once --simulate
 ```
 
-`worker` accepts typed candidate data only; the coordinator cannot send arbitrary shell
-commands. The worker runs the correctness-gated pipeline under the host accelerator
-lock, uses separate CUDA/HIP build directories, and caps builds at four jobs. Live work
-is fail-closed while the product HTTP adapter is pending. `uv run autoggml worker
---once --simulate` tests the entire queue lifecycle
-without building or using an accelerator. Use `uv run autoggml pause` before taking a
-personal machine offline, `uv run autoggml resume` when it is available again, and
-`uv run autoggml leave` to remove it from the team.
+Do not use a simulated result as research evidence or run simulation against a real
+candidate you intend to measure.
 
-The file-backed coordinator is deliberately a small deployment unit, not the public
-status page. Its service boundary can later be backed by GitHub or the Lucebox control
-plane without changing contributor commands.
+Use `pause`, `resume`, and `leave` when availability changes. The coordinator sends
+typed jobs and patch bytes, never arbitrary shell commands.
 
-## Agent challenges
+## Work As An Agent
 
-Agents participate as credited researchers, not privileged hardware workers. They
-choose bounded tasks, work from a pinned commit in isolated worktrees, and submit only
-patches plus structured findings. The existing candidate gate and hardware queue remain
-the sole path to accelerator execution.
+Agents are researchers, not privileged hardware workers. They receive bounded task
+packets, work at a pinned commit, and submit a patch plus structured evidence.
+Run `uv run autoggml setup` once before starting agent worktrees.
 
-Run `uv run autoggml setup` once before creating or starting a challenge. Agent
-worktrees are created from the pinned `work/lucebox` product checkout, not from the
-autoggml control repository. Managed workers may override the checkout and revision with
-`AUTOGGML_AGENT_ENGINE_ROOT` and `AUTOGGML_AGENT_BASE_COMMIT`.
-
-Create a challenge with distinct approaches so parallel agents explore rather than
-produce the same patch repeatedly:
+Create a challenge with distinct approaches:
 
 ```bash
 uv run autoggml agent challenge create \
@@ -216,286 +131,133 @@ uv run autoggml agent challenge create \
   --approach "persistent buffer reuse"
 ```
 
-Each agent registers once. Its identity is remembered in
-`~/.config/autoggml/agent.json` with mode `0600`:
+An implementation agent joins and claims work:
 
 ```bash
 uv run autoggml agent join --name codex-kernel-1 --capability implement
-uv run autoggml agent next
-uv run autoggml agent start <task-id>
-```
-
-`start` claims an expiring task lease and creates an isolated worktree at the challenge's
-pinned revision. The task packet contains the objective, approach, evidence, expected
-impact, difficulty, allowed and forbidden paths, budgets, definition of done, and test
-command. Submit the resulting patch and what was learned:
-
-```bash
-uv run autoggml agent submit <task-id> --patch candidate.patch \
-  --rationale "Fuse the decomposed graph operation" \
-  --observation "Removes repeated launches" \
-  --risk "May increase register pressure"
-```
-
-Implementation submissions remain blind until every implementation has reached a
-terminal state and its hardware evaluation finishes. The coordinator then releases the
-measured evidence to a reviewer, followed by a recombination task:
-
-```bash
-uv run autoggml agent join --name codex-review-1 --capability review
-uv run autoggml agent next
-uv run autoggml agent join --name codex-hybrid-1 --capability recombine
-uv run autoggml agent next
-uv run autoggml agent advance <challenge-id>
-uv run autoggml agent card <challenge-id>
-```
-
-The challenge card ranks measured candidates and retains a contribution graph for
-implementers, reviewers, recombiners, and source artifacts. Agent execution failures and
-negative hardware results remain durable research evidence; an all-failed round closes
-as `inconclusive` rather than hanging. Agent reasoning may run concurrently, while the
-existing fleet rule still permits only one active experiment per physical machine.
-
-### Agent command contract
-
-Agents should request `--json` and treat IDs and state fields as opaque. A normal agent
-session is:
-
-```bash
-# Choose and inspect work without parsing human-formatted output.
 uv run autoggml agent next --json
 uv run autoggml agent start <task-id> --json
-
-# Implementation task: patch required.
-uv run autoggml agent submit <task-id> --patch candidate.patch \
-  --rationale "Focused implementation" --observation "What changed" \
-  --risk "What might regress" --json
-
-# Review task: no patch; cite the artifacts reviewed.
-uv run autoggml agent submit <review-task-id> \
-  --rationale "The approaches are compatible" \
-  --source <artifact-a> --source <artifact-b> --json
-
-# Recombination task: patch plus at least two credited sources required.
-uv run autoggml agent submit <recombine-task-id> --patch hybrid.patch \
-  --rationale "Combine the verified strengths" \
-  --source <artifact-a> --source <artifact-b> --json
 ```
 
-Challenge states progress through `building`, `reviewing`, `recombining`, and `complete`;
-an exhausted round becomes `inconclusive`. `agent advance <challenge-id>` is explicit:
-call it after the current stage's agent tasks and hardware jobs reach terminal states.
-Implementation artifacts, rationale, and scores are hidden from public agent status while
-the challenge is `building`. Expired leases return tasks to the available pool.
+`start` creates an isolated worktree from `work/lucebox`. Submit the result:
 
-The coordinator accepts typed task and patch data, never arbitrary agent-provided shell
-commands. Patches may touch approved engine paths only; benchmark definitions, goldens,
-contracts, models, and the autoggml verifier are protected. Remote agents currently use
-the team's shared coordinator credential, so agent IDs provide attribution and lease
-ownership within a trusted team rather than independent security principals.
+```bash
+uv run autoggml agent submit <task-id> --patch candidate.patch \
+  --rationale "Focused product change" \
+  --observation "What changed" \
+  --risk "What might regress" --json
+```
 
-## Remote machine-aware workflow
+Parallel implementations remain blind until evaluation completes. Review agents compare
+the evidence; recombination agents must credit at least two source artifacts. Negative
+results and failures remain part of the challenge record instead of disappearing.
 
-Remote targets live in the gitignored `~/.config/autoggml/targets.toml`; start from
-[`targets.example.toml`](targets.example.toml). SSH host names and absolute remote paths
-do not belong in a research contract or committed result.
+Agent patches may touch only:
 
-One-time onboarding installs a user-local launcher and a local target profile on the
-remote host:
+- `server/src/`
+- `server/include/`
+- `server/deps/llama.cpp/ggml/`
+- `server/CMakeLists.txt`
+
+Benchmarks, models, goldens, contracts, and verifier code are protected.
+
+## Use A Remote Lucebox
+
+Copy `targets.example.toml` to the gitignored target configuration and edit the host,
+root, and model paths:
+
+```bash
+mkdir -p ~/.config/autoggml
+cp targets.example.toml ~/.config/autoggml/targets.toml
+```
+
+Then onboard the host:
 
 ```bash
 uv run autoggml onboard --target strix-halo
+uv run autoggml doctor --target strix-halo \
+  --model deepseek-v4-flash --json
 ```
 
-After that, the everyday path is deliberately short:
+For a Strix Halo build:
 
 ```bash
-ssh user@strix-host
-autoggml test-drive          # safe: inventory + model/patch check + simulated loop
-autoggml test-drive --live   # leased 4K/32-token DeepSeek V4 canary
-```
-
-The safe test drive never builds or loads the model. The live canary refuses to start
-when another worker holds the lease, accelerator/build activity is visible, or less
-than 12 GiB host memory is available. Canary numbers are not admitted to the research
-frontier.
-
-The Strix Halo vertical slice is:
-
-```bash
-# Lightweight and non-mutating. Writes a stable machine fingerprint when --output is used.
-uv run autoggml doctor --target strix-halo --model deepseek-v4-flash --json
-
-# Full model hashing holds the fail-fast GPU lease and aborts if the host is busy.
-uv run autoggml consult --target strix-halo --model deepseek-v4-flash \
-  --hash-model --output research/contracts/strix-halo-deepseek-v4.yaml
-
-# Each heavy command uses flock -n, refuses <12 GiB available RAM or foreign
-# accelerator/build activity, and caps compilation at four jobs.
 uv run autoggml setup --target strix-halo --backend hip
-uv run autoggml source status
-# Live freeze/run/verify resume after the dflash_server HTTP adapter lands.
 ```
 
-Use `setup --provision-tools` during an exclusive idle window to install `ccache`.
+Remote heavy commands use a nonblocking accelerator lock and cap compilation at four
+jobs. `test-drive` remains safe for inventory and simulation; `test-drive --live` is
+blocked until the product runtime adapter is ready.
 
-The archived `deepseek-v4-sinkhorn-77bccaa.patch` is research evidence from the
-former standalone tree, not a ready product candidate. Current Lucebox Hub has custom
-fused HC CUDA/HIP device paths in `server/src/deepseek4`; re-profile those paths before
-proposing a product-native Sinkhorn change.
+## Keep Lucebox Current
 
-`doctor` reports observations, inferences, unknowns, and current contention separately.
-Baseline metrics, quality references, profiler captures, and frontiers are namespaced by
-machine fingerprint, model fingerprint, and backend. Changing the model, kernel, ROCm,
-or stable machine configuration therefore requires a fresh contract and baseline.
-
-### Manual
-
-You need [uv](https://docs.astral.sh/uv/) installed. It handles Python, the virtual environment, and dependencies in one step. Real builds also require `cmake`, `ccache`, and `ninja-build` (the harness builds with the Ninja generator + ccache launchers for fast incremental rebuilds).
-
-**GPU is auto-detected.** The current Lucebox product build supports CUDA and HIP.
-Setup rejects Vulkan, Metal, and CPU selections before CMake rather than falling back to
-a different source layout. **Existing GGUFs are reused** from the Hugging Face cache,
-LM Studio, `~/models`, and `AUTOGGML_MODELS` paths before downloading.
+[`sources/lucebox.toml`](sources/lucebox.toml) is the only source ownership manifest. It
+contains the Hub commit, tracked branch, layout, build targets, backends, capabilities,
+runtime, submodules, and expected GGML vendor provenance.
 
 ```bash
-# 1. Create the virtual environment and install dependencies
+uv run autoggml source check --remote
+uv run autoggml source status --json
+```
+
+A scheduled GitHub workflow checks for Hub movement every Monday. When it moves:
+
+1. Review the new Hub commit.
+2. Update the product pin and any changed `VENDOR.md` fields together.
+3. Run `autoggml setup`, Ruff, and the test suite.
+4. Add runtime or build changes to the manifest, not scattered path checks.
+
+Never update the GGML vendor commit independently of the product commit. Hub's
+`VENDOR.md` is the reconstruction contract.
+
+## Research Rules
+
+The intended live loop is simple: propose one change, build the pinned product, measure
+baseline and candidate under the same machine lease, apply correctness and quality
+gates, and retain only a statistically meaningful improvement. The product HTTP adapter
+is the remaining piece needed to reactivate this loop.
+
+- Measure the pinned product, not a nearby standalone fork.
+- Keep machine, model, backend, context, workload, and power profile in the evidence key.
+- Reject correctness, KL, memory, or workload-constraint regressions.
+- Keep a candidate only when its gain clears the configured statistical threshold.
+- Preserve negative results so another person or agent does not repeat them.
+- Allow one active accelerator experiment per physical machine.
+
+The archived `deepseek-v4-sinkhorn-77bccaa.patch` is reference material, not a ready
+candidate. Current Hub owns DeepSeek V4 under `server/src/deepseek4` and already contains
+custom fused HC CUDA/HIP paths. Re-profile the current product before porting it.
+
+## Project Map
+
+```text
+sources/lucebox.toml       Product and vendor source contract
+experiment.py              Applies one product or vendor experiment
+autoggml/source_layout.py  Authoritative paths and capabilities
+autoggml/bench/            Measurement, quality, telemetry, statistics
+autoggml/loop/             Experiment and verification lifecycle
+autoggml/agent_*.py        Agent challenges, evidence, review, credit
+autoggml/coordination.py   Shared machine queue
+benchmarks/                Fixed workloads and constraints
+python_tests/              Unit and end-to-end tests
+program.md                 Detailed autonomous-agent rules
+ROADMAP.md                 Research ideas and priorities
+```
+
+## Development
+
+```bash
 uv sync
-
-# 2. No-GPU plumbing smoke (fake measurements; never writes best-score or git state):
-uv run pytest -q && uv run autoggml baseline --simulate
-
-# 3. One-time setup: clone Lucebox Hub, validate its vendor record, and build
-uv run autoggml setup
-
-# 4. Confirm the checked-out product/vendor contract
-uv run autoggml source status
+uv run ruff check .
+uv run pytest -q
+uv run autoggml reproduce --simulate
 ```
 
-`uv` creates and manages `.venv/` automatically. Do not create your own virtualenv; `uv run` always uses the project-managed one.
+CUDA builds must remain at `-j4` or lower. Do not run heavy containers and accelerator
+builds at the same time on shared machines.
 
-### Live adapter boundary
-
-The previous tiny-model fast path depended on standalone `llama-bench`, `llama-cli`,
-and `llama-perplexity`. Those tools are not vendored by Lucebox Hub. `baseline`, `run`,
-`freeze`, `verify`, live `worker`, KL generation, and live `test-drive` therefore raise
-an explicit capability error today. Do not bypass that guard with binaries from a
-different checkout: the next implementation must drive the product's `dflash_server`
-HTTP API and product tests.
-
-### Deterministic container
-
-A `Dockerfile` pins the `uv` version and Python version for CI and local runs. The base image and apt packages are pinned by name but not by digest, so fully byte-for-byte reproducibility requires an additional mirror or digest pin:
-
-```bash
-docker build -t autoggml .
-docker run --rm -it -v $(pwd)/work:/app/work autoggml
-```
-
-## How the autoresearch loop works
-
-1. The agent reads `program.md` and picks the next idea — `uv run autoggml ideas` lists untried `ROADMAP.md` items, and `--bound <memory|compute|overhead>` ranks them by the profiling bottleneck so the high-impact ones come first.
-2. *(Optional)* `uv run autoggml propose` asks an OpenAI-compatible LLM for the next experiment given the ranked ideas + current best — see [LLM ideation](#llm-ideation-optional). Disabled unless `OPENAI_BASE_URL` is set.
-3. The agent edits `experiment.py` (or calls helpers in `autoggml/loop/patches.py`) to implement one idea.
-4. `git commit` the change.
-5. `uv run autoggml run` builds Lucebox Hub with the experiment applied, runs
-   benchmarks, checks correctness, and either keeps the commit or reverts it. This live
-   step remains disabled until the product runtime adapter lands. Every shared-state
-   write goes through the file-locked frontier (`concurrency.LockedFrontier`).
-6. Results are appended to `results.tsv`; the best score **and its stddev** are stored in `.best_score.json`.
-7. The commit is kept only if the improvement is **significant** (`--significance`, default `k=1.0`): the score must beat the best by more than `k` times the combined stddev. Otherwise the working tree resets to the previous best.
-
-For searching many ideas at once, `runner.run_parallel` fans experiments out across isolated workers and funnels each result through the locked frontier, and `autoggml/loop/verify.py` does clean A/B verification of candidates before commit — see `program.md`.
-
-## Parallel runs
-
-The shared leaderboard is safe under concurrency. `agent_loop` writes `.best_score.json`
-and `results.tsv` through a file lock (`concurrency.LockedFrontier`) and re-verifies each
-candidate against the **live** frontier, not the snapshot it started with — so a worker can
-no longer "keep" a win a faster sibling already beat. To run workers in parallel on one
-host, give each its own git worktree (isolated `build/` dir) and point them all at one
-shared frontier:
-
-```bash
-MAIN=$(pwd)
-for i in 1 2 3 4; do
-  uv run python -c "from pathlib import Path; from worktree import ensure_worktree; ensure_worktree(Path('.'), 'w$i')"
-  (cd .worktrees/w$i && AUTOGGML_FRONTIER="$MAIN" uv run autoggml run) &
-done
-wait
-```
-
-For programmatic fan-out, `runner.run_parallel(specs, run_fn, frontier, max_parallel)`
-dispatches specs concurrently and funnels each result through the locked frontier. Supply
-your own `run_fn` (local-subprocess / SSH / VM) — dispatch is host-agnostic by design.
-
-## LLM ideation (optional)
-
-The harness is a measurement oracle — it never calls an LLM by default. The LLM is an
-*external* coding agent (Claude Code / Codex / Cursor / Aider) that edits `experiment.py`
-and runs the loop. Optionally, `autoggml propose` embeds an LLM call for ideation: it ranks the
-untried ideas by the bottleneck and asks the model for one concrete next experiment.
-
-`propose` is gated by `OPENAI_BASE_URL` (no default; disabled = no network call). One
-client covers cloud OpenAI and any local OpenAI-compatible backend:
-
-| Backend | `OPENAI_BASE_URL` | Auth |
-|---|---|---|
-| OpenAI cloud | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
-| llama.cpp / lucebox `llama-server` | `http://localhost:8080/v1` | none |
-| Ollama | `http://localhost:11434/v1` | none |
-| vLLM / LM Studio | `http://localhost:8000/v1` / `http://localhost:1234/v1` | none |
-
-```bash
-# cloud
-OPENAI_BASE_URL=https://api.openai.com/v1 OPENAI_API_KEY=sk-... AUTOGGML_MODEL=gpt-4o-mini \
-  uv run autoggml propose --bound memory
-
-# local (the very llama-server this harness builds)
-OPENAI_BASE_URL=http://localhost:8080/v1 AUTOGGML_MODEL=<loaded-model> uv run autoggml propose
-```
-
-`propose` is ideation only — the agent (or a human) still writes `experiment.py` from the
-proposal; measurement and keep/revert stay in the loop. Put keys in a gitignored
-`.env`, never in the repo.
-
-## Shadow bench
-
-Standard benchmarks measure a synthetic workload; the shadow bench measures **yours**. A
-capture proxy sits in front of your local llama-server and logs the prompts you actually
-send; a generated benchmark then scores every candidate change on those prompts, with KL
-divergence as the quality gate — so the optimizer speeds up *your* usage and can't trade
-away quality on it.
-
-Capture and benchmark construction remain available, but KL scoring and optimization
-are blocked by the same product runtime adapter described above.
-
-1. Capture: `uv run autoggml shadow proxy --port 8091 --upstream http://127.0.0.1:8080`, then point your client at `:8091` and use the model normally.
-2. Build the benchmark: `uv run autoggml shadow build`, then `uv run autoggml kl-base shadow` (freezes the quality reference).
-3. Optimize against it: `AUTOGGML_BENCHMARKS=shadow uv run autoggml run`
-
-Privacy: prompts and the KL reference stay on-disk under `~/.autoggml/shadow` and gitignored paths (never committable, never under `benchmarks/`); nothing leaves the box.
-
-## Metric
-
-The objective is **constrained maximization of decode throughput**:
-
-```
-score = decode_tok_s   subject to the benchmark's "objective" constraints
-```
-
-- Higher is better; a constraint violation zeroes the score exactly like a correctness failure.
-- Constraints live in each benchmark JSON, e.g. `{"objective": {"maximize": "decode_tok_s", "constraints": {"peak_mem_GiB": {"max": 22.0}, "prefill_tok_s": {"min_frac_of_baseline": 0.95}}}}`. Each bound must hold with a `k·σ` significance margin (`objective.check_constraints`); relative bounds compare against the baseline metrics persisted by `autoggml baseline` (`work/baseline_metrics.json`).
-- The legacy parser consumes `llama-bench`; it is unreachable for the vendored product.
-  The product adapter must consume `dflash_server` HTTP measurements instead.
-- `peak_mem_GiB` is measured via `/usr/bin/time -v` (a missing profiler/source raises — no silent fallback).
-- `acceptance_rate` is a logged diagnostic (not scored): speculative runs that don't report it raise; non-speculative runs simply omit it.
-- `build_time_s` is measured and reported but **not** scored: with ccache + a preserved build dir it is cache-state-dependent, so scoring it would make runs non-reproducible.
-- A correctness failure forces the score to 0.
-
-The keep/revert decision is **significance-gated** (`--significance`, default `k=1.0`): a commit is kept only if its score improves on the best by more than `k` times the combined stddev. See `autoggml/bench/uncertainty.py`.
-
-See `autoggml/bench/harness.py` for the exact computation.
+Use `uv run autoggml help` for the full command inventory and
+`uv run autoggml <command> --help` for command-specific options.
 
 ## License
 
