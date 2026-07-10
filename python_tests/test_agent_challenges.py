@@ -22,6 +22,7 @@ from autoggml.agent_challenges import (
     FakeAgentBackend,
     FileAgentRepository,
 )
+from autoggml.agent_cli import _engine_commit, _engine_root
 from autoggml.coordination import FileCoordinationRepository, FleetService, JoinRequest
 from autoggml.coordinator_http import AgentCoordinatorClient, create_server
 from autoggml.team_worker import TeamWorker
@@ -125,6 +126,18 @@ def test_candidate_gate_allows_engine_patch_and_rejects_research_or_traversal_ch
         gate.validate(protected)
     with pytest.raises(ValueError, match="unsafe patch path"):
         gate.validate(traversal)
+
+
+def test_agent_workspace_uses_the_pinned_engine_checkout(monkeypatch, tmp_path):
+    engine = tmp_path / "work" / "lucebox-ggml"
+    engine.mkdir(parents=True)
+    (tmp_path / "work" / "lucebox-ggml.pin").write_text("abc123\n")
+    monkeypatch.setattr("autoggml.agent_cli.ROOT", tmp_path)
+    monkeypatch.delenv("AUTOGGML_AGENT_ENGINE_ROOT", raising=False)
+    monkeypatch.delenv("AUTOGGML_AGENT_BASE_COMMIT", raising=False)
+
+    assert _engine_root() == engine
+    assert _engine_commit() == "abc123"
 
 
 def test_parallel_agents_compete_then_review_and_recombine_with_shared_credit(tmp_path):
@@ -247,6 +260,7 @@ def _cli(state: Path, *args: str) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["AUTOGGML_COORDINATION_DIR"] = str(state)
     env["AUTOGGML_AGENT_CONFIG"] = str(state / "agent.json")
+    env["AUTOGGML_AGENT_BASE_COMMIT"] = "test-engine-pin"
     return subprocess.run(
         [sys.executable, "-m", "cli", *args], text=True, capture_output=True, env=env, check=False,
     )

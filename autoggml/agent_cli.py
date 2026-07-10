@@ -37,9 +37,22 @@ def _gateway() -> AgentService | AgentCoordinatorClient:
     return AgentService(FileAgentRepository(root / "agents"), fleet, CandidatePatchGate())
 
 
-def _commit() -> str:
+def _engine_root() -> Path:
+    return Path(os.environ.get("AUTOGGML_AGENT_ENGINE_ROOT", ROOT / "work" / "lucebox-ggml")).expanduser()
+
+
+def _engine_commit() -> str:
+    override = os.environ.get("AUTOGGML_AGENT_BASE_COMMIT")
+    if override:
+        return override
+    pin = ROOT / "work" / "lucebox-ggml.pin"
+    if pin.exists():
+        return pin.read_text().strip()
+    engine = _engine_root()
+    if not engine.exists():
+        raise ValueError("engine checkout is missing; run `uv run autoggml setup` before creating a challenge")
     return subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=True,
+        ["git", "rev-parse", "HEAD"], cwd=engine, text=True, capture_output=True, check=True,
     ).stdout.strip()
 
 
@@ -129,7 +142,7 @@ def main() -> None:
         elif args.command == "challenge":
             value = asdict(gateway.create_challenge(ChallengeRequest(
                 args.title, args.objective, args.why, args.evidence, args.model, args.backend,
-                base_commit=_commit(), implementation_slots=args.slots,
+                base_commit=_engine_commit(), implementation_slots=args.slots,
                 token_budget=args.token_budget, time_budget_minutes=args.minutes,
                 approaches=args.approach,
             )))
@@ -141,7 +154,7 @@ def main() -> None:
             context = gateway.context(agent_id, task.task_id)
             workspace = None
             if not args.no_worktree:
-                path = ensure_worktree(ROOT, f"agent-{task.task_id}", context.challenge.base_commit)
+                path = ensure_worktree(_engine_root(), f"agent-{task.task_id}", context.challenge.base_commit)
                 metadata = path / ".autoggml" / "task.json"
                 metadata.parent.mkdir(parents=True, exist_ok=True)
                 metadata.write_text(json.dumps({
