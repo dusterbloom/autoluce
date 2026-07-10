@@ -6,18 +6,15 @@ adapters can therefore share routing rules without duplicating them.
 
 from __future__ import annotations
 
-import fcntl
 import hashlib
-import json
-import os
 import shutil
-import tempfile
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterator, Protocol, TypeVar
+from typing import Any, Callable, Protocol, TypeVar
 
 
+from autoggml.atomic_store import AtomicJsonStore
+from autoggml.identifiers import stable_id
 ACTIVE_JOB_STATES = {"queued", "running"}
 T = TypeVar("T")
 
@@ -123,7 +120,10 @@ class FileCoordinationRepository:
     def __init__(self, root: Path) -> None:
         self.root = root.expanduser()
         self.state_path = self.root / "state.json"
-        self.lock_path = self.root / "state.lock"
+        self.store = AtomicJsonStore(
+            self.state_path,
+            lambda: {"workers": [], "candidates": [], "jobs": [], "schema_version": 1},
+        )
 
     @property
     def candidates_dir(self) -> Path:
@@ -133,28 +133,9 @@ class FileCoordinationRepository:
         self.root.mkdir(parents=True, exist_ok=True)
         self.candidates_dir.mkdir(exist_ok=True)
 
-    @contextmanager
-    def _locked_state(self) -> Iterator[dict]:
-        self._ensure()
-        with self.lock_path.open("a+") as lock:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-            state = json.loads(self.state_path.read_text()) if self.state_path.exists() else {
-                "workers": [], "candidates": [], "jobs": [], "schema_version": 1,
-            }
-            yield state
-            fd, temporary = tempfile.mkstemp(prefix="state-", suffix=".json", dir=self.root)
-            try:
-                with os.fdopen(fd, "w") as stream:
-                    json.dump(state, stream, indent=2, sort_keys=True)
-                    stream.write("\n")
-                os.replace(temporary, self.state_path)
-            finally:
-                if os.path.exists(temporary):
-                    os.unlink(temporary)
-
     def update(self, operation: Callable[[dict], T]) -> T:
-        with self._locked_state() as state:
-            return operation(state)
+        self._ensure()
+        return self.store.update(operation)
 
     def read(self) -> FleetSnapshot:
         def load(state: dict) -> FleetSnapshot:
@@ -171,11 +152,6 @@ def _snapshot(state: dict) -> FleetSnapshot:
     )
 
 
-def _stable_id(prefix: str, *values: str) -> str:
-    digest = hashlib.sha256("\0".join(values).encode()).hexdigest()[:16]
-    return f"{prefix}-{digest}"
-
-
 class FleetService:
     def __init__(self, repository: CoordinationRepository) -> None:
         self.repository = repository
@@ -188,7 +164,7 @@ class FleetService:
             raise ValueError("at least one backend is required")
         if request.memory_gib <= 0:
             raise ValueError("memory must be positive")
-        worker_id = _stable_id("worker", request.machine_id)
+        worker_id = stable_id("worker", request.machine_id)
 
         def apply(state: dict) -> Worker:
             worker = Worker(worker_id, request.name.strip(), request.machine_id, backends, request.memory_gib)
@@ -213,12 +189,12 @@ class FleetService:
         if not backends:
             raise ValueError("at least one backend is required")
         patch_sha = hashlib.sha256(patch_path.read_bytes()).hexdigest()
-        candidate_id = _stable_id("candidate", patch_sha, request.model, ",".join(backends))
+        candidate_id = stable_id("candidate", patch_sha, request.model, ",".join(backends))
         stored_patch = self.repository.candidates_dir / f"{candidate_id}.patch"
 
         def apply(state: dict) -> Job:
             for job_value in state["jobs"]:
-                if job_value["candidate_id"] == candidate_id and job_value["status"] in ACTIVE_JOB_STATES:
+                if job_value["candidate_id"] == candidate_id:
                     return Job(**job_value)
 
             snapshot = _snapshot(state)
@@ -241,7 +217,7 @@ class FleetService:
                     candidate_id, request.title.strip() or patch_path.stem, request.model, backends, patch_sha, stored_patch,
                 )
                 state["candidates"].append({**asdict(candidate), "patch_path": str(stored_patch)})
-            job = Job(_stable_id("job", candidate_id, worker.worker_id), candidate_id, worker.worker_id)
+            job = Job(stable_id("job", candidate_id, worker.worker_id), candidate_id, worker.worker_id)
             state["jobs"].append(asdict(job))
             return job
 

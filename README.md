@@ -23,6 +23,10 @@ uv run autoggml worker --once
 uv run autoggml submit patches/my-candidate.patch --title "My optimization" \
   --backend hip --model deepseek-v4-flash
 uv run autoggml status
+
+# Or participate as a research agent.
+uv run autoggml agent join --name codex-one --capability implement
+uv run autoggml agent next
 ```
 
 Use `uv run autoggml help` for all commands. On a remotely onboarded Lucebox, the
@@ -86,7 +90,7 @@ Clones the repo, installs `uv` + dependencies, and runs setup. Want to audit fir
 
 Every workflow is available through `uv run autoggml`:
 
-- Team: `join`, `submit`, `status`, `pause`, `resume`, `leave`, `worker`, `coordinator`.
+- Team: `join`, `submit`, `status`, `pause`, `resume`, `leave`, `worker`, `coordinator`, `agent`.
 - Research: `setup`, `doctor`, `consult`, `freeze`, `baseline`, `run`, `verify`, `profile-report`.
 - Supporting tools: `ideas`, `propose`, `harness`, `report`, `reproduce`, `kl-base`, `shadow`, `test-drive`, `onboard`.
 
@@ -147,6 +151,67 @@ personal machine offline, `uv run autoggml resume` when it is available again, a
 The file-backed coordinator is deliberately a small deployment unit, not the public
 status page. Its service boundary can later be backed by GitHub or the Lucebox control
 plane without changing contributor commands.
+
+## Agent challenges
+
+Agents participate as credited researchers, not privileged hardware workers. They
+choose bounded tasks, work from a pinned commit in isolated worktrees, and submit only
+patches plus structured findings. The existing candidate gate and hardware queue remain
+the sole path to accelerator execution.
+
+Create a challenge with distinct approaches so parallel agents explore rather than
+produce the same patch repeatedly:
+
+```bash
+uv run autoggml agent challenge create \
+  --title "Sinkhorn dispatch challenge" \
+  --objective "Reduce batch-one Sinkhorn overhead" \
+  --why "rocprof attributes 29.4% of decode time to tiny operations" \
+  --evidence "capture rp-17" \
+  --model deepseek-v4-flash --backend hip --slots 2 \
+  --approach "kernel fusion" \
+  --approach "persistent buffer reuse"
+```
+
+Each agent registers once. Its identity is remembered in
+`~/.config/autoggml/agent.json` with mode `0600`:
+
+```bash
+uv run autoggml agent join --name codex-kernel-1 --capability implement
+uv run autoggml agent next
+uv run autoggml agent start <task-id>
+```
+
+`start` claims an expiring task lease and creates an isolated worktree at the challenge's
+pinned revision. The task packet contains the objective, approach, evidence, expected
+impact, difficulty, allowed and forbidden paths, budgets, definition of done, and test
+command. Submit the resulting patch and what was learned:
+
+```bash
+uv run autoggml agent submit <task-id> --patch candidate.patch \
+  --rationale "Fuse the decomposed graph operation" \
+  --observation "Removes repeated launches" \
+  --risk "May increase register pressure"
+```
+
+Implementation submissions remain blind until every implementation has reached a
+terminal state and its hardware evaluation finishes. The coordinator then releases the
+measured evidence to a reviewer, followed by a recombination task:
+
+```bash
+uv run autoggml agent join --name codex-review-1 --capability review
+uv run autoggml agent next
+uv run autoggml agent join --name codex-hybrid-1 --capability recombine
+uv run autoggml agent next
+uv run autoggml agent advance <challenge-id>
+uv run autoggml agent card <challenge-id>
+```
+
+The challenge card ranks measured candidates and retains a contribution graph for
+implementers, reviewers, recombiners, and source artifacts. Agent execution failures and
+negative hardware results remain durable research evidence; an all-failed round closes
+as `inconclusive` rather than hanging. Agent reasoning may run concurrently, while the
+existing fleet rule still permits only one active experiment per physical machine.
 
 ## Remote machine-aware workflow
 

@@ -16,6 +16,20 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from autoggml.agent_domain import (
+    AgentArtifact,
+    AgentContext,
+    AgentJoinRequest,
+    AgentOutput,
+    AgentParticipant,
+    AgentSnapshot,
+    ArtifactEvidence,
+    ChallengeRequest,
+    ResearchChallenge,
+    artifact_from_dict,
+    task_from_dict,
+)
+from autoggml.agent_service import AgentService
 from autoggml.coordination import (
     Candidate,
     CandidateRequest,
@@ -42,9 +56,7 @@ def _snapshot_from_payload(payload: dict[str, Any]) -> FleetSnapshot:
     return FleetSnapshot(workers, candidates, jobs)
 
 
-class CoordinatorClient:
-    """Client-side gateway with the same public operations as FleetService."""
-
+class _CoordinatorHttpClient:
     def __init__(self, base_url: str, token: str, timeout: float = 15.0) -> None:
         self.base_url = base_url.rstrip("/")
         self.token = token
@@ -69,6 +81,10 @@ class CoordinatorClient:
             raise RuntimeError(message) from error
         except urllib.error.URLError as error:
             raise RuntimeError(f"coordinator is unavailable: {error.reason}") from error
+
+
+class CoordinatorClient(_CoordinatorHttpClient):
+    """Client-side gateway with the same public operations as FleetService."""
 
     def join(self, request: JoinRequest) -> Worker:
         return Worker(**self._request("POST", "/v1/join", asdict(request)))
@@ -110,12 +126,78 @@ class CoordinatorClient:
         return Job(**self._request("POST", f"/v1/jobs/{job_id}/finish", {"status": status, "result": result}))
 
 
+class AgentCoordinatorClient(_CoordinatorHttpClient):
+    """Remote gateway implementing the AgentService command surface."""
+
+    def join(self, request: AgentJoinRequest) -> AgentParticipant:
+        return AgentParticipant(**self._request("POST", "/v1/agents/join", asdict(request)))
+
+    def create_challenge(self, request: ChallengeRequest) -> ResearchChallenge:
+        return ResearchChallenge(**self._request("POST", "/v1/agent-challenges", asdict(request)))
+
+    def next_tasks(self, agent_id: str) -> list:
+        payload = self._request("POST", f"/v1/agents/{agent_id}/next")
+        return [task_from_dict(value) for value in payload]
+
+    def claim(self, agent_id: str, task_id: str, lease_seconds: int = 1800):
+        value = self._request(
+            "POST", f"/v1/agents/{agent_id}/tasks/{task_id}/claim", {"lease_seconds": lease_seconds},
+        )
+        return task_from_dict(value)
+
+    def context(self, agent_id: str, task_id: str) -> AgentContext:
+        value = self._request("GET", f"/v1/agents/{agent_id}/tasks/{task_id}/context")
+        visible = [
+            ArtifactEvidence(artifact_from_dict(item["artifact"]), item["evaluation_result"])
+            for item in value["visible_artifacts"]
+        ]
+        return AgentContext(
+            ResearchChallenge(**value["challenge"]), task_from_dict(value["task"]), visible,
+        )
+
+    def finish(self, agent_id: str, task_id: str, output: AgentOutput) -> AgentArtifact:
+        payload = {
+            "rationale": output.rationale,
+            "observations": output.observations,
+            "risks": output.risks,
+            "source_artifact_ids": output.source_artifact_ids,
+            "patch_base64": base64.b64encode(output.patch).decode() if output.patch is not None else None,
+        }
+        return artifact_from_dict(self._request("POST", f"/v1/agents/{agent_id}/tasks/{task_id}/finish", payload))
+
+    def fail(self, agent_id: str, task_id: str, error: Exception) -> AgentArtifact:
+        value = self._request(
+            "POST", f"/v1/agents/{agent_id}/tasks/{task_id}/fail",
+            {"error": str(error), "error_type": type(error).__name__},
+        )
+        return artifact_from_dict(value)
+
+    def advance(self, challenge_id: str) -> ResearchChallenge:
+        return ResearchChallenge(**self._request("POST", f"/v1/agent-challenges/{challenge_id}/advance"))
+
+    def challenge_card(self, challenge_id: str) -> dict:
+        return self._request("GET", f"/v1/agent-challenges/{challenge_id}/card")
+
+    def status(self) -> dict:
+        return self._request("GET", "/v1/agents/status")
+
+    def snapshot(self) -> AgentSnapshot:
+        value = self._request("GET", "/v1/agents/status")
+        return AgentSnapshot(
+            [AgentParticipant(**item) for item in value["agents"]],
+            [ResearchChallenge(**item) for item in value["challenges"]],
+            [task_from_dict(item) for item in value["tasks"]],
+            [artifact_from_dict(item) for item in value["artifacts"]],
+        )
+
+
 def create_server(
     address: tuple[str, int],
     service: FleetService,
     *,
     token: str,
     upload_dir: Path,
+    agent_service: AgentService | None = None,
 ) -> ThreadingHTTPServer:
     if not token:
         raise ValueError("coordinator token must not be empty")
@@ -147,9 +229,61 @@ def create_server(
         def _dispatch(self) -> dict:
             if self.command == "GET" and self.path == "/v1/status":
                 return service.snapshot().to_dict()
+            if agent_service is not None and self.command == "GET":
+                if self.path == "/v1/agents/status":
+                    return agent_service.status()
+                if self.path.startswith("/v1/agent-challenges/") and self.path.endswith("/card"):
+                    challenge_id = self.path[len("/v1/agent-challenges/"):-len("/card")]
+                    return agent_service.challenge_card(challenge_id)
+                if self.path.startswith("/v1/agents/") and self.path.endswith("/context"):
+                    rest = self.path[len("/v1/agents/"):-len("/context")]
+                    agent_id, task_id = rest.split("/tasks/", 1)
+                    context = agent_service.context(agent_id, task_id)
+                    return {
+                        "challenge": asdict(context.challenge),
+                        "task": asdict(context.task),
+                        "visible_artifacts": [
+                            {
+                                "artifact": {
+                                    **asdict(item.artifact),
+                                    "patch_path": str(item.artifact.patch_path) if item.artifact.patch_path else None,
+                                },
+                                "evaluation_result": item.evaluation_result,
+                            }
+                            for item in context.visible_artifacts
+                        ],
+                    }
             if self.command != "POST":
                 raise ValueError("unsupported coordinator operation")
             body = self._body()
+            if agent_service is not None:
+                if self.path == "/v1/agents/join":
+                    return asdict(agent_service.join(AgentJoinRequest(**body)))
+                if self.path == "/v1/agent-challenges":
+                    return asdict(agent_service.create_challenge(ChallengeRequest(**body)))
+                if self.path.startswith("/v1/agent-challenges/") and self.path.endswith("/advance"):
+                    challenge_id = self.path[len("/v1/agent-challenges/"):-len("/advance")]
+                    return asdict(agent_service.advance(challenge_id))
+                if self.path.startswith("/v1/agents/"):
+                    rest = self.path[len("/v1/agents/"):]
+                    if rest.endswith("/next"):
+                        return [asdict(task) for task in agent_service.next_tasks(rest[:-len("/next")])]
+                    if "/tasks/" in rest:
+                        agent_id, task_action = rest.split("/tasks/", 1)
+                        task_id, action = task_action.rsplit("/", 1)
+                        if action == "claim":
+                            return asdict(agent_service.claim(agent_id, task_id, int(body.get("lease_seconds", 1800))))
+                        if action == "finish":
+                            encoded = body.pop("patch_base64", None)
+                            patch = base64.b64decode(encoded, validate=True) if encoded is not None else None
+                            if patch is not None and len(patch) > MAX_PATCH_BYTES:
+                                raise ValueError("candidate patch exceeds the 32 MiB coordinator limit")
+                            artifact = agent_service.finish(agent_id, task_id, AgentOutput(patch=patch, **body))
+                            return {**asdict(artifact), "patch_path": str(artifact.patch_path) if artifact.patch_path else None}
+                        if action == "fail":
+                            error = RuntimeError(body.get("error", "remote agent failed"))
+                            artifact = agent_service.fail(agent_id, task_id, error)
+                            return {**asdict(artifact), "patch_path": None}
             if self.path == "/v1/join":
                 return asdict(service.join(JoinRequest(**body)))
             if self.path == "/v1/submit":

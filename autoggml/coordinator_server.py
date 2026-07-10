@@ -8,6 +8,7 @@ from pathlib import Path
 
 from autoggml.coordination import FileCoordinationRepository, FleetService
 from autoggml.coordinator_http import create_server
+from autoggml.agent_challenges import AgentService, CandidatePatchGate, FileAgentRepository
 
 
 def main() -> None:
@@ -20,7 +21,11 @@ def main() -> None:
     if not token:
         raise SystemExit("Set AUTOGGML_COORDINATOR_TOKEN before starting the coordinator.")
     service = FleetService(FileCoordinationRepository(args.data_dir))
-    server = create_server((args.listen, args.port), service, token=token, upload_dir=args.data_dir / "uploads")
+    agent_service = AgentService(FileAgentRepository(args.data_dir / "agents"), service, CandidatePatchGate())
+    server = create_server(
+        (args.listen, args.port), service, token=token, upload_dir=args.data_dir / "uploads",
+        agent_service=agent_service,
+    )
     print(f"autoggml coordinator listening on http://{args.listen}:{args.port}", flush=True)
     try:
         server.serve_forever()

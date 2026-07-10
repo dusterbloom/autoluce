@@ -70,6 +70,24 @@ def test_candidate_identity_is_content_addressed_and_duplicate_submit_reuses_it(
     assert len(service.snapshot().jobs) == 1
 
 
+def test_completed_candidate_is_reused_without_duplicate_hardware_work(tmp_path):
+    patch = tmp_path / "candidate.patch"
+    patch.write_text("same measured experiment\n")
+    service = _service(tmp_path)
+    worker = service.join(JoinRequest("lucebox3", "machine-3", ["hip"], 128.0))
+    first = service.submit(CandidateRequest("First", patch, ["hip"], "deepseek-v4-flash"))
+    claim = service.claim(worker.worker_id)
+    assert claim is not None
+    service.finish(claim.job.job_id, "completed", {"score": 1.2, "correctness": "pass"})
+
+    reused = service.submit(CandidateRequest("Duplicate", patch, ["hip"], "deepseek-v4-flash"))
+
+    assert reused.job_id == first.job_id
+    assert reused.status == "completed"
+    assert reused.result == {"score": 1.2, "correctness": "pass"}
+    assert len(service.snapshot().jobs) == 1
+
+
 def test_pause_excludes_worker_until_resume(tmp_path):
     patch = tmp_path / "candidate.patch"
     patch.write_text("experiment\n")
