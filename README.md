@@ -55,7 +55,7 @@ The optimization plan — ranked ideas (algorithmic / kernel / graph / runtime),
 
 ## Finding your way around
 
-Five things matter; everything else is docs and config:
+Start with these areas; everything else is docs and config:
 
 ```
 cli.py            Start here: the `autoggml <command>` entry point (routes to autoggml/ modules)
@@ -65,6 +65,9 @@ autoggml/         The engine — read-only during experiments, organized by ques
 │  ├── loop/        "Try it, keep it?"   agent_loop (keep/revert), verify (clean A/B), patches
 │  ├── ideation/    "What to try next?"  ideas, selector (rank by bottleneck), propose + llm (optional LLM)
 │  ├── parallel/    "Many at once"       runner (fan-out), concurrency (locked leaderboard), worktree
+│  ├── agent_*.py   "Research together"  challenges, task packets, leases, review, recombination, credit
+│  ├── coordination.py / coordinator_http.py
+│  │                 "Share hardware"     typed fleet queue, immutable candidates, restricted HTTP transport
 │  ├── prepare.py   Setup: clone, build, download models (GPU auto-detected, GGUFs reused)
 │  ├── shadow.py    Shadow bench: benchmark built from your own traffic
 │  ├── report.py    Result aggregation and diff
@@ -159,6 +162,11 @@ choose bounded tasks, work from a pinned commit in isolated worktrees, and submi
 patches plus structured findings. The existing candidate gate and hardware queue remain
 the sole path to accelerator execution.
 
+Run `uv run autoggml setup` once before creating or starting a challenge. Agent
+worktrees are created from the pinned `work/lucebox-ggml` engine checkout, not from the
+autoggml control repository. Managed workers may override the checkout and revision with
+`AUTOGGML_AGENT_ENGINE_ROOT` and `AUTOGGML_AGENT_BASE_COMMIT`.
+
 Create a challenge with distinct approaches so parallel agents explore rather than
 produce the same patch repeatedly:
 
@@ -212,6 +220,44 @@ implementers, reviewers, recombiners, and source artifacts. Agent execution fail
 negative hardware results remain durable research evidence; an all-failed round closes
 as `inconclusive` rather than hanging. Agent reasoning may run concurrently, while the
 existing fleet rule still permits only one active experiment per physical machine.
+
+### Agent command contract
+
+Agents should request `--json` and treat IDs and state fields as opaque. A normal agent
+session is:
+
+```bash
+# Choose and inspect work without parsing human-formatted output.
+uv run autoggml agent next --json
+uv run autoggml agent start <task-id> --json
+
+# Implementation task: patch required.
+uv run autoggml agent submit <task-id> --patch candidate.patch \
+  --rationale "Focused implementation" --observation "What changed" \
+  --risk "What might regress" --json
+
+# Review task: no patch; cite the artifacts reviewed.
+uv run autoggml agent submit <review-task-id> \
+  --rationale "The approaches are compatible" \
+  --source <artifact-a> --source <artifact-b> --json
+
+# Recombination task: patch plus at least two credited sources required.
+uv run autoggml agent submit <recombine-task-id> --patch hybrid.patch \
+  --rationale "Combine the verified strengths" \
+  --source <artifact-a> --source <artifact-b> --json
+```
+
+Challenge states progress through `building`, `reviewing`, `recombining`, and `complete`;
+an exhausted round becomes `inconclusive`. `agent advance <challenge-id>` is explicit:
+call it after the current stage's agent tasks and hardware jobs reach terminal states.
+Implementation artifacts, rationale, and scores are hidden from public agent status while
+the challenge is `building`. Expired leases return tasks to the available pool.
+
+The coordinator accepts typed task and patch data, never arbitrary agent-provided shell
+commands. Patches may touch approved engine paths only; benchmark definitions, goldens,
+contracts, models, and the autoggml verifier are protected. Remote agents currently use
+the team's shared coordinator credential, so agent IDs provide attribution and lease
+ownership within a trusted team rather than independent security principals.
 
 ## Remote machine-aware workflow
 

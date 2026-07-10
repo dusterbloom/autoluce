@@ -8,9 +8,37 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Cooperative agent challenges** (`autoggml agent ...`): agents register `implement`,
+  `review`, or `recombine` capabilities; choose bounded task packets; claim expiring
+  leases; and work from a challenge-pinned commit in isolated Git worktrees. Parallel
+  implementations remain blind until measured, then feed a review and credited
+  recombination stage. `agent next|start|submit|advance|status|card` support structured
+  JSON for agent callers, while a remembered `0600` identity keeps the normal CLI short.
+- **Agent evidence and safety model**: task packets include the objective, distinct
+  approach, profiler evidence, expected impact, difficulty, token/time budgets, allowed
+  and forbidden paths, definition of done, and validation command. A single patch gate
+  protects benchmarks, goldens, contracts, models, and verifier code. Challenge cards
+  preserve contributor/source graphs, measured rankings, execution failures, negative
+  results, and explicit `inconclusive` outcomes.
+- **Distributed team coordinator**: `join`, `submit`, `status`, `pause`, `resume`,
+  `leave`, `worker`, and `coordinator` provide an authenticated typed HTTP/file-backed
+  queue. Candidate patches are content-addressed, each physical machine receives at
+  most one active experiment, and restricted workers run only the existing
+  correctness-gated pipeline under the accelerator lease. CUDA, HIP, and Vulkan retain
+  separate build directories with compilation capped at four jobs.
+- **Machine-aware DeepSeek V4 / Strix Halo workflow**: `doctor`, `consult`, `freeze`,
+  `test-drive`, `onboard`, `verify`, and `profile-report`; stable machine/model
+  fingerprints; versioned research contracts; external and sharded GGUF catalog entries;
+  HIP/Vulkan remote execution; UMA memory, fault, swap, GTT/VRAM, temperature, power, and
+  clock telemetry; context-conditioned 8K/32K/128K cells; and machine-scoped evidence.
+- **DeepSeek V4 fused Sinkhorn candidate**: vendored, checksummed upstream patch with a
+  backend operator test before full-model A/B verification and rocprof attribution.
 - **KL quality oracle** (`kl.py`, `autoggml kl-base <benchmark>`): candidates are checked against frozen reference logits via llama.cpp's built-in `--kl-divergence`; a gate violation (`mean_kld > tau` or `max_kld > 10·tau`, `tau` per benchmark via `objective.kl_tau`, default 0.01) zeroes the score like a correctness failure. The reference is generated **once** from the pinned baseline build and never regenerated, so quality drift cannot compound. Opt-in per benchmark via `"kl_text"`.
 - **Shadow bench** (`shadow.py`, `autoggml shadow proxy|build`): optimize for your own traffic. A stdlib capture proxy in front of your local `llama-server` tees prompts to `~/.autoggml/shadow/prompts.jsonl`; `shadow build` turns the last day's deduplicated prompts into a `shadow` benchmark whose quality gate is KL divergence on those very prompts. Prompt files and the KL reference are gitignored — nothing leaves the machine.
-- Unified `autoggml` CLI (`cli.py`): `uv run autoggml <setup|baseline|run|ideas|propose|harness|report|reproduce>` routes to the existing scripts (reimplements nothing). One-liner `install.sh` (`curl | bash`) clones, ensures `uv`, syncs, prints next steps.
+- Unified `autoggml` CLI (`cli.py`): `uv run autoggml <command>` routes to focused
+  package modules without reimplementing their behavior; `autoggml help` is the current
+  command inventory. One-liner `install.sh` (`curl | bash`) clones, ensures `uv`, syncs,
+  and prints next steps.
 - GPU auto-detection: `prepare.py`/`harness.py` probe for `nvcc`/`hipcc`/`vulkaninfo`/Metal and build for the best backend by default — no `GGML_CUDA=ON` needed. CPU-only is refused unless `AUTOGGML_ALLOW_CPU=1`. Existing GGUFs are reused from the HF cache / LM Studio / `~/models` (`AUTOGGML_MODELS` extends the search) before downloading.
 - Parallel-safe shared leaderboard (`concurrency.LockedFrontier`): file-locked `.best_score.json` + `results.tsv`; `claim_best_if_significant` re-verifies against the **live** frontier under the lock, so concurrent workers can't keep a stale-snapshot win. `worktree.py` isolates per-worker trees; `runner.run_parallel` fans out and funnels through the frontier; `agent_loop` honors `AUTOGGML_FRONTIER` so worktree workers share one leaderboard.
 - Profile-driven ideation (`selector.rank_by_bottleneck`): `ideas --bound <memory|compute|overhead>` ranks untried `ROADMAP.md` items so those targeting the active bottleneck come first.
@@ -41,6 +69,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pytest` runs in CI.
 
 ### Changed
+- Fleet and agent repositories now share one process-safe atomic JSON persistence
+  primitive and one stable content-ID helper rather than maintaining parallel locking
+  and hashing implementations.
+- Identical candidate content now reuses completed or failed hardware evidence as well
+  as active jobs, avoiding duplicate accelerator work and deterministic job-ID clashes
+  when competing agents converge on the same patch.
 - **Repo restructured into the `autoggml/` package** (was 21 flat top-level modules). Root now holds only `cli.py` (entry point) and `experiment.py` (the agent-editable file); the engine lives in `autoggml/` grouped by purpose: `bench/` (harness, objective, kl, uncertainty, profiling), `loop/` (agent_loop, verify, patches), `ideation/` (ideas, selector, propose, llm), `parallel/` (runner, concurrency, worktree), plus `prepare`/`shadow`/`report`/`reproduce`. The CLI dispatches `python -m autoggml.<module>` instead of script paths; direct `uv run <file>.py` invocations become `uv run autoggml <cmd>`. Pure reorganization — no behavior change; history preserved via `git mv`.
 - **Constrained objective replaces the product score**: `score = decode_tok_s` only; `peak_mem_GiB` / `prefill_tok_s` are now constraints declared per benchmark in an `"objective"` block (`objective.check_constraints`, k·σ significance margin; `min_frac_of_baseline` compares against `work/baseline_metrics.json` persisted by `autoggml baseline`). A violation zeroes the score exactly like a correctness failure. Speculative runs that don't report `acceptance_rate` now **raise** (the neutral-1.0 fallback is gone); acceptance stays as a logged diagnostic only. **Existing `.best_score.json` / baselines are invalid — re-measure.**
 - `pyproject.toml` gains `[build-system]` (setuptools) + `py-modules`, so `uv` installs the project and the `autoggml` console script is generated (previously `[project.scripts]` was silently ignored — no `[build-system]` meant a virtual project).
@@ -56,6 +90,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Golden generator uses the harness's shared command builder + text extraction.
 
 ### Fixed
+- `agent start` now creates its isolated worktree from the pinned
+  `work/lucebox-ggml` engine checkout rather than the autoggml control repository, so
+  the approved engine paths in submitted patches correspond to the source agents edit.
 - `experiment.py` no longer crashes on `apply_experiment()` (missing patch imports)
   and ships as a neutral no-op baseline.
 - `acceptance_rate` no longer silently fabricated as `0.55`.
@@ -63,3 +100,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   letting score and correctness run under different configs).
 - Real-mode baseline fails loud (exit 1) when unprepared, instead of recording a
   fabricated baseline as the best score.
+
+### Security
+- Agent and fleet HTTP endpoints accept typed operations and patch bytes only, never
+  coordinator-provided arbitrary shell commands. Agent patch paths are allowlisted and
+  verifier-owned inputs are protected. Remote agent identities currently share the
+  team's coordinator credential, so attribution and leases assume a trusted team;
+  per-agent scoped credentials remain future hardening.
