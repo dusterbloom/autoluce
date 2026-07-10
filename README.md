@@ -11,6 +11,8 @@ curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoluce/main/install.s
 cd autoluce
 uv run autoluce source status
 uv run autoluce reproduce --simulate
+# On an RTX 3090 CUDA development machine:
+uv run autoluce nvfp4 test
 ```
 
 AutoLuce currently provides:
@@ -20,11 +22,11 @@ AutoLuce currently provides:
 - Safe machine inventory and research contracts.
 - A shared queue for people and machines.
 - Bounded challenges where agents can implement, review, and recombine ideas.
-- Reproducible simulation and end-to-end coordination tests.
+- Live `dflash_server` HTTP benchmarks with exact frozen-output quality gates.
+- A tested SM86 NVFP4 W4A16 CUDA operator and microbenchmark for RTX 3090 work.
 
-Live performance and quality measurements are temporarily blocked while the old
-standalone `llama-*` adapter is replaced with a Lucebox `dflash_server` HTTP adapter.
-Affected commands fail clearly instead of benchmarking a different engine.
+The product API does not expose token logits. Exact quality is operational; benchmarks
+that explicitly require KL fail closed until Lucebox gains a logits endpoint.
 
 ## Start Here
 
@@ -64,8 +66,11 @@ the product boundary rather than silently using a different build.
 | Doctor, consult, and machine contracts | Ready |
 | Team coordinator and simulated workers | Ready |
 | Agent challenges and isolated worktrees | Ready |
-| `baseline`, `run`, `freeze`, `verify`, KL, live worker | Waiting for product HTTP adapter |
-| Live `test-drive` | Waiting for product HTTP adapter |
+| HTTP `baseline`, `run`, exact `freeze`, live worker | Ready |
+| Live `test-drive` | Ready after product/model setup |
+| Product KL capture | Needs a Lucebox token-logits endpoint |
+| Interleaved remote `verify` | Not yet wired to the HTTP adapter |
+| RTX 3090 NVFP4 operator test and microbenchmark | Ready |
 
 Simulation is only a control-plane test. It never produces performance evidence or
 updates the research frontier.
@@ -90,7 +95,7 @@ uv run autoluce status
 
 The connection is stored in `~/.config/autoluce/team.json` with mode `0600`.
 
-Once the live product adapter is ready, submit a focused patch to compatible hardware:
+Submit a focused patch to compatible hardware:
 
 ```bash
 uv run autoluce submit patches/my-candidate.patch \
@@ -186,8 +191,27 @@ uv run autoluce setup --target strix-halo --backend hip
 ```
 
 Remote heavy commands use a nonblocking accelerator lock and cap compilation at four
-jobs. `test-drive` remains safe for inventory and simulation; `test-drive --live` is
-blocked until the product runtime adapter is ready.
+jobs. `test-drive` remains safe for inventory and simulation; `test-drive --live`
+builds and exercises the product-owned HTTP runtime.
+
+## Develop NVFP4 On RTX 3090
+
+The standalone CUDA target is a fast oracle and kernel laboratory before model-loader
+work is added to Lucebox:
+
+```bash
+uv run autoluce nvfp4 test
+uv run autoluce nvfp4 bench --rows 4096 --cols 4096 --iterations 200
+```
+
+It implements packed E2M1 weights, one E4M3 scale per 16 values, a global FP32 scale,
+and fused W4A16 GEMV. AutoLuce prefers CUDA 12.6 under `/usr/local/cuda`, targets SM86,
+and caps the build at four jobs. The test compares CUDA output with an independent CPU
+oracle; the benchmark compares the packed operator with the same naive FP16 GEMV.
+
+This is the operator foundation, not complete Unsloth checkpoint support. Lucebox still
+needs an NVFP4 tensor loader/metadata contract and graph dispatch before an Unsloth
+NVFP4 model can be served end to end.
 
 ## Keep Lucebox Current
 
@@ -214,12 +238,13 @@ Never update the GGML vendor commit independently of the product commit. Hub's
 
 The intended live loop is simple: propose one change, build the pinned product, measure
 baseline and candidate under the same machine lease, apply correctness and quality
-gates, and retain only a statistically meaningful improvement. The product HTTP adapter
-is the remaining piece needed to reactivate this loop.
+gates, and retain only a statistically meaningful improvement. `dflash_server` supplies
+authoritative per-request prefill/decode timings and exact output generation.
 
 - Measure the pinned product, not a nearby standalone fork.
 - Keep machine, model, backend, context, workload, and power profile in the evidence key.
-- Reject correctness, KL, memory, or workload-constraint regressions.
+- Reject exact correctness, memory, or workload-constraint regressions. Require KL only
+  on runtimes that can capture token logits; never approximate it from generated text.
 - Keep a candidate only when its gain clears the configured statistical threshold.
 - Preserve negative results so another person or agent does not repeat them.
 - Allow one active accelerator experiment per physical machine.
@@ -235,11 +260,13 @@ sources/lucebox.toml       Product and vendor source contract
 experiment.py              Applies one product or vendor experiment
 autoluce/source_layout.py  Authoritative paths and capabilities
 autoluce/bench/            Measurement, quality, telemetry, statistics
+autoluce/runtime/          Product HTTP lifecycle and response adapters
 autoluce/loop/             Experiment and verification lifecycle
 autoluce/agent_*.py        Agent challenges, evidence, review, credit
 autoluce/coordination.py   Shared machine queue
 benchmarks/                Fixed workloads and constraints
 python_tests/              Unit and end-to-end tests
+native/nvfp4/              SM86 NVFP4 CUDA oracle, operator, and microbenchmark
 program.md                 Detailed autonomous-agent rules
 ROADMAP.md                 Research ideas and priorities
 ```

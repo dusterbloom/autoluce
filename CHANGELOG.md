@@ -8,6 +8,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Lucebox HTTP benchmark and exact-quality adapter**: the live harness launches the
+  pinned product's `dflash_server`, disables prefix/prefill caches for measurement,
+  consumes authoritative `usage.timings` prefill/decode fields, records acceptance and
+  process/UMA telemetry, and compares deterministic completions with frozen goldens.
+  Golden generation and remote `freeze` use the same client and server lifecycle, so
+  measurement and quality cannot drift onto a standalone llama.cpp binary. Product KL
+  requirements fail closed because the current API does not expose token logits.
+- **RTX 3090 NVFP4 CUDA laboratory**: `autoluce nvfp4 test|bench` builds a bounded SM86
+  target with CUDA 12.6 and at most four jobs. It includes packed E2M1 weights, E4M3
+  block scales, a global FP32 scale, fused W4A16 GEMV, an independent CPU oracle, and a
+  naive FP16 control. On the local RTX 3090, the validated 4096x4096 operator measured
+  0.0419 ms versus 0.0579 ms for the control (1.38x, 200 iterations, zero max error).
 - **Manifest-driven Lucebox ownership**: `sources/lucebox.toml` pins the complete
   `Luce-Org/lucebox-hub` product and declares its checkout layout, product CMake root,
   supported CUDA/HIP backends, build targets, runtime, capabilities, and expected GGML
@@ -42,8 +54,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   fingerprints; versioned research contracts; external and sharded GGUF catalog entries;
   HIP remote execution; UMA memory, fault, swap, GTT/VRAM, temperature, power, and
   clock telemetry; context-conditioned 8K/32K/128K cells; and machine-scoped evidence.
-  Inventory, contracts, and onboarding remain active; live measurement commands await
-  the product HTTP adapter described under Changed.
+  Inventory, contracts, onboarding, HTTP measurement, and exact quality capture are
+  active. Product KL capture remains gated on a Lucebox token-logits endpoint.
 - **DeepSeek V4 fused Sinkhorn reference**: checksummed upstream patch retained as
   research evidence. It is marked `requires-port-and-reprofile` because it targets the
   former standalone tree, while current Hub code owns DeepSeek V4 separately and already
@@ -54,8 +66,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   fail-closed until equivalent capture exists through Lucebox Hub.
 - **Shadow bench** (`shadow.py`, `autoluce shadow proxy|build`): a local capture proxy
   turns private traffic into a deduplicated workload. Capture and benchmark construction
-  remain available; KL scoring awaits the product adapter. Prompts stay in gitignored
-  local storage.
+  remain available; KL scoring awaits a product token-logits endpoint. Prompts stay in
+  gitignored local storage.
 - Unified `autoluce` CLI (`cli.py`): `uv run autoluce <command>` routes to focused
   package modules without reimplementing their behavior; `autoluce help` is the current
   command inventory. One-liner `install.sh` (`curl | bash`) clones, ensures `uv`, syncs,
@@ -72,10 +84,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   relative-error over the multiplicative metric (`uncertainty.py`).
 - No-fabrication real mode: every metric is measured or the run raises; `--simulate`
   opt-in for plumbing/CI (never writes best-score or git state).
-- `peak_mem_GiB` measured via `/usr/bin/time -v`.
-- Correctness generation extracted via the `llama_print_timings:` delimiter, shared
-  by the harness and the golden generator (`scripts/generate_golden.py`) so the two
-  cannot drift.
+- `peak_mem_GiB` combines live server RSS with available VRAM/GTT telemetry for the
+  product HTTP runtime; legacy command helpers retain `/usr/bin/time -v` parsing.
+- Exact correctness generation and measurement share the same `DflashHttpClient` and
+  deterministic request construction; empty/placeholder reference sets fail closed.
 - `--profile`: backend-aware profiler capture (`nsys`/`rocprof`) per benchmark to
   `results/profiles/`, plus `classify_bottleneck` (memory/compute/overhead verdict
   pointing at `ROADMAP.md` items).
@@ -100,14 +112,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and rejoin or move their local configuration into the new paths.
 - Replaced the 500-line cumulative README with a task-oriented guide organized around
   first use, current capability status, team participation, agent participation, remote
-  Lucebox onboarding, source maintenance, and development. Commands that await the
-  `dflash_server` adapter are now listed once in an explicit status table instead of
-  appearing as runnable quick starts elsewhere in the document.
+  Lucebox onboarding, NVFP4 CUDA work, source maintenance, and development.
 - Lucebox Hub's July 2026 vendorization is now the source-of-truth boundary. The old
   standalone `lucebox-ggml` checkout, root CMake flags, and `llama-bench`/`llama-cli`/
   `llama-perplexity` execution paths are not treated as product capabilities. Live
-  benchmark and quality commands fail closed until the `dflash_server` HTTP adapter
-  replaces them; simulation remains available for CI and coordination tests.
+  benchmark and exact quality now use `dflash_server`; KL remains unavailable rather
+  than falling back to a different engine. Simulation remains available for CI and
+  coordination tests.
 - Product backend selection now uses `DFLASH27B_GPU_BACKEND=cuda|hip`. Vulkan remains a
   useful generic GGML research direction, but it is not advertised as a current
   Lucebox Hub product backend.
