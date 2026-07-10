@@ -5,7 +5,7 @@ Live capture needs the target GPU + profiler; the command building is pure here.
 
 import pytest
 
-from autoggml.bench.profiling import classify_bottleneck, detect_backend, profile_command
+from autoggml.bench.profiling import classify_bottleneck, detect_backend, profile_command, summarize_rocprofv3_csv
 
 
 def test_detect_backend_env_overrides_hardware(monkeypatch):
@@ -34,9 +34,11 @@ def test_profile_command_cuda_wraps_with_nsys():
     assert out[-1] == "x"
 
 
-def test_profile_command_hip_wraps_with_rocprof():
+def test_profile_command_hip_wraps_with_rocprofv3():
     out = profile_command(["llama-bench"], "hip", "/tmp/cap")
-    assert out[0] == "rocprof"
+    assert out[0] == "rocprofv3"
+    assert "--kernel-trace" in out
+    assert "--" in out
     assert out[-1] == "llama-bench"
 
 
@@ -71,3 +73,17 @@ def test_classify_bottleneck_memory_takes_precedence_over_compute():
 def test_classify_bottleneck_points_at_roadmap_items():
     result = classify_bottleneck({"mem_bw_util": 0.9, "gpu_compute_util": 0.3})
     assert result["roadmap"] and isinstance(result["roadmap"], list)
+
+
+def test_summarize_rocprofv3_csv_attributes_sinkhorn_time(tmp_path):
+    capture = tmp_path / "trace.csv"
+    capture.write_text(
+        "Kernel_Name,Start_Timestamp,End_Timestamp\n"
+        "k_bin_bcast,0,30\n"
+        "reduce_rows_f32,30,50\n"
+        "moe_kernel,50,100\n"
+    )
+    result = summarize_rocprofv3_csv(capture)
+    assert result["total_dispatches"] == 3
+    assert result["sinkhorn_dispatches"] == 2
+    assert result["sinkhorn_duration_percent"] == pytest.approx(50.0)

@@ -1,0 +1,129 @@
+"""Safe local smoke and optional live DeepSeek V4 canary."""
+
+from __future__ import annotations
+
+import argparse
+import fcntl
+import json
+import os
+from contextlib import contextmanager
+from pathlib import Path
+
+from autoggml.doctor import build_profile
+from autoggml.targets import TargetConfig
+
+
+@contextmanager
+def _lease(path: str):
+    lock = Path(path)
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    with lock.open("a+") as handle:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError("another autoggml worker holds the accelerator lease") from exc
+        yield
+
+
+def _patch_ready(root: Path) -> bool:
+    patch = root / "patches" / "deepseek-v4-sinkhorn-77bccaa.patch"
+    provenance = patch.with_suffix(".json")
+    return patch.is_file() and provenance.is_file()
+
+
+def safe_test_drive(target: TargetConfig) -> dict:
+    from autoggml.bench.harness import run_harness
+
+    profile = build_profile(target)
+    model = profile.observed.get("models", [{}])[0]
+    simulation = run_harness(baseline=True, simulate=True)
+    busy = bool(profile.observed.get("busy_reasons"))
+    model_ready = bool(model.get("readable")) and not model.get("missing")
+    hip_ready = bool(profile.observed.get("hipcc"))
+    if busy:
+        status, next_step = "busy", "retry when the host is idle"
+    elif not model_ready:
+        status, next_step = "needs-model", "check the configured model_root"
+    elif not hip_ready:
+        status, next_step = "needs-hip", "install or repair the HIP toolchain"
+    else:
+        status, next_step = "ready", "autoggml test-drive --live"
+    return {
+        "status": status,
+        "host": profile.observed.get("hostname"),
+        "gpu": profile.observed.get("gpu_arch"),
+        "memory_available_gib": round(float(profile.observed.get("mem_available_bytes") or 0) / 1024**3, 2),
+        "model": {"path": model.get("path"), "size_gib": round(float(model.get("size_bytes") or 0) / 1024**3, 2),
+                  "readable": model.get("readable", False)},
+        "patch_ready": _patch_ready(Path(__file__).resolve().parent.parent),
+        "simulated_loop": "pass" if simulation.get("correctness") == "pass" else "FAIL",
+        "busy_reasons": profile.observed.get("busy_reasons", []),
+        "next": next_step,
+    }
+
+
+def live_test_drive(target: TargetConfig) -> dict:
+    with _lease(target.lock_path):
+        before = build_profile(target)
+        if before.observed.get("busy_reasons"):
+            raise RuntimeError("target is busy: " + ", ".join(before.observed["busy_reasons"]))
+        old_env = os.environ.copy()
+        try:
+            os.environ.update({
+                "AUTOGGML_BENCHMARKS": "deepseek-v4-test-drive",
+                "AUTOGGML_MODEL_ROOT": target.model_root or str(Path.home() / "models"),
+                "AUTOGGML_BUILD_JOBS": str(target.build_jobs),
+                "AUTOGGML_BUILD_SUBDIR": "build-hip",
+                "AUTOGGML_STATE_DIR": str(Path(target.root or Path.cwd()) / "work" / "state" / "test-drive"),
+                "GGML_HIP": "ON",
+            })
+            from autoggml.bench.harness import run_harness
+            from autoggml.prepare import build_lucebox, clone_lucebox, download_models
+
+            clone_lucebox()
+            download_models()
+            build_lucebox()
+            summary = run_harness(baseline=True)
+        finally:
+            os.environ.clear()
+            os.environ.update(old_env)
+    return {
+        "status": "pass" if summary.get("correctness") == "pass" else "FAIL",
+        "decode_tok_s": summary.get("decode_tok_s"),
+        "prefill_tok_s": summary.get("prefill_tok_s"),
+        "peak_rss_gib": summary.get("peak_mem_GiB"),
+        "note": "canary only; not eligible for the research frontier",
+    }
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Check autoggml readiness or run a short live V4 canary")
+    parser.add_argument("--target", default=os.environ.get("AUTOGGML_DEFAULT_TARGET", "lucebox3"))
+    parser.add_argument("--live", action="store_true", help="Build if needed and run one 4K DeepSeek V4 canary")
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args()
+    target = TargetConfig.load(args.target)
+    result = live_test_drive(target) if args.live else safe_test_drive(target)
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return
+    print("autoggml test drive")
+    print(f"  host:       {result.get('host', 'lucebox3')}")
+    if "gpu" in result:
+        print(f"  accelerator:{' ' if result.get('gpu') else ''}{result.get('gpu') or 'not detected'}")
+    model = result.get("model")
+    if model:
+        state = "readable" if model.get("readable") else "missing"
+        print(f"  model:      {model.get('size_gib', 0):.2f} GiB, {state}")
+    if "patch_ready" in result:
+        print(f"  experiment: {'ready' if result['patch_ready'] else 'missing patch'}")
+    if "simulated_loop" in result:
+        print(f"  harness:    {result['simulated_loop'].lower()}")
+    if "decode_tok_s" in result:
+        print(f"  decode:     {result['decode_tok_s']:.2f} tok/s")
+    print(f"\n{result['status'].upper()}")
+    print(f"Next: {result.get('next') or result.get('note')}")
+
+
+if __name__ == "__main__":
+    main()

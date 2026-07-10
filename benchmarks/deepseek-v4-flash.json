@@ -1,0 +1,33 @@
+{
+  "name": "deepseek-v4-flash",
+  "manifest_entry": "deepseek-v4-flash",
+  "spec_type": null,
+  "n_draft": 0,
+  "prompts": [
+    "Write a Python function that returns the nth Fibonacci number.",
+    "Explain virtual memory in two concise sentences.",
+    "What is the capital of France? Answer in one word."
+  ],
+  "contexts": [8192, 32768, 131072],
+  "primary_context_count": 2,
+  "context_min_frac_of_baseline": 0.95,
+  "llama_bench_args": {
+    "-p": 512,
+    "-n": 128,
+    "--repetitions": 5
+  },
+  "kl_text": "benchmarks/deepseek-v4-quality.txt",
+  "expected": {
+    "min_decode_tok_s": 1.0,
+    "max_peak_mem_GiB": 113.0
+  },
+  "objective": {
+    "maximize": "decode_tok_s",
+    "kl_tau": 0.01,
+    "constraints": {
+      "peak_mem_GiB": {"max": 113.0},
+      "min_mem_available_GiB": {"min": 12.0},
+      "swap_growth_GiB": {"max": 0.0}
+    }
+  }
+}

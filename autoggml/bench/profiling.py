@@ -8,9 +8,11 @@ command building is pure and unit-tested here. Vulkan capture is layer-based
 
 from __future__ import annotations
 
+import csv
 import os
 import shutil
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 
@@ -72,11 +74,56 @@ def profile_command(cmd: list[str], backend: str, output_path: str) -> list[str]
     if backend == "cuda":
         return ["nsys", "profile", "--stats=true", "--force-overwrite=true", "-o", output_path, *cmd]
     if backend == "hip":
-        return ["rocprof", "--stats", "-o", output_path, *cmd]
+        return [
+            "rocprofv3", "--kernel-trace", "--stats", "--output-format", "csv",
+            "--output-file", output_path, "--", *cmd,
+        ]
     raise ValueError(
         f"no profiler configured for backend '{backend}' "
-        "(cuda -> nsys, hip -> rocprof; vulkan uses RGP layers, not a prefix wrapper)"
+        "(cuda -> nsys, hip -> rocprofv3; vulkan uses RGP layers, not a prefix wrapper)"
     )
+
+
+def summarize_rocprofv3_csv(path: Path) -> dict:
+    """Aggregate rocprofv3 kernel-trace or kernel-stats CSV by kernel name."""
+    with path.open(newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    aggregates: dict[str, dict[str, float]] = defaultdict(lambda: {"dispatches": 0.0, "duration_ns": 0.0})
+    for row in rows:
+        normalized = {key.lower().replace(" ", "_"): value for key, value in row.items() if key}
+        name = next((value for key, value in normalized.items() if "kernel" in key and "name" in key), None)
+        if not name:
+            continue
+        duration = next((value for key, value in normalized.items() if "duration" in key), None)
+        if duration is None:
+            start = next((value for key, value in normalized.items() if key.startswith("start")), "0")
+            end = next((value for key, value in normalized.items() if key.startswith("end")), "0")
+            duration_ns = float(end or 0) - float(start or 0)
+        else:
+            duration_ns = float(duration or 0)
+        calls = next((value for key, value in normalized.items() if key in {"calls", "count", "dispatches"}), "1")
+        aggregates[name]["dispatches"] += float(calls or 1)
+        aggregates[name]["duration_ns"] += duration_ns
+
+    total = sum(item["duration_ns"] for item in aggregates.values())
+    kernels = []
+    for name, item in aggregates.items():
+        kernels.append({
+            "kernel": name,
+            "dispatches": int(item["dispatches"]),
+            "duration_ns": item["duration_ns"],
+            "percent": 100.0 * item["duration_ns"] / total if total else 0.0,
+        })
+    kernels.sort(key=lambda item: item["duration_ns"], reverse=True)
+    sinkhorn_needles = ("bin_bcast", "reduce_rows", "scalar_transpose", "sinkhorn")
+    sinkhorn = [item for item in kernels if any(needle in item["kernel"].lower() for needle in sinkhorn_needles)]
+    return {
+        "total_kernel_duration_ns": total,
+        "total_dispatches": sum(item["dispatches"] for item in kernels),
+        "sinkhorn_duration_percent": sum(item["percent"] for item in sinkhorn),
+        "sinkhorn_dispatches": sum(item["dispatches"] for item in sinkhorn),
+        "kernels": kernels,
+    }
 
 
 # Throughput thresholds (fractions of peak) at which a resource is "saturated".

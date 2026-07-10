@@ -1,0 +1,12 @@
+{
+  "benchmark": "deepseek-v4-flash",
+  "generated_at": "NOT_YET_GENERATED",
+  "parameters": {
+    "seed": 42,
+    "temperature": 0.0,
+    "top_k": 1,
+    "top_p": 1.0,
+    "n_predict": 64
+  },
+  "outputs": []
+}

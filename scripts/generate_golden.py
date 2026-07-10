@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -20,12 +21,15 @@ sys.path.insert(0, str(ROOT))
 from autoggml.bench.harness import build_generation_command, extract_generated_text  # noqa: E402
 
 WORK_DIR = ROOT / "work"
-BUILD_DIR = WORK_DIR / "lucebox-ggml" / "build"
+BUILD_DIR = WORK_DIR / "lucebox-ggml" / os.environ.get("AUTOGGML_BUILD_SUBDIR", "build")
 MODELS_DIR = WORK_DIR / "models"
 BENCHMARKS_DIR = ROOT / "benchmarks"
+GOLDEN_DIR = Path(os.environ.get("AUTOGGML_GOLDEN_DIR", str(BENCHMARKS_DIR / "golden")))
 
 
-def load_prompts() -> list[str]:
+def load_prompts(benchmark: dict) -> list[str]:
+    if benchmark.get("prompts"):
+        return [str(prompt) for prompt in benchmark["prompts"]]
     prompts_file = BENCHMARKS_DIR / "prompts.txt"
     return [p.strip() for p in prompts_file.read_text().split("---") if p.strip()]
 
@@ -46,6 +50,12 @@ def resolve_model(benchmark_name: str, role: str) -> Path | None:
     entry = manifest.get(benchmark_name, {}).get(role)
     if not entry:
         return None
+    if entry.get("path"):
+        return Path(entry["path"]).expanduser()
+    files = entry.get("files")
+    if files:
+        first = Path(files[0]).expanduser()
+        return first if first.is_absolute() else MODELS_DIR / first
     return MODELS_DIR / entry["local"]
 
 
@@ -82,12 +92,12 @@ def main():
         print(f"ERROR: target model not found: {model}")
         return 1
 
-    golden_path = BENCHMARKS_DIR / "golden" / f"{args.benchmark}.json"
+    golden_path = GOLDEN_DIR / f"{args.benchmark}.json"
     if golden_path.exists() and not args.overwrite:
         print(f"Golden output already exists at {golden_path}. Use --overwrite to regenerate.")
         return 0
 
-    prompts = load_prompts()
+    prompts = load_prompts(benchmark)
     params = benchmark.get("parameters", {"temperature": 0.0, "top_k": 1, "top_p": 1.0, "n_predict": 64, "seed": 42})
     params["n_draft"] = benchmark.get("n_draft", 15)
 

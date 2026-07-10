@@ -25,6 +25,7 @@ wrappers so every edge case is testable with synthetic data.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -32,7 +33,8 @@ from pathlib import Path
 
 from autoggml import ROOT
 BENCHMARKS_DIR = ROOT / "benchmarks"
-BUILD_DIR = ROOT / "work" / "lucebox-ggml" / "build"
+GOLDEN_DIR = Path(os.environ.get("AUTOGGML_GOLDEN_DIR", str(BENCHMARKS_DIR / "golden")))
+BUILD_DIR = ROOT / "work" / "lucebox-ggml" / os.environ.get("AUTOGGML_BUILD_SUBDIR", "build")
 
 DEFAULT_KL_TAU = 0.01
 
@@ -44,7 +46,7 @@ DEFAULT_KL_TAU = 0.01
 
 def kl_base_path(benchmark_name: str) -> Path:
     """Reference logits live next to the golden outputs, keyed by benchmark name."""
-    return BENCHMARKS_DIR / "golden" / f"{benchmark_name}.kl_base.bin"
+    return GOLDEN_DIR / f"{benchmark_name}.kl_base.bin"
 
 
 def build_kl_base_cmd(perplexity_bin, model, text_file, base_file, extra: list[str] | None = None) -> list[str]:

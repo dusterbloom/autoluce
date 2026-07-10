@@ -17,6 +17,7 @@ results.tsv
 !.env.example
 patches/*.patch
 !patches/.gitkeep
+!patches/deepseek-v4-sinkhorn-77bccaa.patch
 
 # shadow bench: user prompts + benchmark built from them never leave the box
 .autoggml/

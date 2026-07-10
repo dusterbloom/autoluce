@@ -20,20 +20,24 @@ import shutil
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from experiment import apply_experiment, get_cmake_flags, get_runtime_flags, reset_lucebox
 from autoggml.bench.kl import check_kl, kl_gate, resolve_kl_tau
 from autoggml.bench.objective import check_constraints
 from autoggml.bench.profiling import backend_cmake_flags, detect_backend, profile_command
+from autoggml.bench.telemetry import TelemetryCollector
 from autoggml.bench.uncertainty import propagate_score_stddev
 
 from autoggml import ROOT
 WORK_DIR = ROOT / "work"
 Lucebox_DIR = WORK_DIR / "lucebox-ggml"
-BUILD_DIR = Lucebox_DIR / "build"
+BUILD_DIR = Lucebox_DIR / os.environ.get("AUTOGGML_BUILD_SUBDIR", "build")
 BENCHMARKS_DIR = ROOT / "benchmarks"
-BASELINE_METRICS_PATH = WORK_DIR / "baseline_metrics.json"
+STATE_DIR = Path(os.environ.get("AUTOGGML_STATE_DIR", str(WORK_DIR)))
+GOLDEN_DIR = Path(os.environ.get("AUTOGGML_GOLDEN_DIR", str(BENCHMARKS_DIR / "golden")))
+BASELINE_METRICS_PATH = STATE_DIR / "baseline_metrics.json"
 
 
 def run(cmd: list[str], cwd: Path | None = None, check: bool = True, timeout: int | None = None, env: dict | None = None) -> subprocess.CompletedProcess:
@@ -56,13 +60,18 @@ def build() -> float:
         "-B", str(BUILD_DIR),
         "-DCMAKE_BUILD_TYPE=Release",
         "-DLLAMA_BUILD_TESTS=OFF",
-        "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
-        "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
-    ] + backend_cmake_flags(detect_backend()) + get_cmake_flags()
+    ]
+    if shutil.which("ccache"):
+        cmake_args += [
+            "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
+        ]
+    cmake_args += backend_cmake_flags(detect_backend()) + get_cmake_flags()
     env = os.environ.copy()
     run(cmake_args, env=env)
     t0 = time.time()
-    run(["cmake", "--build", str(BUILD_DIR), "-j", "--target", "llama-bench", "llama-cli", "llama-perplexity"], env=env)
+    jobs = min(4, max(1, int(os.environ.get("AUTOGGML_BUILD_JOBS", "4"))))
+    run(["cmake", "--build", str(BUILD_DIR), "-j", str(jobs), "--target", "llama-bench", "llama-cli", "llama-perplexity"], env=env)
     return time.time() - t0
 
 
@@ -83,6 +92,12 @@ def resolve_model(benchmark_name: str, role: str) -> Path | None:
     entry = manifest.get(benchmark_name, {}).get(role)
     if not entry:
         return None
+    if entry.get("path"):
+        return Path(entry["path"]).expanduser()
+    files = entry.get("files")
+    if files:
+        first = Path(files[0]).expanduser()
+        return first if first.is_absolute() else WORK_DIR / "models" / first
     return WORK_DIR / "models" / entry["local"]
 
 
@@ -115,6 +130,34 @@ def parse_llama_bench_output(stdout: str) -> dict[str, float]:
     return metrics
 
 
+def parse_llama_bench_json(stdout: str) -> dict[str, float]:
+    """Parse llama-bench JSON rows, including context-conditioned decode tests."""
+    try:
+        rows = json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("could not parse llama-bench JSON output") from exc
+    if isinstance(rows, dict):
+        rows = [rows]
+    if not isinstance(rows, list):
+        raise RuntimeError("llama-bench JSON output must be an object or array")
+
+    metrics: dict[str, float] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        n_prompt = int(row.get("n_prompt", 0))
+        n_gen = int(row.get("n_gen", 0))
+        value = float(row.get("avg_ts", 0.0))
+        sigma = float(row.get("stddev_ts", 0.0))
+        if n_gen > 0 and n_prompt == 0:
+            metrics.setdefault("decode_tok_s", value)
+            metrics.setdefault("decode_tok_s_stddev", sigma)
+        elif n_prompt > 0 and n_gen == 0:
+            metrics.setdefault("prefill_tok_s", value)
+            metrics.setdefault("prefill_tok_s_stddev", sigma)
+    return metrics
+
+
 def gnu_time_binary() -> str:
     for candidate in ("/usr/bin/time", shutil.which("time") or ""):
         if candidate and Path(candidate).exists():
@@ -144,10 +187,15 @@ def require_acceptance_rate(stdout: str, bench_name: str) -> float:
     return acceptance
 
 
-def run_with_peak_memory(cmd: list[str], timeout: int | None) -> tuple[str, float]:
-    """Run cmd under `time -v` and return (stdout, peak_mem_GiB)."""
-    proc = run([gnu_time_binary(), "-v", *cmd], timeout=timeout)
-    return proc.stdout, parse_peak_memory(proc.stderr)
+def run_with_peak_memory(cmd: list[str], timeout: int | None) -> tuple[str, float, dict[str, float]]:
+    """Run cmd under GNU time while collecting host/UMA telemetry."""
+    collector = TelemetryCollector()
+    collector.start()
+    try:
+        proc = run([gnu_time_binary(), "-v", *cmd], timeout=timeout)
+    finally:
+        telemetry = collector.stop()
+    return proc.stdout, parse_peak_memory(proc.stderr), telemetry
 
 
 def apply_runtime_flags(cmd: list[str], runtime_flags: dict[str, str]) -> list[str]:
@@ -170,6 +218,7 @@ def benchmark_with_llama_bench(
     bench_args: dict,
     runtime_flags: dict[str, str],
     profile_path: str | None = None,
+    context_depth: int | None = None,
 ) -> dict[str, float]:
     """Run llama-bench and parse real metrics. Raises if it cannot measure."""
     bench = BUILD_DIR / "bin" / "llama-bench"
@@ -182,7 +231,10 @@ def benchmark_with_llama_bench(
         "-p", str(bench_args.get("-p", 512)),
         "-n", str(bench_args.get("-n", 128)),
         "--repetitions", str(bench_args.get("--repetitions", 3)),
+        "-o", "json",
     ]
+    if context_depth is not None:
+        cmd += ["-d", str(context_depth)]
     speculative = draft is not None and draft.exists()
     if speculative:
         cmd += ["-md", str(draft), "--spec-type", "draft-dflash", "--spec-draft-n-max", str(n_draft)]
@@ -190,8 +242,8 @@ def benchmark_with_llama_bench(
     if profile_path is not None:
         cmd = profile_command(cmd, detect_backend(), profile_path)
 
-    stdout, peak_mem = run_with_peak_memory(cmd, timeout=600)
-    metrics = parse_llama_bench_output(stdout)
+    stdout, peak_mem, telemetry = run_with_peak_memory(cmd, timeout=3600)
+    metrics = parse_llama_bench_json(stdout)
     for required in ("decode_tok_s", "prefill_tok_s"):
         if required not in metrics:
             raise RuntimeError(f"could not parse {required} from llama-bench output")
@@ -200,7 +252,59 @@ def benchmark_with_llama_bench(
         # Logged diagnostic only (not part of the score); measured or the run raises.
         metrics["acceptance_rate"] = require_acceptance_rate(stdout, bench.name)
     metrics["peak_mem_GiB"] = peak_mem
+    metrics.update(telemetry)
     return metrics
+
+
+def _geometric_mean(values: list[float]) -> float:
+    if not values or any(value <= 0 for value in values):
+        return 0.0
+    return math.exp(sum(math.log(value) for value in values) / len(values))
+
+
+def aggregate_context_metrics(cells: list[dict], primary_count: int = 2) -> dict:
+    """Aggregate depth cells while keeping each cell available for constraints."""
+    primary = cells[:primary_count]
+    result = {
+        "decode_tok_s": _geometric_mean([cell["decode_tok_s"] for cell in primary]),
+        "decode_tok_s_stddev": math.sqrt(sum(cell.get("decode_tok_s_stddev", 0.0) ** 2 for cell in primary)) / max(1, len(primary)),
+        "prefill_tok_s": _geometric_mean([cell["prefill_tok_s"] for cell in primary]),
+        "prefill_tok_s_stddev": math.sqrt(sum(cell.get("prefill_tok_s_stddev", 0.0) ** 2 for cell in primary)) / max(1, len(primary)),
+        "peak_mem_GiB": max(cell["peak_mem_GiB"] for cell in cells),
+        "context_metrics": cells,
+    }
+    for key, reducer in (
+        ("min_mem_available_GiB", min),
+        ("swap_growth_GiB", max),
+        ("major_faults_delta", max),
+        ("peak_gtt_used_GiB", max),
+        ("peak_vram_used_GiB", max),
+        ("peak_temperature_c", max),
+        ("peak_power_w", max),
+    ):
+        present = [cell[key] for cell in cells if key in cell]
+        if present:
+            result[key] = reducer(present)
+    return result
+
+
+def check_context_regressions(cells: list[dict], baseline: dict | None, min_fraction: float) -> list[str]:
+    if baseline is None:
+        return []
+    base_cells = {int(cell["context_depth"]): cell for cell in baseline.get("context_metrics", [])}
+    violations = []
+    for cell in cells:
+        depth = int(cell["context_depth"])
+        base = base_cells.get(depth)
+        if base is None:
+            violations.append(f"context {depth}: missing baseline cell")
+            continue
+        for metric in ("decode_tok_s", "prefill_tok_s"):
+            floor = min_fraction * float(base[metric])
+            value = float(cell[metric])
+            if value < floor:
+                violations.append(f"context {depth} {metric}: {value:.4g} < {min_fraction}*baseline({base[metric]:.4g})")
+    return violations
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +313,7 @@ def benchmark_with_llama_bench(
 
 
 def load_golden(benchmark_name: str) -> dict | None:
-    golden_path = BENCHMARKS_DIR / "golden" / f"{benchmark_name}.json"
+    golden_path = GOLDEN_DIR / f"{benchmark_name}.json"
     if not golden_path.exists():
         return None
     return json.loads(golden_path.read_text())
@@ -330,7 +434,10 @@ def save_baseline_metrics(per_benchmark: list[dict]) -> None:
     """Persist per-benchmark baseline metrics (numeric fields only) for candidate
     runs to load as the reference for relative constraints."""
     data = {
-        r["benchmark"]: {key: val for key, val in r.items() if isinstance(val, (int, float))}
+        r["benchmark"]: {
+            key: val for key, val in r.items()
+            if isinstance(val, (int, float)) or key == "context_metrics"
+        }
         for r in per_benchmark
     }
     BASELINE_METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -391,7 +498,23 @@ def run_single_benchmark(
         profile_path = os.path.join(profile_dir, benchmark_name) if profile_dir else None
         if profile_path:
             Path(profile_path).parent.mkdir(parents=True, exist_ok=True)
-        metrics = benchmark_with_llama_bench(model, draft, n_draft, benchmark.get("llama_bench_args", {}), runtime_flags, profile_path=profile_path)
+        contexts = [int(value) for value in benchmark.get("contexts", [])]
+        if contexts:
+            cells = []
+            for depth in contexts:
+                cell_profile = f"{profile_path}-ctx{depth}" if profile_path else None
+                cell = benchmark_with_llama_bench(
+                    model, draft, n_draft, benchmark.get("llama_bench_args", {}), runtime_flags,
+                    profile_path=cell_profile, context_depth=depth,
+                )
+                cell["context_depth"] = depth
+                cells.append(cell)
+            metrics = aggregate_context_metrics(cells, int(benchmark.get("primary_context_count", 2)))
+        else:
+            metrics = benchmark_with_llama_bench(
+                model, draft, n_draft, benchmark.get("llama_bench_args", {}), runtime_flags,
+                profile_path=profile_path,
+            )
         correct, details = resolve_correctness(benchmark_name, benchmark, model, draft, n_draft, runtime_flags)
         # Tier-1 quality oracle: KL against the frozen baseline reference.
         # check_kl raises when kl_text is declared but the reference is missing.
@@ -408,6 +531,9 @@ def run_single_benchmark(
     if enforce_constraints:
         base = baseline_metrics.get(benchmark_name) if baseline_metrics else None
         violations += check_constraints(metrics, base, benchmark, k)
+        if metrics.get("context_metrics"):
+            min_fraction = float(benchmark.get("context_min_frac_of_baseline", 0.95))
+            violations += check_context_regressions(metrics["context_metrics"], base, min_fraction)
         for v in violations[len(kl_violations):]:
             print(f"CONSTRAINT VIOLATION [{benchmark_name}]: {v}")
     score = 0.0 if violations else compute_score(metrics, correct)
@@ -452,6 +578,7 @@ def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = 
         build_time = 1.0
     else:
         if baseline:
+            reset_lucebox()
             exp_info = {"description": "baseline", "cmake_flags": get_cmake_flags(), "runtime_flags": get_runtime_flags()}
         else:
             reset_lucebox()
@@ -479,7 +606,7 @@ def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = 
     agg = aggregate_scores(per_benchmark)
     any_fail = any(r["correctness"] == "FAIL" for r in per_benchmark)
 
-    return {
+    summary = {
         "score": agg["score"],
         **agg,
         "build_time_s": build_time,
@@ -487,6 +614,13 @@ def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = 
         "benchmarks": per_benchmark,
         "experiment": exp_info,
     }
+    bundle_dir = os.environ.get("AUTOGGML_RESULT_BUNDLE")
+    if bundle_dir and not simulate:
+        path = Path(bundle_dir)
+        path.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        (path / f"{stamp}.json").write_text(json.dumps(summary, indent=2, default=str))
+    return summary
 
 
 def main():
@@ -497,9 +631,51 @@ def main():
     parser.add_argument("--profile", action="store_true", help="Capture a profiler trace (nsys/rocprof) per benchmark to results/profiles/")
     parser.add_argument("--significance", type=float, default=1.0, help="k in the k*sigma margin for objective constraints")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--target", help="Run through a configured SSH target")
+    parser.add_argument("--contract", type=Path, help="Research contract used to namespace remote state")
+    parser.add_argument("--backend", choices=["cuda", "hip", "vulkan"], default="hip")
     args = parser.parse_args()
 
-    summary = run_harness(baseline=args.baseline, simulate=args.simulate, profile=args.profile, k=args.significance)
+    if args.target and os.environ.get("AUTOGGML_REMOTE_WORKER") != "1":
+        from autoggml.contracts import ResearchContract
+        from autoggml.remote import SSHWorker
+        from autoggml.targets import TargetConfig
+
+        target = TargetConfig.load(args.target)
+        contract = ResearchContract.read(args.contract) if args.contract else None
+        if contract and args.backend not in contract.backends:
+            raise ValueError(f"backend '{args.backend}' is not allowed by the research contract")
+        namespace = (
+            f"{contract.machine_fingerprint[:16]}-{contract.model_fingerprint[:16]}-{args.backend}"
+            if contract else f"uncontracted-{args.backend}"
+        )
+        backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP", "vulkan": "GGML_VULKAN"}[args.backend]
+        remote_args = []
+        if args.baseline:
+            remote_args.append("--baseline")
+        if args.profile:
+            remote_args.append("--profile")
+        remote_args += ["--significance", str(args.significance)]
+        worker = SSHWorker(target)
+        worker.ensure_remote_uv()
+        summary = worker.run_harness(remote_args, env={
+            backend_var: "ON",
+            "AUTOGGML_MODEL_ROOT": target.model_root or f"{target.root}/work/models",
+            "AUTOGGML_BUILD_SUBDIR": f"build-{args.backend}",
+            "AUTOGGML_STATE_DIR": f"{target.root}/work/state/{namespace}",
+            "AUTOGGML_GOLDEN_DIR": f"{target.root}/work/state/{namespace}/golden",
+            "AUTOGGML_RESULT_BUNDLE": f"{target.root}/results/runs/{namespace}",
+            "AUTOGGML_BENCHMARKS": contract.model if contract else "deepseek-v4-flash",
+        })
+        print(json.dumps(summary, indent=2, default=str))
+        return
+
+    if args.json:
+        from contextlib import redirect_stdout
+        with redirect_stdout(sys.stderr):
+            summary = run_harness(baseline=args.baseline, simulate=args.simulate, profile=args.profile, k=args.significance)
+    else:
+        summary = run_harness(baseline=args.baseline, simulate=args.simulate, profile=args.profile, k=args.significance)
 
     if args.json:
         print(json.dumps(summary, indent=2, default=str))

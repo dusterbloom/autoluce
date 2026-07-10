@@ -19,18 +19,22 @@ from huggingface_hub import hf_hub_download
 
 from autoggml import ROOT
 from autoggml.bench.profiling import backend_cmake_flags, detect_backend
+from autoggml.models import load_catalog, resolve_entry_files
 
 # ---------------------------------------------------------------------------
 # Pinning
 # ---------------------------------------------------------------------------
 
 Lucebox_GGML_URL = "https://github.com/Luce-Org/lucebox-ggml.git"
-Lucebox_GGML_REF = "master"  # branch to fetch; commit is pinned dynamically
+Lucebox_GGML_REF = os.environ.get(
+    "AUTOGGML_LUCEBOX_REF",
+    "8c146a8366304c871efc26057cc90370ccf58dad",
+)
 
 WORK_DIR = ROOT / "work"
 Lucebox_DIR = WORK_DIR / "lucebox-ggml"
 MODELS_DIR = WORK_DIR / "models"
-BUILD_DIR = Lucebox_DIR / "build"
+BUILD_DIR = Lucebox_DIR / os.environ.get("AUTOGGML_BUILD_SUBDIR", "build")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -59,11 +63,9 @@ def clone_lucebox() -> None:
     """Clone or update lucebox-ggml to the pinned ref."""
     WORK_DIR.mkdir(parents=True, exist_ok=True)
     if not Lucebox_DIR.exists():
-        run(["git", "clone", "--depth", "100", "--branch", Lucebox_GGML_REF, Lucebox_GGML_URL, str(Lucebox_DIR)])
-    else:
-        run(["git", "fetch", "origin", Lucebox_GGML_REF], cwd=Lucebox_DIR)
-    # Resolve the current HEAD commit hash and store it.
-    result = run(["git", "rev-parse", "HEAD"], cwd=Lucebox_DIR, check=True, capture_output=True)
+        run(["git", "clone", "--no-checkout", "--filter=blob:none", Lucebox_GGML_URL, str(Lucebox_DIR)])
+    run(["git", "fetch", "--depth", "1", "origin", Lucebox_GGML_REF], cwd=Lucebox_DIR)
+    result = run(["git", "rev-parse", "FETCH_HEAD"], cwd=Lucebox_DIR, check=True, capture_output=True)
     commit = result.stdout.strip()
     pin_file = WORK_DIR / "lucebox-ggml.pin"
     pin_file.write_text(commit + "\n")
@@ -148,6 +150,11 @@ def download_models() -> None:
     # Pinned HF sources. The smoke entry is a tiny target-only model so a dev can
     # exercise the full real loop (build -> bench -> correctness -> significance)
     # with ~1 GB instead of ~35 GB: AUTOGGML_BENCHMARKS=smoke uv run prepare.py
+    dsv4_entry = load_catalog()["deepseek-v4-flash"]
+    dsv4_paths = resolve_entry_files(
+        dsv4_entry,
+        Path(os.environ.get("AUTOGGML_MODEL_ROOT", str(MODELS_DIR))),
+    )
     manifest = {
         "smoke": {
             "target": {
@@ -180,6 +187,14 @@ def download_models() -> None:
                 "local": "gemma-4-26B-A4B-it-DFlash.gguf",
             },
         },
+        "deepseek-v4-flash": {
+            "target": {
+                "path": str(dsv4_paths[0]),
+                "files": [str(path) for path in dsv4_paths],
+                "quant": dsv4_entry.quant,
+                "expected_size_bytes": dsv4_entry.expected_size_bytes,
+            },
+        },
     }
 
     manifest_path = MODELS_DIR / "manifest.json"
@@ -192,6 +207,19 @@ def download_models() -> None:
             print(f"  SKIPPED '{name}': no selected benchmark references it")
             continue
         for role, info in entries.items():
+            if info.get("path"):
+                paths = [Path(value) for value in info.get("files", [info["path"]])]
+                if not all(path.is_file() for path in paths):
+                    raise FileNotFoundError(
+                        f"external model '{name}' is missing: "
+                        + ", ".join(str(path) for path in paths if not path.is_file())
+                    )
+                actual_size = sum(path.stat().st_size for path in paths)
+                expected_size = info.get("expected_size_bytes")
+                if expected_size is not None and actual_size != expected_size:
+                    raise ValueError(f"external model '{name}' size mismatch: {actual_size} != {expected_size}")
+                print(f"  Using external {role}: {info['path']}")
+                continue
             local_path = MODELS_DIR / info["local"]
             if local_path.exists():
                 print(f"  {info['local']} already exists")
@@ -242,17 +270,66 @@ def build_lucebox() -> None:
         "-B", str(BUILD_DIR),
         "-DCMAKE_BUILD_TYPE=Release",
         "-DLLAMA_BUILD_TESTS=OFF",
-        "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
-        "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
-    ] + backend_cmake_flags(backend)
+    ]
+    if shutil.which("ccache"):
+        cmake_args += [
+            "-DCMAKE_C_COMPILER_LAUNCHER=ccache",
+            "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
+        ]
+    cmake_args += backend_cmake_flags(backend)
     print(f"Building for backend: {backend}")
 
     run(cmake_args)
-    run(["cmake", "--build", str(BUILD_DIR), "-j", "--target", "llama-bench", "llama-server", "llama-cli"])
+    jobs = min(4, max(1, int(os.environ.get("AUTOGGML_BUILD_JOBS", "4"))))
+    run(["cmake", "--build", str(BUILD_DIR), "-j", str(jobs), "--target", "llama-bench", "llama-server", "llama-cli"])
     print(f"Build complete: {BUILD_DIR} (backend={backend})")
 
 
+def _run_remote_setup(target_name: str, backend: str, provision_tools: bool = False) -> None:
+    from autoggml.remote import SSHWorker
+    from autoggml.targets import TargetConfig
+
+    target = TargetConfig.load(target_name)
+    worker = SSHWorker(target)
+    worker.sync_repo()
+    worker.ensure_remote_uv()
+    root = target.root.rstrip("/")
+    if provision_tools:
+        packages = ["ccache"]
+        if backend == "vulkan":
+            packages += ["vulkan-tools", "glslc", "libvulkan-dev"]
+        worker.run(["sudo", "-n", "apt-get", "update"], lease=True, timeout=1800)
+        worker.run(
+            ["sudo", "-n", "apt-get", "install", "-y", *packages],
+            lease=True,
+            timeout=1800,
+        )
+    backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP", "vulkan": "GGML_VULKAN"}[backend]
+    env_args = [
+        "env", "AUTOGGML_REMOTE_WORKER=1", f"{backend_var}=ON",
+        f"AUTOGGML_MODEL_ROOT={target.model_root or root + '/work/models'}",
+        f"AUTOGGML_BUILD_JOBS={target.build_jobs}",
+        f"AUTOGGML_BUILD_SUBDIR=build-{backend}",
+        "AUTOGGML_BENCHMARKS=deepseek-v4-flash",
+    ]
+    worker.run(
+        [*env_args, f"{root}/.tools/uv", "run", "python", "-m", "autoggml.prepare"],
+        lease=True,
+        timeout=7200,
+    )
+
+
 def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser(description="Prepare local or remote autoggml worker")
+    parser.add_argument("--target")
+    parser.add_argument("--backend", choices=["cuda", "hip", "vulkan"], default="hip")
+    parser.add_argument("--provision-tools", action="store_true", help="Install missing ccache/Vulkan packages remotely")
+    args = parser.parse_args()
+    if args.target and os.environ.get("AUTOGGML_REMOTE_WORKER") != "1":
+        _run_remote_setup(args.target, args.backend, args.provision_tools)
+        print(f"Remote setup complete: {args.target} ({args.backend})")
+        return
     print("autoggml v2 setup")
     print("=================")
     clone_lucebox()

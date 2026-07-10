@@ -7,6 +7,7 @@ The harness calls apply_experiment() before building and benchmarking.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -66,8 +67,12 @@ def apply_experiment() -> dict[str, any]:
         # apply_lto(Lucebox_DIR)
         # apply_patch("my_idea.patch")   # git-apply a file from patches/
     """
+    patch_name = os.environ.get("AUTOGGML_EXPERIMENT_PATCH")
+    if patch_name:
+        apply_patch(patch_name)
     return {
-        "description": "baseline (no changes)",
+        "description": f"patch: {patch_name}" if patch_name else "baseline (no changes)",
+        "patch": patch_name,
         "cmake_flags": get_cmake_flags(),
         "runtime_flags": get_runtime_flags(),
     }
@@ -83,5 +88,5 @@ def reset_lucebox() -> None:
         raise FileNotFoundError("Run prepare.py first")
     commit = pin_file.read_text().strip()
     subprocess.run(["git", "reset", "--hard", commit], cwd=Lucebox_DIR, check=True, text=True)
-    subprocess.run(["git", "clean", "-fd", "-e", "build"], cwd=Lucebox_DIR, check=True, text=True)
+    subprocess.run(["git", "clean", "-fd", "-e", "build", "-e", "build-*"], cwd=Lucebox_DIR, check=True, text=True)
     print(f"Reset lucebox-ggml to {commit}")

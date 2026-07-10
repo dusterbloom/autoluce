@@ -1,0 +1,3 @@
+Efficient local inference depends on correctness as well as speed. A runtime optimization must preserve the model's probability distribution, expert-routing behavior, and long-context state transitions. Small deterministic prompts catch obvious failures, while a frozen KL-divergence reference detects numerical drift that may not change a short greedy completion.
+
+Unified-memory systems expose a shared physical memory pool to the CPU and integrated GPU. Measurements must distinguish process resident memory from GPU-visible mappings, account for available host memory, and reject runs affected by paging, eviction, thermal throttling, or unrelated accelerator activity.

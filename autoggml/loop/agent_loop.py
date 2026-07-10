@@ -32,6 +32,57 @@ from autoggml.bench.harness import run_harness
 from autoggml import ROOT
 
 
+def _run_remote(args) -> int:
+    from autoggml.contracts import ResearchContract
+    from autoggml.freeze import contract_namespace
+    from autoggml.remote import SSHWorker
+    from autoggml.targets import TargetConfig
+
+    if not args.contract:
+        raise ValueError("remote run requires --contract")
+    contract = ResearchContract.read(args.contract)
+    if args.backend not in contract.backends:
+        raise ValueError(f"backend '{args.backend}' is not allowed by the research contract")
+    target = TargetConfig.load(args.target)
+    namespace = contract_namespace(contract, args.backend)
+    root = target.root.rstrip("/")
+    state = f"{root}/work/state/{namespace}"
+    backend_var = {"cuda": "GGML_CUDA", "hip": "GGML_HIP", "vulkan": "GGML_VULKAN"}[args.backend]
+    remote_args = ["--significance", str(args.significance)]
+    if args.baseline:
+        remote_args.append("--baseline")
+    if args.profile:
+        remote_args.append("--profile")
+    worker = SSHWorker(target)
+    worker.ensure_remote_uv()
+    summary = worker.run_harness(remote_args, env={
+        backend_var: "ON",
+        "AUTOGGML_MODEL_ROOT": target.model_root or f"{root}/work/models",
+        "AUTOGGML_BUILD_SUBDIR": f"build-{args.backend}",
+        "AUTOGGML_STATE_DIR": state,
+        "AUTOGGML_GOLDEN_DIR": f"{state}/golden",
+        "AUTOGGML_RESULT_BUNDLE": f"{root}/results/runs/{namespace}",
+        "AUTOGGML_BENCHMARKS": contract.model,
+        "AUTOGGML_EXPERIMENT_PATCH": args.experiment_patch or "",
+    })
+
+    frontier = LockedFrontier(ROOT / "results" / "frontiers" / namespace, k=args.significance)
+    candidate = args.experiment_patch or git_current_commit()
+    description = summary.get("experiment", {}).get("description", candidate)
+    if summary.get("correctness") != "pass" or summary.get("score", 0.0) <= 0:
+        frontier.log_result(candidate, summary, "discard", description)
+        print(f"Remote candidate rejected: score={summary.get('score', 0.0):.4f}, correctness={summary.get('correctness')}")
+        return 1
+    if args.baseline:
+        frontier.set_best(candidate, summary, f"baseline: {description}")
+        print(f"Remote baseline recorded: {summary['score']:.4f} +/- {summary.get('score_stddev', 0.0):.4f}")
+        return 0
+    claim = frontier.claim_best_if_significant(candidate, summary, description)
+    verdict = "kept" if claim.claimed else "discarded"
+    print(f"Remote candidate {verdict}: {summary['score']:.4f} +/- {summary.get('score_stddev', 0.0):.4f}")
+    return 0
+
+
 def git_current_commit() -> str:
     result = subprocess.run(
         ["git", "rev-parse", "--short", "HEAD"],
@@ -96,7 +147,15 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="Do not modify git state")
     parser.add_argument("--simulate", action="store_true", help="Plumbing test; no git ops or best-score writes")
     parser.add_argument("--significance", type=float, default=1.0, help="Keep only if improvement exceeds k*combined_sigma")
+    parser.add_argument("--target", help="Run on a configured SSH target")
+    parser.add_argument("--contract", type=Path)
+    parser.add_argument("--backend", choices=["cuda", "hip", "vulkan"], default="hip")
+    parser.add_argument("--experiment-patch", help="Patch filename under patches/ to apply remotely")
+    parser.add_argument("--profile", action="store_true")
     args = parser.parse_args()
+
+    if args.target:
+        sys.exit(_run_remote(args))
 
     # Frontier root defaults to this checkout so a lone worker just works; override
     # via AUTOGGML_FRONTIER so workers in separate worktrees funnel into ONE shared

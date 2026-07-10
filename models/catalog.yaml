@@ -1,0 +1,11 @@
+schema_version: 1
+models:
+  deepseek-v4-flash:
+    quant: IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix
+    path_env: AUTOGGML_DEEPSEEK_V4_MODEL
+    expected_size_bytes: 86720111488
+    files:
+      - DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf
+    metadata:
+      architecture: deepseek4
+      parameters: 284330000000

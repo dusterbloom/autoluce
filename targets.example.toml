@@ -1,0 +1,7 @@
+[targets.strix-halo]
+transport = "ssh"
+host = "user@hostname"
+root = "/home/user/autoggml-strix"
+model_root = "/opt/models"
+lock_path = "/tmp/autoggml-gfx1151.lock"
+build_jobs = 4

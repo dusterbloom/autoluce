@@ -1,0 +1,12 @@
+{
+  "name": "DeepSeek V4 fused Sinkhorn normalization",
+  "source_url": "https://github.com/ggml-org/llama.cpp/pull/25421",
+  "source_commit": "77bccaa8422945d6e33a3bafa9dfb3296e2d62f1",
+  "base_commit_at_capture": "bec4772f6a2527d371557b5d2032641e5ff7619c",
+  "captured_at_utc": "2026-07-10T00:00:00Z",
+  "patch_file": "deepseek-v4-sinkhorn-77bccaa.patch",
+  "patch_sha256": "3c6017e45ac5a55acb5c17ba139702a2969a8e1bfd4ec96f0c214ce09a0938bf",
+  "target_luce_commit": "8c146a8",
+  "apply_check": "pass",
+  "upstream_state_at_capture": "open-draft"
+}
