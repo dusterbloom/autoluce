@@ -4,8 +4,8 @@
 #   curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoggml/main/install.sh | bash
 #
 # Clones the repo, ensures `uv` is installed, syncs dependencies, and prints next steps.
-# Override the source with AUTOGGML_REPO_URL / AUTOGGML_DEST. A GPU toolkit is required
-# at build time (auto-detected); without one, re-run setup with AUTOGGML_ALLOW_CPU=1.
+# Override the source with AUTOGGML_REPO_URL / AUTOGGML_DEST. Lucebox product builds
+# currently require a CUDA or HIP toolkit.
 set -euo pipefail
 
 REPO_URL="${AUTOGGML_REPO_URL:-https://github.com/dusterbloom/autoggml.git}"
@@ -42,10 +42,9 @@ uv sync
 cat <<'NEXT'
 
 ==> installed. Next:
-    AUTOGGML_BENCHMARKS=smoke uv run autoggml setup     # ~1 GB model + build (first)
-    uv run autoggml baseline                            # first real measurement
-    uv run autoggml ideas                               # see the idea queue
-    uv run autoggml help                                # all commands
-
-    (No GPU toolkit? set AUTOGGML_ALLOW_CPU=1 for a plumbing build.)
+    uv run autoggml source status            # inspect the pinned Lucebox contract
+    uv run autoggml source check --remote    # verify the Hub pin is current
+    uv run autoggml reproduce --simulate     # test the control plane without a GPU
+    uv run autoggml setup                    # clone/build product (CUDA or HIP)
+    uv run autoggml help                     # all commands
 NEXT

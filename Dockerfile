@@ -16,7 +16,7 @@ ENV TZ=UTC
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
-# Build dependencies for lucebox-ggml / llama.cpp.
+# Build dependencies for Lucebox Hub and its vendored GGML.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \

@@ -1,10 +1,13 @@
 # autoggml v2
 
-Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://github.com/Luce-Org/lucebox-ggml).
+Autonomous research harness for improving
+[`Luce-Org/lucebox-hub`](https://github.com/Luce-Org/lucebox-hub) and its vendored GGML.
 
 ## What we are optimizing
 
-`lucebox-ggml` is a fork of `llama.cpp` that adds DFlash speculative decoding. The goal of this autoresearch is to discover **verifiable, reproducible improvements** to `lucebox-ggml`:
+Lucebox Hub owns the product runtime and vendors the GGML subset under
+`server/deps/llama.cpp`. The goal is to discover **verifiable, reproducible
+improvements** to that exact product source:
 
 - Higher decode throughput (tok/s)
 - Lower time-to-first-token (TTFT) for prefill
@@ -23,13 +26,16 @@ Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://gith
    - `autoggml/prepare.py` — setup. Do not modify.
    - `autoggml/bench/harness.py` — benchmark harness. Do not modify.
    - `autoggml/loop/agent_loop.py` — keep/revert loop. Do not modify.
-   - `autoggml/loop/patches.py` — helpers for common lucebox-ggml modifications. Do not modify; call from `experiment.py`.
+   - `sources/lucebox.toml` — authoritative source pin, layout, backends, and capabilities. Do not modify during an experiment.
+   - `autoggml/source_layout.py` — product/vendor ownership boundary. Do not modify.
+   - `autoggml/loop/patches.py` — legacy patch helpers. Do not modify; call from `experiment.py` only when compatible with the declared scope.
    - `autoggml/reproduce.py` — reproducibility suite. Do not modify.
    - `autoggml/report.py` — result aggregation. Do not modify.
    - `experiment.py` — this is what you edit.
 4. **Run setup**: `uv run autoggml setup` (one-time; can take 10–30 minutes depending on hardware).
-5. **Verify baseline**: `uv run autoggml baseline` should print a score.
-6. **Generate golden outputs** after models download: `uv run scripts/generate_golden.py`.
+5. **Verify source ownership**: `uv run autoggml source status`.
+6. **Check runtime capability** before live work. The vendored migration currently
+   fails live benchmark/quality commands closed until the `dflash_server` adapter lands.
 7. **Initialize `results.tsv`** with just the header row (or let the loop create it).
 
 ## Experimentation loop
@@ -44,7 +50,9 @@ Autonomous research harness for improving [`Luce-Org/lucebox-ggml`](https://gith
 - Modify anything under `autoggml/` (the harness, loop, patches, reproduce, report machinery).
 - Install new packages beyond `pyproject.toml`.
 - Change the metric or correctness check.
-- Commit changes inside the `lucebox-ggml/` submodule.
+- Modify autoggml verifier, source manifest, benchmark, golden, contract, or model files.
+- Treat `server/deps/llama.cpp` as a submodule. It is a normal vendored tree in the
+  Lucebox product commit.
 
 **The goal is simple: get the highest `score`.** The harness prints:
 
@@ -64,6 +72,18 @@ correctness failure, a KL-gate failure, or any constraint violation from the
 benchmark's `"objective"` block (see README "Metric").
 
 **Correctness is a hard constraint.** If `correctness` is `FAIL`, the experiment is discarded regardless of throughput.
+
+## Source and patch scopes
+
+- The checkout is `work/lucebox`; its pinned commit is `work/lucebox.pin`.
+- Product code and product CMake changes are relative to the checkout, for example
+  `server/src/deepseek4/...` and `server/CMakeLists.txt`.
+- GGML changes are relative to the same checkout under
+  `server/deps/llama.cpp/ggml/...`.
+- `AUTOGGML_PATCH_SCOPE=product` is the default. Use `vendor` only for a patch whose
+  paths are relative to `server/deps/llama.cpp`.
+- CUDA and HIP are the current product backends. Do not claim Vulkan compatibility
+  based on the historical standalone GGML fork.
 
 **Simplicity criterion**: All else equal, simpler is better. A tiny throughput gain that adds hundreds of lines of fragile patch code is not worth it.
 
@@ -114,7 +134,7 @@ Start with low-risk, high-leverage changes and measure after each one.
 
 ### 1. Build / compile flags
 - Try different `CMAKE_BUILD_TYPE` values.
-- Enable/disable specific backends (`GGML_CUDA`, `GGML_METAL`, `GGML_VULKAN`).
+- Compare the declared product backends (`DFLASH27B_GPU_BACKEND=cuda|hip`).
 - Try architecture-specific flags (`-march=native`, `-ffast-math`).
 - Enable link-time optimization (`-flto`).
 
@@ -172,7 +192,8 @@ CI builds this container on every push. Results obtained inside the container ar
 ## Tips
 
 - Make one change at a time.
-- Read the `lucebox-ggml` source before patching (`common/speculative.cpp`, `src/models/dflash.cpp`).
+- Read the pinned Lucebox product before patching, especially `server/src/deepseek4`,
+  `server/src`, and `server/deps/llama.cpp/ggml`.
 - Use `patches/` for non-trivial changes; keep `experiment.py` as the orchestrator.
 - If a change only helps on one benchmark, consider making it conditional.
 - Track wall-clock time; some optimizations trade build time for runtime.

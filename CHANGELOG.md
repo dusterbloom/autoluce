@@ -8,6 +8,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Manifest-driven Lucebox ownership**: `sources/lucebox.toml` pins the complete
+  `Luce-Org/lucebox-hub` product and declares its checkout layout, product CMake root,
+  supported CUDA/HIP backends, build targets, runtime, capabilities, and expected GGML
+  vendor provenance. `autoggml source status` reports the contract and `autoggml source
+  check --remote` detects upstream movement; scheduled CI runs the drift check weekly.
+- **Vendored-source guardrails**: setup, reset, patch application, agent worktrees, and
+  agent patch allowlists now share `SourceLayout`. Product patches are Hub-relative;
+  vendor patches use the explicit `AUTOGGML_PATCH_SCOPE=vendor` boundary. Setup validates
+  `server/deps/llama.cpp/VENDOR.md` before building the real `dflash_server`,
+  `test_dflash`, and `test_deepseek4_unit` product targets, and initializes the declared
+  Block-Sparse Attention submodule so CUDA does not silently lose BSA.
 - **Cooperative agent challenges** (`autoggml agent ...`): agents register `implement`,
   `review`, or `recombine` capabilities; choose bounded task packets; claim expiring
   leases; and work from a challenge-pinned commit in isolated Git worktrees. Parallel
@@ -24,15 +35,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `leave`, `worker`, and `coordinator` provide an authenticated typed HTTP/file-backed
   queue. Candidate patches are content-addressed, each physical machine receives at
   most one active experiment, and restricted workers run only the existing
-  correctness-gated pipeline under the accelerator lease. CUDA, HIP, and Vulkan retain
+  correctness-gated pipeline under the accelerator lease. CUDA and HIP retain
   separate build directories with compilation capped at four jobs.
 - **Machine-aware DeepSeek V4 / Strix Halo workflow**: `doctor`, `consult`, `freeze`,
   `test-drive`, `onboard`, `verify`, and `profile-report`; stable machine/model
   fingerprints; versioned research contracts; external and sharded GGUF catalog entries;
-  HIP/Vulkan remote execution; UMA memory, fault, swap, GTT/VRAM, temperature, power, and
+  HIP remote execution; UMA memory, fault, swap, GTT/VRAM, temperature, power, and
   clock telemetry; context-conditioned 8K/32K/128K cells; and machine-scoped evidence.
-- **DeepSeek V4 fused Sinkhorn candidate**: vendored, checksummed upstream patch with a
-  backend operator test before full-model A/B verification and rocprof attribution.
+- **DeepSeek V4 fused Sinkhorn reference**: checksummed upstream patch retained as
+  research evidence. It is marked `requires-port-and-reprofile` because it targets the
+  former standalone tree, while current Hub code owns DeepSeek V4 separately and already
+  contains custom fused HC CUDA/HIP device paths.
 - **KL quality oracle** (`kl.py`, `autoggml kl-base <benchmark>`): candidates are checked against frozen reference logits via llama.cpp's built-in `--kl-divergence`; a gate violation (`mean_kld > tau` or `max_kld > 10·tau`, `tau` per benchmark via `objective.kl_tau`, default 0.01) zeroes the score like a correctness failure. The reference is generated **once** from the pinned baseline build and never regenerated, so quality drift cannot compound. Opt-in per benchmark via `"kl_text"`.
 - **Shadow bench** (`shadow.py`, `autoggml shadow proxy|build`): optimize for your own traffic. A stdlib capture proxy in front of your local `llama-server` tees prompts to `~/.autoggml/shadow/prompts.jsonl`; `shadow build` turns the last day's deduplicated prompts into a `shadow` benchmark whose quality gate is KL divergence on those very prompts. Prompt files and the KL reference are gitignored — nothing leaves the machine.
 - Unified `autoggml` CLI (`cli.py`): `uv run autoggml <command>` routes to focused
@@ -69,6 +82,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `pytest` runs in CI.
 
 ### Changed
+- Lucebox Hub's July 2026 vendorization is now the source-of-truth boundary. The old
+  standalone `lucebox-ggml` checkout, root CMake flags, and `llama-bench`/`llama-cli`/
+  `llama-perplexity` execution paths are not treated as product capabilities. Live
+  benchmark and quality commands fail closed until the `dflash_server` HTTP adapter
+  replaces them; simulation remains available for CI and coordination tests.
+- Product backend selection now uses `DFLASH27B_GPU_BACKEND=cuda|hip`. Vulkan remains a
+  useful generic GGML research direction, but it is not advertised as a current
+  Lucebox Hub product backend.
 - Fleet and agent repositories now share one process-safe atomic JSON persistence
   primitive and one stable content-ID helper rather than maintaining parallel locking
   and hashing implementations.
@@ -84,14 +105,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `build_time_s` is measured and reported but never scored: with ccache + a
   preserved build dir it is cache-state-dependent and would make runs
   non-reproducible.
-- `reset_lucebox` preserves `work/lucebox-ggml/build` (`git clean -fd -e build`) so
+- `reset_lucebox` preserves `work/lucebox/build-*` so
   the loop gets incremental rebuilds instead of a full rebuild every run.
 - `.best_score.json` and `results.tsv` persist `score_stddev` (schema widened).
 - Golden generator uses the harness's shared command builder + text extraction.
 
 ### Fixed
 - `agent start` now creates its isolated worktree from the pinned
-  `work/lucebox-ggml` engine checkout rather than the autoggml control repository, so
+  `work/lucebox` product checkout rather than the autoggml control repository, so
   the approved engine paths in submitted patches correspond to the source agents edit.
 - `experiment.py` no longer crashes on `apply_experiment()` (missing patch imports)
   and ships as a neutral no-op baseline.

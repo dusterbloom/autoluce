@@ -1,19 +1,21 @@
 # autoggml v2
 
-Autonomous research harness for **verifiably and reproducibly improving GGML-based inference engines**, starting with [`Luce-Org/lucebox-ggml`](https://github.com/Luce-Org/lucebox-ggml).
+Autonomous research harness for **verifiably and reproducibly improving the
+[Lucebox product](https://github.com/Luce-Org/lucebox-hub) and its vendored GGML**.
 
 ## TL;DR
 
-`autoggml` tests small GGML engine changes, rejects correctness or quality regressions,
-and keeps only statistically meaningful speedups. It supports local CUDA, HIP, and
-Vulkan machines plus leased remote targets such as AMD Strix Halo.
+`autoggml` pins the complete Lucebox Hub product, verifies the provenance of its
+vendored GGML, and tests focused product or vendor changes on CUDA and HIP machines.
+One manifest owns repository, revision, layout, targets, backends, and capabilities.
 
 ```bash
-# Install and run a small local end-to-end experiment.
+# Install, inspect the source contract, and exercise the control plane.
 curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoggml/main/install.sh | bash
 cd autoggml
-AUTOGGML_BENCHMARKS=smoke uv run autoggml setup
-AUTOGGML_BENCHMARKS=smoke uv run autoggml baseline
+uv run autoggml source status
+uv run autoggml source check --remote
+uv run autoggml reproduce --simulate
 
 # Or join an existing team and contribute this machine.
 uv run autoggml join --team "$TEAM_URL" --token "$TEAM_TOKEN" --name my-gpu
@@ -32,17 +34,46 @@ uv run autoggml agent next
 Use `uv run autoggml help` for all commands. On a remotely onboarded Lucebox, the
 installed user launcher allows the shorter `autoggml test-drive` form.
 
+**Migration status:** source checkout, provenance validation, product builds, product
+and vendor patching, agent worktrees, and drift monitoring use the vendored layout.
+Real benchmark and quality commands intentionally fail closed until their old
+`llama-*` implementation is replaced by the Lucebox `dflash_server` HTTP adapter.
+Simulation mode remains available for onboarding and coordination tests.
+
+### Source maintenance
+
+Routine Lucebox updates touch one file: `sources/lucebox.toml`. A scheduled GitHub
+workflow compares its full commit pin with Hub `main` every Monday. Locally:
+
+```bash
+uv run autoggml source check --remote   # exits 3 when Hub moved
+uv run autoggml source status --json    # layout, capabilities, vendor provenance
+```
+
+When Hub moves, review the new product commit, update the manifest pin and any changed
+`VENDOR.md` fields together, then run `autoggml setup` and the test suite. Do not update
+the vendor commit independently of the product commit: Hub's `VENDOR.md` is the
+reconstruction contract. A backend, build target, or runtime change belongs in this
+manifest rather than another hard-coded path map.
+
 ## In plain words
 
 If you run an AI model on your own computer, autoggml is a tireless lab assistant for the engine underneath it. It tries one small change at a time, carefully measures whether the model now answers faster — without getting dumber or using more memory — keeps the changes that genuinely help, and undoes the rest. It can even watch how *you* actually use your model (privately, on your own disk) and tune the engine for your real workload instead of a synthetic benchmark.
 
 ## What this is
 
-`autoggml` is a self-contained experimentation framework. An AI agent (or a human) proposes a change to `lucebox-ggml`, the harness builds the project, runs a fixed benchmark suite, checks correctness, and records whether the change improved the metric.
+`autoggml` is a self-contained experimentation framework. An AI agent or a human
+proposes a change to Lucebox Hub or its vendored GGML; the harness builds the product,
+runs a fixed benchmark suite, checks correctness, and records whether the change
+improved the metric.
 
 The focus of v2 is **verifiability and reproducibility**:
 
-- `autoggml/prepare.py` clones `lucebox-ggml` and pins the current upstream `HEAD` in `work/lucebox-ggml.pin`; every experiment resets to that pin.
+- `sources/lucebox.toml` pins Lucebox Hub and records the expected vendor provenance;
+  `autoggml/source_layout.py` is the single path and capability authority.
+- Setup checks out `work/lucebox`, writes `work/lucebox.pin`, validates
+  `server/deps/llama.cpp/VENDOR.md`, initializes the declared Block-Sparse Attention
+  submodule only for CUDA, and builds only declared product targets.
 - Benchmarks use fixed prompts, seeds, and model configurations.
 - The environment (OS, compiler, GPU, dependency versions) is recorded for every run.
 - Correctness is checked two ways: generated outputs are compared against golden outputs, and (per benchmark, opt-in) KL divergence against frozen baseline logits catches quality regressions that exact-match can't (`autoggml/bench/kl.py`).
@@ -68,6 +99,8 @@ autoggml/         The engine — read-only during experiments, organized by ques
 │  ├── agent_*.py   "Research together"  challenges, task packets, leases, review, recombination, credit
 │  ├── coordination.py / coordinator_http.py
 │  │                 "Share hardware"     typed fleet queue, immutable candidates, restricted HTTP transport
+│  ├── source_layout.py / source_cli.py
+│  │                 "What is owned?"      product/vendor paths, capabilities, provenance, upstream drift
 │  ├── prepare.py   Setup: clone, build, download models (GPU auto-detected, GGUFs reused)
 │  ├── shadow.py    Shadow bench: benchmark built from your own traffic
 │  ├── report.py    Result aggregation and diff
@@ -85,7 +118,8 @@ Supporting cast: `program.md` (the autonomous agent's instructions), `ROADMAP.md
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dusterbloom/autoggml/main/install.sh | bash
 cd autoggml
-AUTOGGML_BENCHMARKS=smoke uv run autoggml setup     # ~1 GB model + build
+uv run autoggml source status
+uv run autoggml reproduce --simulate
 ```
 
 Clones the repo, installs `uv` + dependencies, and runs setup. Want to audit first?
@@ -132,7 +166,7 @@ one active experiment to each physical machine and copies the patch into immutab
 content-addressed storage:
 
 ```bash
-uv run autoggml submit patches/my-candidate.patch --title "Fuse Sinkhorn" \
+uv run autoggml submit patches/my-candidate.patch --title "My focused optimization" \
   --backend hip --model deepseek-v4-flash
 uv run autoggml status
 ```
@@ -144,9 +178,10 @@ uv run autoggml worker --once
 ```
 
 `worker` accepts typed candidate data only; the coordinator cannot send arbitrary shell
-commands. The worker runs the existing correctness-gated autoggml pipeline under the
-host accelerator lock, uses separate CUDA/HIP/Vulkan build directories, and caps builds
-at four jobs. `uv run autoggml worker --once --simulate` tests the entire queue lifecycle
+commands. The worker runs the correctness-gated pipeline under the host accelerator
+lock, uses separate CUDA/HIP build directories, and caps builds at four jobs. Live work
+is fail-closed while the product HTTP adapter is pending. `uv run autoggml worker
+--once --simulate` tests the entire queue lifecycle
 without building or using an accelerator. Use `uv run autoggml pause` before taking a
 personal machine offline, `uv run autoggml resume` when it is available again, and
 `uv run autoggml leave` to remove it from the team.
@@ -163,7 +198,7 @@ patches plus structured findings. The existing candidate gate and hardware queue
 the sole path to accelerator execution.
 
 Run `uv run autoggml setup` once before creating or starting a challenge. Agent
-worktrees are created from the pinned `work/lucebox-ggml` engine checkout, not from the
+worktrees are created from the pinned `work/lucebox` product checkout, not from the
 autoggml control repository. Managed workers may override the checkout and revision with
 `AUTOGGML_AGENT_ENGINE_ROOT` and `AUTOGGML_AGENT_BASE_COMMIT`.
 
@@ -172,12 +207,12 @@ produce the same patch repeatedly:
 
 ```bash
 uv run autoggml agent challenge create \
-  --title "Sinkhorn dispatch challenge" \
-  --objective "Reduce batch-one Sinkhorn overhead" \
-  --why "rocprof attributes 29.4% of decode time to tiny operations" \
-  --evidence "capture rp-17" \
+  --title "Expert gather challenge" \
+  --objective "Reduce batch-one routed expert overhead" \
+  --why "A current product trace identifies expert gather as a bottleneck" \
+  --evidence "current Lucebox product capture" \
   --model deepseek-v4-flash --backend hip --slots 2 \
-  --approach "kernel fusion" \
+  --approach "gather fusion" \
   --approach "persistent buffer reuse"
 ```
 
@@ -298,20 +333,16 @@ uv run autoggml consult --target strix-halo --model deepseek-v4-flash \
 # Each heavy command uses flock -n, refuses <12 GiB available RAM or foreign
 # accelerator/build activity, and caps compilation at four jobs.
 uv run autoggml setup --target strix-halo --backend hip
-uv run autoggml freeze --target strix-halo \
-  --contract research/contracts/strix-halo-deepseek-v4.yaml --backend hip
-uv run autoggml run --baseline --target strix-halo \
-  --contract research/contracts/strix-halo-deepseek-v4.yaml --backend hip
-uv run autoggml run --target strix-halo \
-  --contract research/contracts/strix-halo-deepseek-v4.yaml --backend hip \
-  --experiment-patch deepseek-v4-sinkhorn-77bccaa.patch --profile
-uv run autoggml verify --target strix-halo \
-  --contract research/contracts/strix-halo-deepseek-v4.yaml --backend hip \
-  --experiment-patch deepseek-v4-sinkhorn-77bccaa.patch --rounds 3
+uv run autoggml source status
+# Live freeze/run/verify resume after the dflash_server HTTP adapter lands.
 ```
 
-Use `setup --provision-tools` during an exclusive idle window to install `ccache`
-and, for a Vulkan target, `vulkan-tools`, `glslc`, and the Vulkan development headers.
+Use `setup --provision-tools` during an exclusive idle window to install `ccache`.
+
+The archived `deepseek-v4-sinkhorn-77bccaa.patch` is research evidence from the
+former standalone tree, not a ready product candidate. Current Lucebox Hub has custom
+fused HC CUDA/HIP device paths in `server/src/deepseek4`; re-profile those paths before
+proposing a product-native Sinkhorn change.
 
 `doctor` reports observations, inferences, unknowns, and current contention separately.
 Baseline metrics, quality references, profiler captures, and frontiers are namespaced by
@@ -322,7 +353,10 @@ or stable machine configuration therefore requires a fresh contract and baseline
 
 You need [uv](https://docs.astral.sh/uv/) installed. It handles Python, the virtual environment, and dependencies in one step. Real builds also require `cmake`, `ccache`, and `ninja-build` (the harness builds with the Ninja generator + ccache launchers for fast incremental rebuilds).
 
-**GPU is auto-detected.** Setup probes for `nvcc` / `hipcc` / `vulkaninfo` / Metal and builds for the best available backend — no `GGML_CUDA=ON` needed. A CPU-only box is refused (its numbers are unrelated to the GPU-bound roadmap); override with `AUTOGGML_ALLOW_CPU=1` for a plumbing build. **Existing GGUFs are reused** — setup scans `~/.cache/huggingface/hub`, LM Studio, `~/models`, etc. before downloading, so you don't re-pull a model you already have. Extend the search path with `AUTOGGML_MODELS=/path/a:/path/b`.
+**GPU is auto-detected.** The current Lucebox product build supports CUDA and HIP.
+Setup rejects Vulkan, Metal, and CPU selections before CMake rather than falling back to
+a different source layout. **Existing GGUFs are reused** from the Hugging Face cache,
+LM Studio, `~/models`, and `AUTOGGML_MODELS` paths before downloading.
 
 ```bash
 # 1. Create the virtual environment and install dependencies
@@ -331,31 +365,23 @@ uv sync
 # 2. No-GPU plumbing smoke (fake measurements; never writes best-score or git state):
 uv run pytest -q && uv run autoggml baseline --simulate
 
-# 3. One-time setup: clone lucebox-ggml, download models, build
-#    (first build after switching to the Ninja generator requires a clean build dir)
-rm -rf work/lucebox-ggml/build
+# 3. One-time setup: clone Lucebox Hub, validate its vendor record, and build
 uv run autoggml setup
 
-# 4. Run the baseline benchmark (real mode; raises if unprepared)
-uv run autoggml baseline
-
-# 5. Run with the current experiment
-uv run autoggml run
+# 4. Confirm the checked-out product/vendor contract
+uv run autoggml source status
 ```
 
 `uv` creates and manages `.venv/` automatically. Do not create your own virtualenv; `uv run` always uses the project-managed one.
 
-### Fast path: first real result in ~10 minutes
+### Live adapter boundary
 
-To exercise the full real loop (build → bench → correctness → significance) without the ~35 GB model download, use the tiny smoke model — it downloads only the benchmark(s) you select:
-
-```bash
-AUTOGGML_BENCHMARKS=smoke uv run autoggml setup                       # ~1 GB model + build
-AUTOGGML_BENCHMARKS=smoke uv run scripts/generate_golden.py --benchmark smoke
-AUTOGGML_BENCHMARKS=smoke uv run autoggml baseline            # first real measurement
-```
-
-Setup only downloads models referenced by the selected benchmarks, so the orphan `gemma4-26b-a4b` (no benchmark yet) is skipped, and `AUTOGGML_BENCHMARKS=smoke` skips the 27B. Swap the env var back to `qwen36-27b` for the real DFlash benchmark.
+The previous tiny-model fast path depended on standalone `llama-bench`, `llama-cli`,
+and `llama-perplexity`. Those tools are not vendored by Lucebox Hub. `baseline`, `run`,
+`freeze`, `verify`, live `worker`, KL generation, and live `test-drive` therefore raise
+an explicit capability error today. Do not bypass that guard with binaries from a
+different checkout: the next implementation must drive the product's `dflash_server`
+HTTP API and product tests.
 
 ### Deterministic container
 
@@ -372,7 +398,10 @@ docker run --rm -it -v $(pwd)/work:/app/work autoggml
 2. *(Optional)* `uv run autoggml propose` asks an OpenAI-compatible LLM for the next experiment given the ranked ideas + current best — see [LLM ideation](#llm-ideation-optional). Disabled unless `OPENAI_BASE_URL` is set.
 3. The agent edits `experiment.py` (or calls helpers in `autoggml/loop/patches.py`) to implement one idea.
 4. `git commit` the change.
-5. `uv run autoggml run` builds `lucebox-ggml` with the experiment applied, runs benchmarks, checks correctness, and either keeps the commit or reverts it. Every shared-state write goes through the file-locked frontier (`concurrency.LockedFrontier`), so workers in parallel can't race.
+5. `uv run autoggml run` builds Lucebox Hub with the experiment applied, runs
+   benchmarks, checks correctness, and either keeps the commit or reverts it. This live
+   step remains disabled until the product runtime adapter lands. Every shared-state
+   write goes through the file-locked frontier (`concurrency.LockedFrontier`).
 6. Results are appended to `results.tsv`; the best score **and its stddev** are stored in `.best_score.json`.
 7. The commit is kept only if the improvement is **significant** (`--significance`, default `k=1.0`): the score must beat the best by more than `k` times the combined stddev. Otherwise the working tree resets to the previous best.
 
@@ -438,6 +467,9 @@ send; a generated benchmark then scores every candidate change on those prompts,
 divergence as the quality gate — so the optimizer speeds up *your* usage and can't trade
 away quality on it.
 
+Capture and benchmark construction remain available, but KL scoring and optimization
+are blocked by the same product runtime adapter described above.
+
 1. Capture: `uv run autoggml shadow proxy --port 8091 --upstream http://127.0.0.1:8080`, then point your client at `:8091` and use the model normally.
 2. Build the benchmark: `uv run autoggml shadow build`, then `uv run autoggml kl-base shadow` (freezes the quality reference).
 3. Optimize against it: `AUTOGGML_BENCHMARKS=shadow uv run autoggml run`
@@ -454,7 +486,8 @@ score = decode_tok_s   subject to the benchmark's "objective" constraints
 
 - Higher is better; a constraint violation zeroes the score exactly like a correctness failure.
 - Constraints live in each benchmark JSON, e.g. `{"objective": {"maximize": "decode_tok_s", "constraints": {"peak_mem_GiB": {"max": 22.0}, "prefill_tok_s": {"min_frac_of_baseline": 0.95}}}}`. Each bound must hold with a `k·σ` significance margin (`objective.check_constraints`); relative bounds compare against the baseline metrics persisted by `autoggml baseline` (`work/baseline_metrics.json`).
-- Decode and prefill throughput (and their stddev) are parsed from `llama-bench`.
+- The legacy parser consumes `llama-bench`; it is unreachable for the vendored product.
+  The product adapter must consume `dflash_server` HTTP measurements instead.
 - `peak_mem_GiB` is measured via `/usr/bin/time -v` (a missing profiler/source raises — no silent fallback).
 - `acceptance_rate` is a logged diagnostic (not scored): speculative runs that don't report it raise; non-speculative runs simply omit it.
 - `build_time_s` is measured and reported but **not** scored: with ccache + a preserved build dir it is cache-state-dependent, so scoring it would make runs non-reproducible.
