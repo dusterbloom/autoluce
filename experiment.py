@@ -8,6 +8,7 @@ The harness calls apply_experiment() before building and benchmarking.
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 from pathlib import Path
 
@@ -44,19 +45,37 @@ def get_runtime_flags() -> dict[str, str]:
     }
 
 
+def get_runtime_env() -> dict[str, str]:
+    """Return product-native DFLASH_* overrides for the managed server only."""
+    raw = os.environ.get("AUTOLUCE_RUNTIME_ENV_JSON", "{}")
+    values = json.loads(raw)
+    if not isinstance(values, dict):
+        raise ValueError("AUTOLUCE_RUNTIME_ENV_JSON must contain a JSON object")
+    return values
+
+
 def apply_patch(patch_name: str, scope: str | None = None) -> None:
     """Apply a product- or vendor-relative patch to the Lucebox checkout."""
     patch_path = PATCHES_DIR / patch_name
     if not patch_path.exists():
         raise FileNotFoundError(f"Patch not found: {patch_path}")
     scope = scope or os.environ.get("AUTOLUCE_PATCH_SCOPE", "product")
-    patch_root = source_layout().patch_root(scope)
+    patch_root, directory = source_layout().patch_application(scope)
+    command = ["git", "apply"]
+    if directory is not None:
+        command.append(f"--directory={directory}")
+    command.append(str(patch_path))
     subprocess.run(
-        ["git", "apply", str(patch_path)],
+        command,
         cwd=patch_root,
         check=True,
         text=True,
     )
+    reverse_check = ["git", "apply", "--reverse", "--check"]
+    if directory is not None:
+        reverse_check.append(f"--directory={directory}")
+    reverse_check.append(str(patch_path))
+    subprocess.run(reverse_check, cwd=patch_root, check=True, text=True)
     print(f"Applied patch: {patch_name}")
 
 
@@ -79,6 +98,7 @@ def apply_experiment() -> dict[str, any]:
         "patch_scope": os.environ.get("AUTOLUCE_PATCH_SCOPE", "product"),
         "cmake_flags": get_cmake_flags(),
         "runtime_flags": get_runtime_flags(),
+        "runtime_env": get_runtime_env(),
     }
 
 

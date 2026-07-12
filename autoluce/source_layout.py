@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import tomllib
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -43,6 +44,7 @@ class SourceManifest:
     vendor_subdir: str
     vendor_manifest_subpath: str
     supported_backends: list[str]
+    vendor_backends: list[str]
     build_targets: list[str]
     submodules_by_backend: dict[str, list[str]]
     runtime: str
@@ -62,12 +64,19 @@ class SourceManifest:
             raise ValueError("source manifest track must name a branch ref")
         if len(set(manifest.supported_backends)) != len(manifest.supported_backends):
             raise ValueError("source manifest backends must be unique")
+        if len(set(manifest.vendor_backends)) != len(manifest.vendor_backends):
+            raise ValueError("source manifest vendor backends must be unique")
         if set(manifest.submodules_by_backend) - set(manifest.supported_backends):
             raise ValueError("source manifest submodule backends must be supported")
         submodules = [path for paths in manifest.submodules_by_backend.values() for path in paths]
         if any(Path(path).is_absolute() or ".." in Path(path).parts for path in submodules):
             raise ValueError("source manifest submodules must be checkout-relative")
         return manifest
+
+    @property
+    def product_backends(self) -> list[str]:
+        """Backends exposed by the Lucebox product build."""
+        return list(self.supported_backends)
 
 
 @dataclass(frozen=True)
@@ -83,6 +92,17 @@ class SourceDrift:
     pinned: str
     upstream: str
     changed: bool
+
+
+@dataclass(frozen=True)
+class SourceEvidence:
+    """Content identity for the exact product, vendor, and executable under test."""
+
+    product_revision: str
+    product_digest: str
+    vendor_digest: str
+    binary_sha256: str | None
+    dirty_paths: list[str]
 
 
 def parse_vendor_manifest(path: Path) -> VendorProvenance:
@@ -171,6 +191,14 @@ class SourceLayout:
             return self.vendor_root
         raise ValueError("patch scope must be 'product' or 'vendor'")
 
+    def patch_application(self, scope: str) -> tuple[Path, str | None]:
+        """Return the Git worktree and optional relative prefix for a patch scope."""
+        if scope == "product":
+            return self.checkout, None
+        if scope == "vendor":
+            return self.checkout, self.manifest.vendor_subdir
+        raise ValueError("patch scope must be 'product' or 'vendor'")
+
     def cmake_backend_flags(self, backend: str) -> list[str]:
         if backend not in self.manifest.supported_backends:
             raise ValueError(
@@ -215,6 +243,65 @@ class SourceLayout:
             missing = "VENDOR.md" if not self.vendor_manifest_path.is_file() else self.manifest.layout
             raise ValueError(f"source checkout does not match {self.manifest.layout}: missing or invalid {missing}")
         return self.validate_vendor_provenance()
+
+    def evidence(self, binary: Path | None = None) -> SourceEvidence:
+        """Capture immutable identities without mutating the checkout or index."""
+        revision = self._git_text(["rev-parse", "HEAD"])
+        dirty_paths = self._dirty_paths()
+        return SourceEvidence(
+            product_revision=revision,
+            product_digest=self._scope_digest("."),
+            vendor_digest=self._scope_digest(self.manifest.vendor_subdir),
+            binary_sha256=_sha256_file(binary) if binary is not None else None,
+            dirty_paths=dirty_paths,
+        )
+
+    def _git_bytes(self, args: list[str]) -> bytes:
+        process = subprocess.run(
+            ["git", *args], cwd=self.checkout, capture_output=True, check=False,
+        )
+        if process.returncode:
+            message = process.stderr.decode(errors="replace").strip()
+            raise RuntimeError(message or f"git {' '.join(args)} failed")
+        return process.stdout
+
+    def _git_text(self, args: list[str]) -> str:
+        return self._git_bytes(args).decode().strip()
+
+    @staticmethod
+    def _is_build_output(path: str) -> bool:
+        return any(part == "build" or part.startswith("build-") for part in Path(path).parts)
+
+    def _untracked_paths(self, scope: str) -> list[str]:
+        raw = self._git_bytes(["ls-files", "--others", "--exclude-standard", "-z", "--", scope])
+        paths = [value.decode() for value in raw.split(b"\0") if value]
+        return sorted(path for path in paths if not self._is_build_output(path))
+
+    def _dirty_paths(self) -> list[str]:
+        raw = self._git_bytes(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "."])
+        entries = [value.decode(errors="replace") for value in raw.split(b"\0") if value]
+        paths = [entry[3:] for entry in entries if len(entry) > 3]
+        return sorted(path for path in paths if not self._is_build_output(path))
+
+    def _scope_digest(self, scope: str) -> str:
+        base = "HEAD^{tree}" if scope == "." else f"HEAD:{scope}"
+        digest = hashlib.sha256()
+        digest.update(self._git_bytes(["rev-parse", base]))
+        digest.update(self._git_bytes(["diff", "--binary", "--no-ext-diff", "HEAD", "--", scope]))
+        for relative in self._untracked_paths(scope):
+            digest.update(relative.encode())
+            digest.update(b"\0")
+            digest.update((self.checkout / relative).read_bytes())
+            digest.update(b"\0")
+        return digest.hexdigest()
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def check_remote_drift(

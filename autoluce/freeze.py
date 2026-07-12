@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
+import sys
 from pathlib import Path
 
+from autoluce import ROOT
 from autoluce.contracts import ResearchContract
 from autoluce.remote import SSHWorker
 from autoluce.source_layout import SourceLayout
@@ -14,6 +17,14 @@ from autoluce.targets import TargetConfig
 
 def contract_namespace(contract: ResearchContract, backend: str) -> str:
     return f"{contract.machine_fingerprint[:16]}-{contract.model_fingerprint[:16]}-{backend}"
+
+
+def freeze_local(benchmark: str, overwrite: bool = False) -> int:
+    """Freeze a local benchmark through the same product-owned generator."""
+    command = [sys.executable, str(ROOT / "scripts" / "generate_golden.py"), "--benchmark", benchmark]
+    if overwrite:
+        command.append("--overwrite")
+    return subprocess.run(command, check=False).returncode
 
 
 def freeze(target: TargetConfig, contract: ResearchContract, backend: str = "hip") -> dict:
@@ -62,10 +73,18 @@ def freeze(target: TargetConfig, contract: ResearchContract, backend: str = "hip
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Freeze quality references on a remote target")
-    parser.add_argument("--target", required=True)
-    parser.add_argument("--contract", type=Path, required=True)
+    parser.add_argument("--target")
+    parser.add_argument("--contract", type=Path)
+    parser.add_argument("--benchmark", help="freeze a benchmark on this machine")
+    parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--backend", choices=["cuda", "hip"], default="hip")
     args = parser.parse_args()
+    if args.benchmark:
+        if args.target or args.contract:
+            parser.error("--benchmark local mode cannot be combined with --target or --contract")
+        raise SystemExit(freeze_local(args.benchmark, args.overwrite))
+    if not args.target or not args.contract:
+        parser.error("remote mode requires --target and --contract")
     result = freeze(TargetConfig.load(args.target), ResearchContract.read(args.contract), args.backend)
     print(json.dumps(result, indent=2))
 

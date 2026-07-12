@@ -115,6 +115,13 @@ def test_context_regression_reports_matching_depth():
     assert "8192 decode_tok_s" in violations[0]
 
 
+def test_context_regression_can_gate_only_the_contract_objective():
+    cells = [{"context_depth": 8192, "decode_tok_s": 1.0, "prefill_tok_s": 100.0}]
+    baseline = {"context_metrics": [{"context_depth": 8192, "decode_tok_s": 10.0, "prefill_tok_s": 100.0}]}
+
+    assert check_context_regressions(cells, baseline, 0.95, metrics=("prefill_tok_s",)) == []
+
+
 def test_telemetry_summary_reports_headroom_swap_and_faults():
     samples = [
         {"mem_available_bytes": 20 * 1024**3, "swap_used_bytes": 0, "major_faults": 2},

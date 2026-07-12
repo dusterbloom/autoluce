@@ -4,11 +4,35 @@ Synthetic-data tests for the constrained objective (objective.check_constraints)
 
 import pytest
 
-from autoluce.bench.objective import check_constraints
+from autoluce.bench.objective import check_constraints, context_regression_metrics, objective_metric
 
 
 def _spec(constraints: dict) -> dict:
     return {"objective": {"maximize": "decode_tok_s", "constraints": constraints}}
+
+
+def test_objective_metric_defaults_to_decode_and_accepts_prefill():
+    assert objective_metric({}) == "decode_tok_s"
+    assert objective_metric({"objective": {"maximize": "prefill_tok_s"}}) == "prefill_tok_s"
+
+
+def test_objective_metric_rejects_unknown_axes():
+    with pytest.raises(ValueError, match="unsupported objective"):
+        objective_metric({"objective": {"maximize": "vibes"}})
+
+
+def test_context_regression_metrics_guards_prefill_only_for_prefill_objective():
+    spec = {"objective": {"maximize": "prefill_tok_s"}}
+    assert context_regression_metrics(spec) == ("prefill_tok_s",)
+
+
+def test_context_regression_metrics_guards_both_axes_for_decode_objective():
+    spec = {"objective": {"maximize": "decode_tok_s"}}
+    assert context_regression_metrics(spec) == ("decode_tok_s", "prefill_tok_s")
+
+
+def test_context_regression_metrics_guards_both_axes_by_default():
+    assert context_regression_metrics({}) == ("decode_tok_s", "prefill_tok_s")
 
 
 def test_empty_spec_passes():

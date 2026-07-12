@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import math
+import re
 import socket
 import statistics
 import subprocess
@@ -21,6 +23,117 @@ from autoluce.source_layout import SourceLayout
 
 
 MEASUREMENT_SOURCE = "dflash_server.usage.timings"
+PRODUCT_ENV_PATTERN = re.compile(r"(?:DFLASH|GGML_|LUCE_)[A-Z0-9_]*")
+PRODUCT_ENV_ALIASES = {
+    "DFLASH_PREFILL_UBATCH": "DFLASH27B_PREFILL_UBATCH",
+    "DFLASH_CHUNKED_Q_BATCH": "DFLASH27B_CHUNKED_Q_BATCH",
+    "DFLASH_CHUNKED_CHUNK": "DFLASH27B_CHUNKED_CHUNK",
+}
+
+
+def validate_prompt_depth(measured: float, requested: int, tolerance: float) -> None:
+    """Fail closed when a measured prompt does not represent its context cell."""
+    if requested <= 0:
+        raise ValueError("requested prompt depth must be positive")
+    if not 0 <= tolerance < 1:
+        raise ValueError("prompt depth tolerance must be in [0, 1)")
+    lower = requested * (1.0 - tolerance)
+    upper = requested * (1.0 + tolerance)
+    if not lower <= measured <= upper:
+        raise RuntimeError(
+            f"context cell requested {requested} prompt tokens but measured {measured:.0f}; "
+            f"allowed range is {lower:.0f}..{upper:.0f}"
+        )
+
+
+def _resolve_declared_environment(
+    runtime_env: dict[str, Any] | None,
+    base: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Resolve declared overrides (aliases, unset, validation) against a base env.
+
+    This is the sole place aliasing and unset semantics are applied; callers
+    that need the effective product environment must go through
+    `product_environment_overrides`, not this helper directly.
+    """
+    environment = dict(os.environ if base is None else base)
+    # Lucebox still exposes model-prefixed names for these dense prefill
+    # controls. Keep the stable generic controls usable without changing the
+    # product checkout, while preserving the original name as provenance.
+    for alias, product_name in PRODUCT_ENV_ALIASES.items():
+        if alias in environment:
+            environment.setdefault(product_name, environment[alias])
+
+    declared = runtime_env or {}
+    for name, value in declared.items():
+        if PRODUCT_ENV_PATTERN.fullmatch(name) is None:
+            raise ValueError(
+                f"runtime environment override '{name}' must be an uppercase DFLASH*, GGML_*, or LUCE_* variable"
+            )
+        if value is None or value is False:
+            environment.pop(name, None)
+        else:
+            environment[name] = "1" if value is True else str(value)
+
+    # A declared generic value overrides an inherited product-specific value.
+    # A product-specific value declared in the same experiment remains the
+    # unambiguous final authority regardless of JSON key order.
+    for alias, product_name in PRODUCT_ENV_ALIASES.items():
+        if alias not in declared or product_name in declared:
+            continue
+        value = declared[alias]
+        if value is None or value is False:
+            environment.pop(product_name, None)
+        else:
+            environment[product_name] = "1" if value is True else str(value)
+    return environment
+
+
+def product_environment_overrides(
+    runtime_env: dict[str, Any] | None,
+    base: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Resolve effective Lucebox controls for execution and provenance.
+
+    This is the single resolution point for declared overrides: aliases,
+    unset semantics ("unset this var" -> None/False), and name validation
+    all happen here. The result is authoritative for which product vars
+    must exist in the server environment -- see `server_environment`.
+    """
+    environment = _resolve_declared_environment(runtime_env, base)
+    return {
+        name: value
+        for name, value in environment.items()
+        if PRODUCT_ENV_PATTERN.fullmatch(name) is not None
+    }
+
+
+def server_environment(
+    resolved_env: dict[str, Any] | None,
+    base: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Build a subprocess environment from an already-resolved product mapping.
+
+    `resolved_env` must be the output of `product_environment_overrides` (or
+    an equivalent fully-resolved mapping): it is treated as the COMPLETE
+    authority on product vars. Every PRODUCT_ENV_PATTERN variable inherited
+    from `base` is stripped first, so a variable the experiment declared
+    unset cannot leak back in from an inherited process environment; the
+    resolved vars are then applied on top.
+    """
+    environment = {
+        name: value
+        for name, value in (os.environ if base is None else base).items()
+        if PRODUCT_ENV_PATTERN.fullmatch(name) is None
+    }
+    resolved = resolved_env or {}
+    for name, value in resolved.items():
+        if PRODUCT_ENV_PATTERN.fullmatch(name) is None:
+            raise ValueError(
+                f"runtime environment override '{name}' must be an uppercase DFLASH*, GGML_*, or LUCE_* variable"
+            )
+        environment[name] = "1" if value is True else str(value)
+    return environment
 
 
 @dataclass(frozen=True)
@@ -33,6 +146,7 @@ class CompletionSample:
     prefill_ms: float
     decode_ms: float
     acceptance_rate: float | None
+    first_token_logits: tuple[float, ...] | None
 
 
 def _required(mapping: dict[str, Any], key: str, parent: str) -> Any:
@@ -71,6 +185,24 @@ def parse_completion(body: dict[str, Any]) -> CompletionSample:
     if prefill_ms <= 0 or decode_ms < 0 or prompt_tokens <= 0 or completion_tokens < 0:
         raise ValueError("dflash response contains invalid timing or token measurements")
     acceptance = usage.get("accept_rate")
+    first_token_logits = None
+    if "diagnostics" in body:
+        diagnostics = body["diagnostics"]
+        if not isinstance(diagnostics, dict):
+            raise ValueError("dflash response diagnostics must be an object")
+        if "first_token_logits" in diagnostics:
+            payload = diagnostics["first_token_logits"]
+            if (
+                not isinstance(payload, dict)
+                or payload.get("dtype") != "float32"
+                or payload.get("axis") != "token_id"
+                or not isinstance(payload.get("values"), list)
+                or not payload["values"]
+            ):
+                raise ValueError("dflash response diagnostics.first_token_logits is invalid")
+            first_token_logits = tuple(float(value) for value in payload["values"])
+            if not all(math.isfinite(value) for value in first_token_logits):
+                raise ValueError("dflash response diagnostics.first_token_logits must be finite")
     return CompletionSample(
         text=_message_text(message),
         prompt_tokens=prompt_tokens,
@@ -80,6 +212,7 @@ def parse_completion(body: dict[str, Any]) -> CompletionSample:
         prefill_ms=prefill_ms,
         decode_ms=decode_ms,
         acceptance_rate=float(acceptance) if acceptance is not None else None,
+        first_token_logits=first_token_logits,
     )
 
 
@@ -108,6 +241,8 @@ class DflashHttpClient:
             "seed": int(params.get("seed", 42)),
             "prefix_cache": {"scope": "off"},
         }
+        if params.get("capture_first_token_logits", False):
+            body["diagnostics"] = {"first_token_logits": True}
         response = self.session.post(
             f"{self.base_url}/v1/chat/completions",
             json=body,
@@ -140,6 +275,9 @@ class DflashHttpClient:
             "decode_tok_s_stddev": deviation("decode_tok_s"),
             "prefill_tok_s": mean("prefill_tok_s"),
             "prefill_tok_s_stddev": deviation("prefill_tok_s"),
+            "prompt_tokens": mean("prompt_tokens"),
+            "prompt_tokens_min": min(sample.prompt_tokens for sample in samples),
+            "prompt_tokens_max": max(sample.prompt_tokens for sample in samples),
             "measurement_source": MEASUREMENT_SOURCE,
         }
         rates = [sample.acceptance_rate for sample in samples if sample.acceptance_rate is not None]
@@ -246,12 +384,17 @@ class DflashServer:
         port: int | None = None,
         startup_timeout_s: float = 900.0,
         log_dir: Path | None = None,
+        runtime_env: dict[str, Any] | None = None,
     ) -> None:
+        """`runtime_env` must already be resolved via `product_environment_overrides`
+        (see `server_environment`); it is the complete authority on which
+        product vars the server process should see."""
         self.host = host
         self.port = port or _free_port(host)
         self.command = list(command)
         self.startup_timeout_s = startup_timeout_s
         self.log_dir = log_dir or ROOT / "work" / "runtime-logs"
+        self.runtime_env = runtime_env or {}
         self.process: subprocess.Popen | None = None
         self.monitor: _ProcessMemoryMonitor | None = None
         self._log_handle = None
@@ -266,7 +409,7 @@ class DflashServer:
                 stdout=self._log_handle,
                 stderr=subprocess.STDOUT,
                 text=True,
-                env=os.environ.copy(),
+                env=server_environment(self.runtime_env),
             )
             self.monitor = _ProcessMemoryMonitor(self.process)
             self.monitor.start()
@@ -298,7 +441,11 @@ class DflashServer:
 
 
 class DflashHttpRuntime:
-    """Product runtime factory used by the benchmark harness and golden freezer."""
+    """Product runtime factory used by the benchmark harness and golden freezer.
+
+    `runtime_env` is passed straight through to `DflashServer`, so it must
+    already be resolved via `product_environment_overrides`.
+    """
 
     def __init__(
         self,
@@ -307,6 +454,7 @@ class DflashHttpRuntime:
         model: Path,
         draft: Path | None,
         runtime_flags: dict[str, Any] | None = None,
+        runtime_env: dict[str, Any] | None = None,
         profile_path: str | None = None,
     ) -> None:
         if layout.runtime != "dflash-server-http":
@@ -316,6 +464,7 @@ class DflashHttpRuntime:
         self.model = model
         self.draft = draft if draft is not None and draft.exists() else None
         self.runtime_flags = runtime_flags or {}
+        self.runtime_env = runtime_env or {}
         self.profile_path = profile_path
 
     def session(self, max_context: int) -> _RuntimeSession:
@@ -341,7 +490,7 @@ class _RuntimeSession:
         )
         if self.runtime.profile_path:
             command = profile_command(command, self.runtime.backend, self.runtime.profile_path)
-        self.server = DflashServer(command, port=port)
+        self.server = DflashServer(command, port=port, runtime_env=self.runtime.runtime_env)
         client = self.server.__enter__()
         self.telemetry.start()
         return client, self.server, self.telemetry

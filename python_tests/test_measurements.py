@@ -58,8 +58,25 @@ def test_compute_score_is_decode_throughput():
         "peak_mem_GiB": 16.0,
         "build_time_s": 100.0,
     }
-    assert compute_score(metrics, correct=True) == 100.0
-    assert compute_score(metrics, correct=False) == 0.0
+    spec = {"objective": {"maximize": "decode_tok_s"}}
+    assert compute_score(metrics, correct=True, spec=spec) == 100.0
+    assert compute_score(metrics, correct=False, spec=spec) == 0.0
+
+
+def test_compute_score_uses_the_contracts_prefill_objective():
+    metrics = {"decode_tok_s": 100.0, "prefill_tok_s": 2000.0}
+    spec = {"objective": {"maximize": "prefill_tok_s"}}
+
+    assert compute_score(metrics, correct=True, spec=spec) == 2000.0
+
+
+def test_compute_score_rejects_an_unmeasured_objective():
+    with pytest.raises(ValueError, match="not measured"):
+        compute_score(
+            {"decode_tok_s": 100.0},
+            correct=True,
+            spec={"objective": {"maximize": "prefill_tok_s"}},
+        )
 
 
 def test_speculative_run_without_acceptance_rate_raises():

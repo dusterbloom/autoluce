@@ -1,7 +1,6 @@
-"""
-Constrained objective for autoluce v2.
+"""Constrained, contract-selected objective for AutoLuce.
 
-The score is a single maximized metric (decode_tok_s); everything else is a
+The score is a single maximized throughput metric; everything else is a
 constraint declared in the benchmark JSON's optional "objective" block:
 
     {"objective": {"maximize": "decode_tok_s",
@@ -13,6 +12,30 @@ so every edge case is testable with synthetic data.
 """
 
 from __future__ import annotations
+
+
+SUPPORTED_OBJECTIVES = frozenset({"decode_tok_s", "prefill_tok_s"})
+
+
+def objective_metric(spec: dict) -> str:
+    """Return the measured throughput axis selected by a benchmark contract."""
+    metric = str(spec.get("objective", {}).get("maximize", "decode_tok_s"))
+    if metric not in SUPPORTED_OBJECTIVES:
+        supported = ", ".join(sorted(SUPPORTED_OBJECTIVES))
+        raise ValueError(f"unsupported objective '{metric}'; choose one of: {supported}")
+    return metric
+
+
+def context_regression_metrics(spec: dict) -> tuple[str, ...]:
+    """Return the throughput axes the context-depth regression floor should guard.
+
+    Prefill-only contracts (objective "prefill_tok_s", typically n_predict=1)
+    have no meaningful decode signal, so only prefill is guarded. Every other
+    contract restores decode benchmarks' prior floor on both axes.
+    """
+    if objective_metric(spec) == "prefill_tok_s":
+        return ("prefill_tok_s",)
+    return ("decode_tok_s", "prefill_tok_s")
 
 
 def check_constraints(metrics: dict, baseline: dict | None, spec: dict, k: float) -> list[str]:

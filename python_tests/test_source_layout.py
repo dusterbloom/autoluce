@@ -43,6 +43,8 @@ def test_repository_manifest_pins_current_vendored_lucebox_product():
         "cuda": ["server/deps/Block-Sparse-Attention"],
         "hip": [],
     }
+    assert manifest.product_backends == ["cuda", "hip"]
+    assert manifest.vendor_backends == ["cpu", "cuda", "hip", "vulkan"]
 
 
 def test_repository_normalization_does_not_strip_valid_name_characters(monkeypatch, tmp_path):
@@ -67,6 +69,8 @@ def test_layout_has_one_authoritative_path_map(monkeypatch, tmp_path):
     assert layout.binary("dflash_server", "hip") == checkout / "build-hip" / "dflash_server"
     assert layout.patch_root("product") == checkout
     assert layout.patch_root("vendor") == layout.vendor_root
+    assert layout.patch_application("product") == (checkout, None)
+    assert layout.patch_application("vendor") == (checkout, "server/deps/llama.cpp")
     assert layout.pin_file == tmp_path / "work" / "lucebox.pin"
     layout.require_capability("product-build")
     with pytest.raises(RuntimeError, match="does not provide 'llama-tools'"):
@@ -110,6 +114,35 @@ def test_vendor_manifest_is_machine_readable_and_checked(monkeypatch, tmp_path):
         "0699be81480428f01b9b7ac49a09a2d51c77f8df",
     ]
     assert layout.validate_vendor_provenance().source_commit == provenance.source_commit
+
+
+def test_source_evidence_hashes_product_vendor_and_binary_bytes(monkeypatch, tmp_path):
+    checkout = _hub_checkout(tmp_path)
+    subprocess.run(["git", "init", "-q"], cwd=checkout, check=True)
+    subprocess.run(["git", "config", "user.email", "test@autoluce.local"], cwd=checkout, check=True)
+    subprocess.run(["git", "config", "user.name", "AutoLuce Test"], cwd=checkout, check=True)
+    subprocess.run(["git", "add", "."], cwd=checkout, check=True)
+    subprocess.run(["git", "commit", "-qm", "fixture"], cwd=checkout, check=True)
+    binary = checkout / "build-cuda" / "dflash_server"
+    binary.parent.mkdir()
+    binary.write_bytes(b"binary-a")
+    monkeypatch.setenv("AUTOLUCE_SOURCE_ROOT", str(checkout))
+    layout = SourceLayout.resolve(root=tmp_path)
+
+    original = layout.evidence(binary)
+    vendor_file = layout.ggml_root / "kernel.cu"
+    vendor_file.write_text("candidate kernel\n")
+    changed_source = layout.evidence(binary)
+    binary.write_bytes(b"binary-b")
+    changed_binary = layout.evidence(binary)
+
+    assert len(original.product_digest) == 64
+    assert len(original.vendor_digest) == 64
+    assert original.product_revision
+    assert original.vendor_digest != changed_source.vendor_digest
+    assert original.product_digest != changed_source.product_digest
+    assert changed_source.binary_sha256 != changed_binary.binary_sha256
+    assert "server/deps/llama.cpp/ggml/kernel.cu" in changed_source.dirty_paths
 
 
 class _RemoteRunner:

@@ -163,6 +163,12 @@ def download_models() -> None:
         dsv4_entry,
         Path(os.environ.get("AUTOLUCE_MODEL_ROOT", str(MODELS_DIR))),
     )
+    wanted = _referenced_manifest_keys()
+    nvfp4_name = "Qwen3.6-27B-NVFP4-Q4_K_M.gguf"
+    nvfp4_override = os.environ.get("AUTOLUCE_QWEN36_NVFP4_MODEL")
+    nvfp4_path = Path(nvfp4_override).expanduser() if nvfp4_override else None
+    if nvfp4_path is None and "qwen36-27b-nvfp4" in wanted:
+        nvfp4_path = discover_model(nvfp4_name)
     manifest = {
         "smoke": {
             "target": {
@@ -181,6 +187,13 @@ def download_models() -> None:
                 "repo": "Lucebox/Qwen3.6-27B-DFlash-GGUF",
                 "file": "dflash-draft-3.6-q4_k_m.gguf",
                 "local": "dflash-draft-3.6-q4_k_m.gguf",
+            },
+        },
+        "qwen36-27b-nvfp4": {
+            "target": {
+                "path": str(nvfp4_path) if nvfp4_path else "",
+                "local": nvfp4_name,
+                "source": "local AutoLuce mixed NVFP4 derivative",
             },
         },
         "gemma4-26b-a4b": {
@@ -209,12 +222,16 @@ def download_models() -> None:
     manifest_path.write_text(json.dumps(manifest, indent=2))
     print(f"Model manifest written to {manifest_path}")
 
-    wanted = _referenced_manifest_keys()
     for name, entries in manifest.items():
         if name not in wanted:
             print(f"  SKIPPED '{name}': no selected benchmark references it")
             continue
         for role, info in entries.items():
+            if name == "qwen36-27b-nvfp4" and not info.get("path"):
+                raise FileNotFoundError(
+                    f"NVFP4 model '{info['local']}' was not found; set "
+                    "AUTOLUCE_QWEN36_NVFP4_MODEL to the converted GGUF"
+                )
             if info.get("path"):
                 paths = [Path(value) for value in info.get("files", [info["path"]])]
                 if not all(path.is_file() for path in paths):

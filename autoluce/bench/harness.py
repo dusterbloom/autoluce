@@ -13,6 +13,8 @@ labelled and never reflect a real measurement).
 from __future__ import annotations
 
 import json
+import copy
+import fcntl
 import math
 import os
 import re
@@ -20,15 +22,23 @@ import shutil
 import subprocess
 import sys
 import time
+from dataclasses import asdict
 from datetime import datetime, timezone
+from contextlib import contextmanager
 from pathlib import Path
 
 from experiment import apply_experiment, get_cmake_flags, get_runtime_flags, reset_lucebox
-from autoluce.bench.objective import check_constraints
+from autoluce.bench.objective import check_constraints, context_regression_metrics, objective_metric
 from autoluce.bench.profiling import detect_backend, profile_command
 from autoluce.bench.telemetry import TelemetryCollector
 from autoluce.bench.uncertainty import propagate_score_stddev
-from autoluce.runtime.dflash_http import DflashHttpRuntime
+from autoluce.runtime.dflash_http import (
+    DflashHttpRuntime,
+    product_environment_overrides,
+    server_environment,
+    validate_prompt_depth,
+)
+from autoluce.runtime.artifacts import capture_runtime_artifact_closure
 from autoluce.source_layout import SourceLayout
 
 from autoluce import ROOT
@@ -65,6 +75,52 @@ def build() -> float:
     t0 = time.time()
     run(build_args, env=env)
     return time.time() - t0
+
+
+def capture_source_evidence(runtime_env: dict[str, str]) -> dict:
+    """Identify the exact source and resolved runtime artifacts under test."""
+    layout = SourceLayout.resolve()
+    backend = detect_backend()
+    binary = layout.binary("dflash_server", backend)
+    evidence = layout.evidence()
+    runtime_artifacts = capture_runtime_artifact_closure(
+        binary,
+        env=server_environment(runtime_env),
+    )
+    return {
+        "backend": backend,
+        "product_backends": layout.manifest.product_backends,
+        "vendor_backends": list(layout.manifest.vendor_backends),
+        **vars(evidence),
+        "binary_sha256": runtime_artifacts.executable.sha256,
+        "runtime_artifacts": asdict(runtime_artifacts),
+    }
+
+
+def require_stable_source_evidence(built: dict, measured: dict) -> None:
+    """Reject evidence if another process changed source or the binary mid-run."""
+    if built != measured:
+        raise RuntimeError(
+            "product source, vendored GGML, or runtime binary changed after the build; "
+            "discarding contaminated measurements"
+        )
+
+
+@contextmanager
+def source_run_lease(lock_path: Path):
+    """Prevent concurrent reset/build/measure cycles in one source checkout."""
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+") as handle:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError(
+                "another AutoLuce worker holds this checkout's source/build lease"
+            ) from exc
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 # ---------------------------------------------------------------------------
@@ -282,7 +338,12 @@ def aggregate_context_metrics(cells: list[dict], primary_count: int = 2) -> dict
     return result
 
 
-def check_context_regressions(cells: list[dict], baseline: dict | None, min_fraction: float) -> list[str]:
+def check_context_regressions(
+    cells: list[dict],
+    baseline: dict | None,
+    min_fraction: float,
+    metrics: tuple[str, ...] = ("decode_tok_s", "prefill_tok_s"),
+) -> list[str]:
     if baseline is None:
         return []
     base_cells = {int(cell["context_depth"]): cell for cell in baseline.get("context_metrics", [])}
@@ -293,7 +354,7 @@ def check_context_regressions(cells: list[dict], baseline: dict | None, min_frac
         if base is None:
             violations.append(f"context {depth}: missing baseline cell")
             continue
-        for metric in ("decode_tok_s", "prefill_tok_s"):
+        for metric in metrics:
             floor = min_fraction * float(base[metric])
             value = float(cell[metric])
             if value < floor:
@@ -409,20 +470,57 @@ def resolve_correctness(
     return check_correctness(benchmark_name, model, draft, n_draft, runtime_flags)
 
 
-def _http_benchmark_prompts(spec: dict) -> list[str]:
-    """Create deterministic, cache-distinct prompts near the requested prompt size."""
+def _http_benchmark_prompts(spec: dict, context_depth: int | None = None) -> list[str]:
+    """Create deterministic, cache-distinct prompts for one measured depth cell."""
     prompts = [str(prompt) for prompt in spec.get("prompts", [])]
     if not prompts:
         prompts = ["Measure this inference request."]
-    target_chars = max(32, int(spec.get("llama_bench_args", {}).get("-p", 512)) * 4)
-    filler = " measured inference workload"
+    if context_depth is None:
+        target_chars = max(32, int(spec.get("llama_bench_args", {}).get("-p", 512)) * 4)
+        filler = " measured inference workload"
+    else:
+        reserve = int(spec.get("prompt_token_reserve", 64))
+        if reserve < 0 or reserve >= context_depth:
+            raise ValueError("prompt_token_reserve must be non-negative and smaller than context_depth")
+        filler_count = context_depth - reserve
     result = []
     for index, prompt in enumerate(prompts):
         value = f"AutoLuce sample {index}. {prompt}"
-        if len(value) < target_chars:
+        if context_depth is None and len(value) < target_chars:
             value = (value + filler * (1 + (target_chars - len(value)) // len(filler)))[:target_chars]
+        elif context_depth is not None:
+            # Qwen's BPE maps the stable " x" piece to one token. The measured
+            # server token count below remains authoritative and gates the cell.
+            value += " x" * filler_count
         result.append(value)
     return result
+
+
+def server_context_capacity(spec: dict, context_depth: int, max_tokens: int) -> int:
+    """Size server state for the prompt cell plus explicitly declared headroom."""
+    headroom = int(spec.get("context_headroom", max(256, max_tokens)))
+    if headroom < max_tokens:
+        raise ValueError("context_headroom must be at least max_tokens")
+    return context_depth + headroom
+
+
+def apply_benchmark_overrides(
+    spec: dict,
+    contexts: list[int] | None = None,
+    repetitions: int | None = None,
+) -> dict:
+    """Return a diagnostic view of a benchmark without mutating its contract."""
+    selected = copy.deepcopy(spec)
+    if contexts is not None:
+        if not contexts or any(value <= 0 for value in contexts):
+            raise ValueError("diagnostic contexts must be positive")
+        selected["contexts"] = contexts
+        selected["primary_context_count"] = len(contexts)
+    if repetitions is not None:
+        if repetitions <= 0:
+            raise ValueError("diagnostic repetitions must be positive")
+        selected.setdefault("llama_bench_args", {})["--repetitions"] = repetitions
+    return selected
 
 
 def benchmark_with_product_runtime(
@@ -431,6 +529,7 @@ def benchmark_with_product_runtime(
     model: Path,
     draft: Path | None,
     runtime_flags: dict[str, str],
+    runtime_env: dict[str, str],
     context_depth: int,
     profile_path: str | None,
     check_quality: bool,
@@ -438,7 +537,10 @@ def benchmark_with_product_runtime(
     """Measure one context cell through the product-owned dflash_server API."""
     layout = SourceLayout.resolve()
     backend = detect_backend()
-    runtime = DflashHttpRuntime(layout, backend, model, draft, runtime_flags, profile_path)
+    runtime = DflashHttpRuntime(
+        layout, backend, model, draft, runtime_flags,
+        runtime_env=runtime_env, profile_path=profile_path,
+    )
     golden = None
     quality = spec.get("quality", "exact")
     if check_quality and quality == "exact":
@@ -449,12 +551,18 @@ def benchmark_with_product_runtime(
             raise RuntimeError(f"golden outputs for benchmark '{benchmark_name}' are placeholders; run scripts/generate_golden.py")
 
     bench_args = spec.get("llama_bench_args", {})
-    session = runtime.session(context_depth)
+    max_tokens = int(bench_args.get("-n", 128))
+    session = runtime.session(server_context_capacity(spec, context_depth, max_tokens))
     with session as (client, _server, _telemetry):
         metrics = client.benchmark(
-            _http_benchmark_prompts(spec),
+            _http_benchmark_prompts(spec, context_depth),
             repetitions=int(bench_args.get("--repetitions", 3)),
-            max_tokens=int(bench_args.get("-n", 128)),
+            max_tokens=max_tokens,
+        )
+        validate_prompt_depth(
+            measured=float(metrics["prompt_tokens"]),
+            requested=context_depth,
+            tolerance=float(spec.get("prompt_depth_tolerance", 0.05)),
         )
         if golden is not None:
             correct, details = client.compare_golden(golden)
@@ -469,16 +577,19 @@ def benchmark_with_product_runtime(
 # ---------------------------------------------------------------------------
 
 
-def compute_score(metrics: dict[str, float], correct: bool) -> float:
+def compute_score(metrics: dict[str, float], correct: bool, spec: dict | None = None) -> float:
     """
-    The score is the single maximized axis: decode throughput. Correctness is a
+    The score is the contract's single maximized throughput axis. Correctness is a
     hard constraint (0.0 on failure); resource/regression bounds are enforced
     separately via objective.check_constraints, which zeroes the score on
     violation exactly like a correctness failure.
     """
     if not correct:
         return 0.0
-    return metrics["decode_tok_s"]
+    metric = objective_metric(spec or {})
+    if metric not in metrics:
+        raise ValueError(f"objective metric '{metric}' was not measured")
+    return metrics[metric]
 
 
 def save_baseline_metrics(per_benchmark: list[dict]) -> None:
@@ -532,13 +643,19 @@ def run_single_benchmark(
     benchmark_name: str,
     build_time: float,
     runtime_flags: dict[str, str],
+    runtime_env: dict[str, str] | None = None,
     simulate: bool = False,
     profile_dir: str | None = None,
     baseline_metrics: dict | None = None,
     k: float = 1.0,
     enforce_constraints: bool = False,
+    context_override: list[int] | None = None,
+    repetitions_override: int | None = None,
 ) -> dict:
-    benchmark = json.loads((BENCHMARKS_DIR / f"{benchmark_name}.json").read_text())
+    benchmark = apply_benchmark_overrides(
+        json.loads((BENCHMARKS_DIR / f"{benchmark_name}.json").read_text()),
+        context_override, repetitions_override,
+    )
 
     kl_violations: list[str] = []
     if simulate:
@@ -573,7 +690,7 @@ def run_single_benchmark(
             for depth in contexts:
                 cell_profile = f"{profile_path}-ctx{depth}" if profile_path else None
                 cell, cell_correct, cell_details = benchmark_with_product_runtime(
-                    benchmark_name, benchmark, model, draft, runtime_flags, depth, cell_profile,
+                    benchmark_name, benchmark, model, draft, runtime_flags, runtime_env or {}, depth, cell_profile,
                     check_quality=not cells,
                 )
                 correct = correct and cell_correct
@@ -584,7 +701,7 @@ def run_single_benchmark(
         else:
             default_context = int(benchmark.get("max_context", benchmark.get("context", 8192)))
             metrics, correct, details = benchmark_with_product_runtime(
-                benchmark_name, benchmark, model, draft, runtime_flags, default_context, profile_path,
+                benchmark_name, benchmark, model, draft, runtime_flags, runtime_env or {}, default_context, profile_path,
                 check_quality=True,
             )
 
@@ -596,15 +713,19 @@ def run_single_benchmark(
         violations += check_constraints(metrics, base, benchmark, k)
         if metrics.get("context_metrics"):
             min_fraction = float(benchmark.get("context_min_frac_of_baseline", 0.95))
-            violations += check_context_regressions(metrics["context_metrics"], base, min_fraction)
+            violations += check_context_regressions(
+                metrics["context_metrics"], base, min_fraction,
+                metrics=context_regression_metrics(benchmark),
+            )
         for v in violations[len(kl_violations):]:
             print(f"CONSTRAINT VIOLATION [{benchmark_name}]: {v}")
-    score = 0.0 if violations else compute_score(metrics, correct)
+    score_metric = objective_metric(benchmark)
+    score = 0.0 if violations else compute_score(metrics, correct, benchmark)
 
     return {
         "benchmark": benchmark_name,
         "score": score,
-        "score_stddev": propagate_score_stddev(metrics) if score else 0.0,
+        "score_stddev": propagate_score_stddev(metrics, score_metric) if score else 0.0,
         "constraint_violations": violations,
         **metrics,
         "correctness_details": details,
@@ -634,22 +755,41 @@ def aggregate_scores(results: list[dict]) -> dict[str, float]:
 # ---------------------------------------------------------------------------
 
 
-def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = False, k: float = 1.0) -> dict:
+def _run_harness_unlocked(
+    baseline: bool = False,
+    simulate: bool = False,
+    profile: bool = False,
+    k: float = 1.0,
+    contexts: list[int] | None = None,
+    repetitions: int | None = None,
+) -> dict:
     profile_dir = str(ROOT / "results" / "profiles") if profile else None
     if simulate:
-        exp_info = {"description": "baseline" if baseline else "simulated", "cmake_flags": [], "runtime_flags": {}}
+        exp_info = {
+            "description": "baseline" if baseline else "simulated",
+            "cmake_flags": [], "runtime_flags": {}, "runtime_env": {},
+        }
         build_time = 1.0
+        source_evidence = None
     else:
         SourceLayout.resolve().require_capability("product-benchmark")
         if baseline:
             reset_lucebox()
-            exp_info = {"description": "baseline", "cmake_flags": get_cmake_flags(), "runtime_flags": get_runtime_flags()}
+            exp_info = {
+                "description": "baseline", "cmake_flags": get_cmake_flags(),
+                "runtime_flags": get_runtime_flags(), "runtime_env": {},
+            }
         else:
             reset_lucebox()
             exp_info = apply_experiment()
         build_time = build()
+        source_evidence = None
 
     runtime_flags = exp_info.get("runtime_flags", {})
+    runtime_env = product_environment_overrides(exp_info.get("runtime_env", {}))
+    exp_info = {**exp_info, "runtime_env": runtime_env}
+    if not simulate:
+        source_evidence = capture_source_evidence(runtime_env)
 
     benchmark_names = os.environ.get("AUTOLUCE_BENCHMARKS", ",".join(list_benchmarks())).split(",")
     benchmark_names = [b.strip() for b in benchmark_names if b.strip()]
@@ -660,13 +800,13 @@ def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = 
     baseline_metrics = load_baseline_metrics() if enforce else None
     per_benchmark = [
         run_single_benchmark(
-            name, build_time, runtime_flags, simulate=simulate, profile_dir=profile_dir,
+            name, build_time, runtime_flags, runtime_env=runtime_env,
+            simulate=simulate, profile_dir=profile_dir,
             baseline_metrics=baseline_metrics, k=k, enforce_constraints=enforce,
+            context_override=contexts, repetitions_override=repetitions,
         )
         for name in benchmark_names
     ]
-    if baseline and not simulate:
-        save_baseline_metrics(per_benchmark)
     agg = aggregate_scores(per_benchmark)
     any_fail = any(r["correctness"] == "FAIL" for r in per_benchmark)
 
@@ -677,7 +817,14 @@ def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = 
         "correctness": "pass" if not any_fail else "FAIL",
         "benchmarks": per_benchmark,
         "experiment": exp_info,
+        "benchmark_overrides": {"contexts": contexts, "repetitions": repetitions},
     }
+    if source_evidence is not None:
+        measured_evidence = capture_source_evidence(runtime_env)
+        require_stable_source_evidence(source_evidence, measured_evidence)
+        summary["source_evidence"] = source_evidence
+    if baseline and not simulate:
+        save_baseline_metrics(per_benchmark)
     bundle_dir = os.environ.get("AUTOLUCE_RESULT_BUNDLE")
     if bundle_dir and not simulate:
         path = Path(bundle_dir)
@@ -687,18 +834,41 @@ def run_harness(baseline: bool = False, simulate: bool = False, profile: bool = 
     return summary
 
 
+def run_harness(
+    baseline: bool = False,
+    simulate: bool = False,
+    profile: bool = False,
+    k: float = 1.0,
+    contexts: list[int] | None = None,
+    repetitions: int | None = None,
+) -> dict:
+    if simulate:
+        return _run_harness_unlocked(
+            baseline, simulate, profile, k, contexts, repetitions,
+        )
+    checkout = SourceLayout.resolve().checkout
+    lock_path = checkout.parent / f".{checkout.name}.autoluce-run.lock"
+    with source_run_lease(lock_path):
+        return _run_harness_unlocked(
+            baseline, simulate, profile, k, contexts, repetitions,
+        )
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--baseline", action="store_true")
     parser.add_argument("--simulate", action="store_true", help="Plumbing test with fake measurements; no real build or models required")
     parser.add_argument("--profile", action="store_true", help="Capture a profiler trace (nsys/rocprof) per benchmark to results/profiles/")
+    parser.add_argument("--contexts", help="diagnostic comma-separated context subset")
+    parser.add_argument("--repetitions", type=int, help="diagnostic measured repetitions per context")
     parser.add_argument("--significance", type=float, default=1.0, help="k in the k*sigma margin for objective constraints")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--target", help="Run through a configured SSH target")
     parser.add_argument("--contract", type=Path, help="Research contract used to namespace remote state")
     parser.add_argument("--backend", choices=["cuda", "hip"], default="hip")
     args = parser.parse_args()
+    contexts = [int(value) for value in args.contexts.split(",")] if args.contexts else None
 
     if args.target and os.environ.get("AUTOLUCE_REMOTE_WORKER") != "1":
         from autoluce.contracts import ResearchContract
@@ -719,6 +889,10 @@ def main():
             remote_args.append("--baseline")
         if args.profile:
             remote_args.append("--profile")
+        if args.contexts:
+            remote_args += ["--contexts", args.contexts]
+        if args.repetitions is not None:
+            remote_args += ["--repetitions", str(args.repetitions)]
         remote_args += ["--significance", str(args.significance)]
         worker = SSHWorker(target)
         worker.ensure_remote_uv()
@@ -737,9 +911,15 @@ def main():
     if args.json:
         from contextlib import redirect_stdout
         with redirect_stdout(sys.stderr):
-            summary = run_harness(baseline=args.baseline, simulate=args.simulate, profile=args.profile, k=args.significance)
+            summary = run_harness(
+                baseline=args.baseline, simulate=args.simulate, profile=args.profile,
+                k=args.significance, contexts=contexts, repetitions=args.repetitions,
+            )
     else:
-        summary = run_harness(baseline=args.baseline, simulate=args.simulate, profile=args.profile, k=args.significance)
+        summary = run_harness(
+            baseline=args.baseline, simulate=args.simulate, profile=args.profile,
+            k=args.significance, contexts=contexts, repetitions=args.repetitions,
+        )
 
     if args.json:
         print(json.dumps(summary, indent=2, default=str))

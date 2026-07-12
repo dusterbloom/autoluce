@@ -1,0 +1,23 @@
+{
+  "benchmark": "qwen36-27b-nvfp4-prefill",
+  "model": "qwen36-27b-nvfp4",
+  "draft": null,
+  "spec_type": "target-only",
+  "n_draft": null,
+  "parameters": {
+    "temperature": 0.0,
+    "top_k": 1,
+    "top_p": 1.0,
+    "n_predict": 1,
+    "seed": 42,
+    "n_draft": 15
+  },
+  "generated_at": "2026-07-10T23:59:21.239065+00:00",
+  "outputs": [
+    {
+      "prompt": "Continue analyzing this deterministic synthetic record.",
+      "text": "I",
+      "tokens": []
+    }
+  ]
+}

@@ -44,7 +44,8 @@ def main() -> None:
         "checked_out": checked_out,
         "runtime": manifest.runtime,
         "capabilities": manifest.capabilities,
-        "supported_backends": manifest.supported_backends,
+        "product_backends": manifest.product_backends,
+        "vendor_backends": manifest.vendor_backends,
         "submodules_by_backend": manifest.submodules_by_backend,
         "vendor": provenance or asdict(manifest.vendor),
     }
@@ -54,6 +55,7 @@ def main() -> None:
         print(f"Lucebox source\n  repository: {manifest.repository}\n  pin:        {manifest.ref}")
         print(f"  layout:     {manifest.layout}\n  checkout:   {layout.checkout} ({'ready' if checked_out else 'not cloned'})")
         print(f"  runtime:    {manifest.runtime}\n  vendor:     {manifest.vendor.base_commit}")
+        print(f"  product:    {', '.join(manifest.product_backends)}\n  vendor API: {', '.join(manifest.vendor_backends)}")
 
 
 if __name__ == "__main__":
