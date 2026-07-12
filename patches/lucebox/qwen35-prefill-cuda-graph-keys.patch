@@ -1,0 +1,79 @@
+diff --git a/server/deps/llama.cpp/ggml/include/ggml.h b/server/deps/llama.cpp/ggml/include/ggml.h
+--- a/server/deps/llama.cpp/ggml/include/ggml.h
++++ b/server/deps/llama.cpp/ggml/include/ggml.h
+@@ -2753,6 +2753,7 @@ extern "C" {
+     // graph allocation in a context
+     GGML_API struct ggml_cgraph * ggml_new_graph       (struct ggml_context * ctx); // size = GGML_DEFAULT_GRAPH_SIZE, grads = false
+     GGML_API struct ggml_cgraph * ggml_new_graph_custom(struct ggml_context * ctx, size_t size, bool grads);
++    GGML_API void                 ggml_graph_set_backend_key(struct ggml_cgraph * cgraph, const void * key);
+     GGML_API struct ggml_cgraph * ggml_graph_dup       (struct ggml_context * ctx, struct ggml_cgraph * cgraph, bool force_grads);
+     GGML_API void                 ggml_graph_cpy       (struct ggml_cgraph * src, struct ggml_cgraph * dst);
+     GGML_API void                 ggml_graph_reset     (struct ggml_cgraph * cgraph); // set regular grads + optimizer momenta to 0, set loss grad to 1
+diff --git a/server/deps/llama.cpp/ggml/src/ggml-impl.h b/server/deps/llama.cpp/ggml/src/ggml-impl.h
+--- a/server/deps/llama.cpp/ggml/src/ggml-impl.h
++++ b/server/deps/llama.cpp/ggml/src/ggml-impl.h
+@@ -339,4 +339,7 @@ struct ggml_cgraph {
+     struct ggml_hash_set visited_hash_set;
+ 
+     enum ggml_cgraph_eval_order order;
++
++    // Optional stable identity for backend-specific graph caches.
++    const void * backend_key;
+ };
+diff --git a/server/deps/llama.cpp/ggml/src/ggml.c b/server/deps/llama.cpp/ggml/src/ggml.c
+--- a/server/deps/llama.cpp/ggml/src/ggml.c
++++ b/server/deps/llama.cpp/ggml/src/ggml.c
+@@ -7272,6 +7272,7 @@ struct ggml_cgraph * ggml_new_graph_custom(struct ggml_context * ctx, size_t siz
+         /*.use_counts   =*/ use_counts_ptr,
+         /*.hash_table   =*/ { hash_size, hash_used, hash_keys_ptr },
+         /*.order        =*/ GGML_CGRAPH_EVAL_ORDER_LEFT_TO_RIGHT,
++        /*.backend_key  =*/ NULL,
+     };
+ 
+     ggml_hash_set_reset(&cgraph->visited_hash_set);
+@@ -7283,6 +7284,10 @@ struct ggml_cgraph * ggml_new_graph(struct ggml_context * ctx) {
+     return ggml_new_graph_custom(ctx, GGML_DEFAULT_GRAPH_SIZE, false);
+ }
+ 
++void ggml_graph_set_backend_key(struct ggml_cgraph * cgraph, const void * key) {
++    cgraph->backend_key = key;
++}
++
+ struct ggml_cgraph ggml_graph_view(struct ggml_cgraph * cgraph0, int i0, int i1) {
+     struct ggml_cgraph cgraph = {
+         /*.size             =*/ 0,
+diff --git a/server/deps/llama.cpp/ggml/src/ggml-cuda/ggml-cuda.cu b/server/deps/llama.cpp/ggml/src/ggml-cuda/ggml-cuda.cu
+--- a/server/deps/llama.cpp/ggml/src/ggml-cuda/ggml-cuda.cu
++++ b/server/deps/llama.cpp/ggml/src/ggml-cuda/ggml-cuda.cu
+@@ -3237,5 +3237,5 @@ static bool ggml_cuda_graph_check_compability(ggml_cgraph * cgraph) {
+ }
+ 
+ static const void * ggml_cuda_graph_get_key(ggml_cgraph * cgraph) {
+-    return cgraph->nodes[0];
++    return cgraph->backend_key != nullptr ? cgraph->backend_key : cgraph->nodes[0];
+ }
+diff --git a/server/src/qwen35/qwen35_backend.cpp b/server/src/qwen35/qwen35_backend.cpp
+--- a/server/src/qwen35/qwen35_backend.cpp
++++ b/server/src/qwen35/qwen35_backend.cpp
+@@ -1129,6 +1129,21 @@ int Qwen35Backend::do_prefill(const std::vector<int32_t> & tokens,
+                                should_capture_moe_router(),
+                                /*kvflash_mask=*/kvf_paged)) {
+             std::fprintf(stderr, "prefill build @%d\n", kv_pos);
+             return -1;
+         }
++        if (std::getenv("DFLASH_PREFILL_GRAPH_KEYS") != nullptr) {
++            // One stable cache identity per prefill topology and KV span.
++            // Keep final/intermediate graphs distinct: last-token-only changes
++            // the graph even when n_tokens and kv_pos happen to match.
++            const uint64_t flags =
++                (uint64_t)(start + n_tokens < prompt_len) |
++                ((uint64_t)kvf_paged << 1);
++            const uintptr_t graph_key =
++                (uintptr_t)0xA710000000000000ULL |
++                ((uintptr_t)((uint32_t)n_tokens & 0xffffU) << 32) |
++                ((uintptr_t)((uint32_t)kv_pos & 0xffffffU) << 8) |
++                (uintptr_t)flags;
++            ggml_graph_set_backend_key(
++                sg_.gf, reinterpret_cast<const void *>(graph_key));
++        }
+         if (kvf_paged) {

@@ -1,0 +1,64 @@
+diff --git a/conversion/base.py b/conversion/base.py
+index 0421aa4..d98c534 100644
+--- a/conversion/base.py
++++ b/conversion/base.py
+@@ -480,8 +480,7 @@ class ModelBase:
+                 nvfp4_compressed_tensors = (
+                     quant_format == "nvfp4-pack-quantized"
+                     or quant_format == "mixed-precision"
+-                    and bool(groups)
+-                    and all(g.get("format") == "nvfp4-pack-quantized" for g in groups.values() if isinstance(g, dict))
++                    and any(g.get("format") == "nvfp4-pack-quantized" for g in groups.values() if isinstance(g, dict))
+                 )
+ 
+                 if len(groups) > 1 and not nvfp4_compressed_tensors:
+@@ -530,8 +529,25 @@ class ModelBase:
+                             if (base_name + "_zero_point") in self.model_tensors:
+                                 tensors_to_remove.append(base_name + "_zero_point")
+                 elif nvfp4_compressed_tensors:
+-                    # Don't error from compressed-tensors, we'll handle them in _generate_nvfp4_tensors
+-                    pass
++                    # NVFP4 tensors were consumed by _generate_nvfp4_tensors. The
++                    # remaining scaled weights are channel-wise FP8 tensors.
++                    for name in self.model_tensors.keys():
++                        if name.endswith(".weight_scale"):
++                            weight_name = name.removesuffix("_scale")
++                            if weight_name not in self.model_tensors:
++                                tensors_to_remove.append(name)
++                                continue
++                            w = self.model_tensors[weight_name]
++                            s = self.model_tensors[name]
++                            is_fp8_weight = False
++                            if self._fp8_as_q8:
++                                is_fp8_weight = w().dtype in (torch.float8_e4m3fn, torch.float8_e5m2)
++                            self.model_tensors[weight_name] = lambda w=w, s=s: dequant_simple(w(), s(), None)
++                            tensors_to_remove.append(name)
++                            if is_fp8_weight:
++                                self._fp8_dequantized.add(weight_name)
++                        if name.endswith((".k_scale", ".v_scale")):
++                            tensors_to_remove.append(name)
+                 else:
+                     raise NotImplementedError(f"Quant format {quant_format!r} for method {quant_method!r} is not yet supported")
+             elif quant_method == "modelopt":
+@@ -706,8 +722,9 @@ class ModelBase:
+             weight = LazyTorchTensor.to_eager(self.model_tensors[name]())
+             scale = LazyTorchTensor.to_eager(self.model_tensors[scale_name]())
+ 
+-            # Skip non-NVFP4 tensors (e.g. FP8 with per-channel 1D scales)
+-            if scale.ndim < 2:
++            # Packed NVFP4 weights are uint8 with one E4M3 scale per 16 values.
++            # FP8 per-channel scales may also be rank 2 with shape [rows, 1].
++            if weight.dtype != torch.uint8 or scale.ndim != 2 or weight.shape[1] != scale.shape[1] * 8:
+                 continue
+ 
+             scale2 = LazyTorchTensor.to_eager(self.model_tensors.get(scale2_name, lambda: torch.tensor(1.0))())
+@@ -812,8 +829,7 @@ class ModelBase:
+         nvfp4_compressed_tensors = quant_method == "compressed-tensors" and (
+             quant_format == "nvfp4-pack-quantized"
+             or quant_format == "mixed-precision"
+-            and bool(quant_groups)
+-            and all(g.get("format") == "nvfp4-pack-quantized" for g in quant_groups.values() if isinstance(g, dict))
++            and any(g.get("format") == "nvfp4-pack-quantized" for g in quant_groups.values() if isinstance(g, dict))
+         )
+         if quant_algo != "NVFP4":
+             if nvfp4_compressed_tensors:

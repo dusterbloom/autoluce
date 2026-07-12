@@ -1,0 +1,20 @@
+diff --git a/server/src/qwen35/qwen35_target_graph.cpp b/server/src/qwen35/qwen35_target_graph.cpp
+--- a/server/src/qwen35/qwen35_target_graph.cpp
++++ b/server/src/qwen35/qwen35_target_graph.cpp
+@@ -128,10 +128,12 @@ bool create_target_cache_partial(const TargetWeights & w,
+     out.kv_k_type = kv_k_type;
+     out.kv_v_type = kv_v_type;
+ 
+-    // Graph-level FWHT K-rotation (TurboQuant-style outlier spreading with
+-    // standard quant types that keep fast FA kernel paths on all arches).
+-    // Skip for TQ3_0 K cache — that type already applies WHT during quantization.
+-    out.kv_k_rotated = (kv_k_type != GGML_TYPE_TQ3_0);
++    // Graph-level FWHT spreads quantization outliers for standard quant types.
++    // It is pure overhead for unquantized F16/BF16 caches; TQ3_0 performs its
++    // own WHT during quantization.
++    out.kv_k_rotated = kv_k_type != GGML_TYPE_TQ3_0 &&
++                       kv_k_type != GGML_TYPE_F16 &&
++                       kv_k_type != GGML_TYPE_BF16;
+ 
+     const bool needs_256_stride =
+         kv_k_type == GGML_TYPE_TQ3_0 || kv_v_type == GGML_TYPE_TQ3_0;

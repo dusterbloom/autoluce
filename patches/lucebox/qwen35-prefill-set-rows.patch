@@ -1,0 +1,45 @@
+diff --git a/server/src/qwen35/graph_builders.cpp b/server/src/qwen35/graph_builders.cpp
+--- a/server/src/qwen35/graph_builders.cpp
++++ b/server/src/qwen35/graph_builders.cpp
+@@ -327,11 +327,14 @@ bool build_target_step(
+     // region is reused by graph execution) and set_rows carries per-token
+     // physical slots, so the slot-mapped write stays active for masked,
+     // multi-token, and feature-capturing forwards (decode AND spec verify).
++    static const bool g_prefill_set_rows =
++        (std::getenv("DFLASH_PREFILL_SET_ROWS") != nullptr);
+     const bool use_kv_write_rows =
+         !g_no_kvpad && !capture_delta_intermediate &&
+         (kvflash_mask
+              ? (fa_window == 0)
+-             : (n_tokens == 1 && fa_window == 0 && !with_mask && !capture));
++             : ((n_tokens == 1 && fa_window == 0 && !with_mask && !capture) ||
++                (g_prefill_set_rows && n_tokens > 1 && fa_window == 0)));
+     if (use_kv_write_rows) {
+         sg.kv_write_rows = ggml_new_tensor_2d(sg.ctx, GGML_TYPE_I64,
+                                               n_tokens, w.n_head_kv);
+diff --git a/server/src/qwen35/qwen35_backend.cpp b/server/src/qwen35/qwen35_backend.cpp
+--- a/server/src/qwen35/qwen35_backend.cpp
++++ b/server/src/qwen35/qwen35_backend.cpp
+@@ -1131,16 +1131,18 @@ int Qwen35Backend::do_prefill(const std::vector<int32_t> & tokens,
+             std::fprintf(stderr, "prefill build @%d\n", kv_pos);
+             return -1;
+         }
+-        if (kvf_paged) {
+-            if (!sg_.kv_write_rows) {
++        if (kvf_paged && !sg_.kv_write_rows) {
+                 std::fprintf(stderr, "[kvflash] pooled prefill requires the set_rows path\n");
+                 return -1;
+-            }
++        }
++        if (sg_.kv_write_rows) {
+             // [n_tokens, n_head_kv] ne0-major (see verify_batch).
+             std::vector<int64_t> rows((size_t)n_tokens * w_.n_head_kv);
+             for (int h = 0; h < w_.n_head_kv; h++) {
+                 for (int i = 0; i < n_tokens; i++) {
+-                    rows[(size_t)h * n_tokens + i] = kvf_slots[(size_t)i];
++                    rows[(size_t)h * n_tokens + i] = kvf_paged
++                        ? kvf_slots[(size_t)i]
++                        : kv_pos + i;
+                 }
+             }
+             ggml_backend_tensor_set(sg_.kv_write_rows, rows.data(), 0,

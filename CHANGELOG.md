@@ -8,6 +8,90 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Runtime shared-library provenance**: real product runs now resolve the executable's
+  dynamic dependency closure under the effective server environment and record canonical
+  paths, sizes, and SHA-256 hashes. Mutation of `libggml-cuda`, GGML CPU/base libraries,
+  CUDA libraries, or any other loaded dependency invalidates the run even when the
+  `dflash_server` bytes did not change. Baseline metrics are now saved only after this
+  final stability gate passes.
+- **Lazy Qwen3.6 rollback-cache candidate**: added a product patch that leaves
+  target-only prefill genuinely prefill-only and promotes the cache only after a request
+  qualifies for speculative decoding. An isolated exact-output 8K trace removed exactly
+  1,392 first-request synchronous tensor uploads and avoids about 1.31 GiB of unused
+  rollback storage. Plain chain speculation is included in the promotion predicate.
+  Promotion remains blocked on speculative E2E because the current central CUDA
+  dispatcher fails first with an unrelated invalid-pitch error.
+- **Tensor-core vendor-sync decomposition**: isolated the smallest buildable CUDA
+  tensor-core closure from the rejected 61-file vendor patch and reran a fully
+  content-addressed clean/subset/subset/clean comparison. It reproduced +4.55% IQ4_XS
+  prefill at 1K and +4.58% at 8K, but also reproduced deterministic greedy-token
+  divergence. The closure is rejected; the result localizes both effects to
+  FAttn/MMQ/quantization and their shared interfaces, narrowing the next split to
+  surgical interface hunks rather than broad file families.
+- **MMQ stream-k causal isolation**: extracted a standalone one-file scheduler/fixup
+  patch and ran a content-addressed candidate/clean/candidate/clean comparison. It
+  improved IQ4_XS prefill by 6.02% at 1K and 5.71% at 8K in both directions, while
+  exactly reproducing the rejected tensor closure's candidate-specific output sequence.
+  This localizes both effects to MMQ reduction scheduling and rules stale FAttn out as
+  the leading cause for this gap. The quality promotion gate now passes: five targeted
+  IQ4_XS CUDA-vs-CPU operator cases, 34 matched full-vocabulary logit samples, bit-exact
+  repeat captures, and 20 longer generation canaries. Combined mean KL is 0.002729,
+  maximum KL is 0.016672, and top-20 overlap never falls below 90%. The patch is an
+  exact backport of upstream llama.cpp #22298 and is ready for a Lucebox Hub PR.
+- **Product first-token logits diagnostics**: added a fail-closed AutoLuce parser and
+  numerical quality oracle plus a Lucebox candidate patch for opt-in, non-streaming raw
+  F32 logits at the final prompt position. Diagnostic requests bypass prefix/disk-cache
+  restore, validate every value as finite, and leave ordinary requests unchanged. The
+  product build passes all 2,041 server-unit assertions; AutoLuce gates mean/maximum KL,
+  top-k overlap, absolute error, margins, and argmax movement.
+- **Content-addressed vendor-sync ABBA**: reran the 61-file CUDA vendor patch with one
+  immutable GDN-enabled executable and separately hashed clean/vendor GGML CUDA
+  libraries. The vendor arm reproducibly improved IQ4_XS prefill by 4.24% at 1K and
+  4.60% at 8K, clearing the raw-standard-deviation gate in both ABBA directions, but
+  deterministically changed exact greedy tokens. The broad patch is rejected pending
+  correctness-gated decomposition; the result confirms stale vendor performance without
+  over-attributing it to FlashAttention alone.
+- **Content-addressed product/vendor evidence**: every real run now records the exact
+  Lucebox revision, working product-tree digest, independent vendored-GGML digest,
+  runtime binary SHA-256, dirty paths, selected backend, and separate product versus
+  vendor backend contracts. The harness snapshots this identity immediately after the
+  build and rejects measurements if source or binary bytes change before completion,
+  preventing shared-checkout and stale-binary results from entering the frontier. A
+  nonblocking per-checkout lease also stops cooperating local agents before concurrent
+  reset/build/measure cycles can contaminate each other.
+- **Qwen3.6 GDN broadcast forensic candidate**: retained a product patch that removes
+  redundant 16-to-48-head Q/K repeats already supported by the fused CUDA GDN kernel,
+  with exact-output ABBA evidence. A stable 14+14 repetition comparison improved
+  IQ4_XS prefill by 0.89% at 1K and 1.17% at 8K. The 8K result clears the conservative
+  raw-standard-deviation gate and is retained; the 1K result remains inconclusive.
+- **RTX 3090 prefill gap forensics**: corrected the original 9.1% 8K Luce/upstream
+  estimate with same-session controls to 3.36%, then reduced it to roughly 2.2% with
+  the retained GDN broadcast patch. CUDA API backtraces identified a target-only
+  first-request rollback migration that allocates about 1.31 GiB and performs 1,392
+  synchronous uploads. Steady-state traces ruled synchronization count out as the
+  residual throughput cause. GDN in-place state, upstream-style `set_rows`, target-only
+  feature capture, and F16 FWHT removal are recorded as rejected or inconclusive.
+- **F16 KV rotation negative result**: retained and rejected a candidate that bypasses
+  FWHT for unquantized F16/BF16 K caches. It changed exact greedy output, slowed the 1K
+  median, and improved the noisy 8K median by only 0.9%, ruling it out before a reverse
+  run and narrowing the parity investigation toward KV/attention layout and graph life.
+- **Native Lucebox environment controls**: inherited `DFLASH*`, `GGML_*`, and `LUCE_*`
+  settings are now passed through to managed servers and recorded as effective
+  experiment provenance. Explicit `runtime_env` values retain precedence and can
+  unset inherited controls. Stable `DFLASH_PREFILL_UBATCH`, `DFLASH_CHUNKED_Q_BATCH`,
+  and `DFLASH_CHUNKED_CHUNK` aliases map to Lucebox's current `DFLASH27B_*` names.
+- **Context-validated RTX 3090 NVFP4 prefill campaign**: a target-only Qwen3.6-27B
+  benchmark now generates deterministic prompts for 1K/16K/64K/128K cells, rejects
+  mislabeled depths using authoritative server token counts, scores `prefill_tok_s`
+  from the benchmark objective, reserves output headroom separately, and freezes a
+  local exact reference through `autoluce freeze --benchmark`. Diagnostic context and
+  repetition overrides are recorded in result bundles. Product-native uppercase
+  `DFLASH*` and `GGML_*` variables are passed only to the managed server and retained
+  as experiment evidence.
+- **Correct vendored GGML patch application**: vendor patches now run from the Lucebox
+  Git worktree with `--directory=server/deps/llama.cpp` and a reverse applicability
+  check. This fixes the non-submodule vendor layout and prevents a no-op patch from
+  being reported as applied.
 - **Lucebox HTTP benchmark and exact-quality adapter**: the live harness launches the
   pinned product's `dflash_server`, disables prefix/prefill caches for measurement,
   consumes authoritative `usage.timings` prefill/decode fields, records acceptance and

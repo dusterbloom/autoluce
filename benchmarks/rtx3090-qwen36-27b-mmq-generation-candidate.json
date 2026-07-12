@@ -1,0 +1,125 @@
+{
+  "label": "mmq",
+  "samples": [
+    {
+      "index": 0,
+      "prompt": "What is 17 multiplied by 23? Answer with the number only.",
+      "text": "391",
+      "completion_tokens": 4
+    },
+    {
+      "index": 1,
+      "prompt": "A train travels 120 km in 90 minutes. What is its average speed in km/h?",
+      "text": "To find the average speed of the train, we can follow these steps:\n\n### Step 1: Identify the given values\n*   **Distance ($d$):** 120 km\n*   **Time ($t$):** 90 minutes\n\n### Step 2: Convert time to hours\nSince the required speed unit is kilometers per hour (km/h), we must convert the time from minutes to hours.\n\n$$\n\\text{Time in hours} = \\frac{\\text{Time in minutes}}{60}\n$$\n\n$$\nt = \\frac{90}{60} \\text",
+      "completion_tokens": 128
+    },
+    {
+      "index": 2,
+      "prompt": "If all glims are trops and no trop is a zed, can any glim be a zed? Explain briefly.",
+      "text": "No, no glim can be a zed.\n\n**Explanation:**\n1.  Since all glims are trops, any glim is necessarily a trop.\n2.  Since no trop is a zed, any trop cannot be a zed.\n3.  Therefore, because a glim is a trop, it cannot be a zed.",
+      "completion_tokens": 77
+    },
+    {
+      "index": 3,
+      "prompt": "Continue the sequence 2, 6, 12, 20, 30 and state the rule.",
+      "text": "To determine the next number in the sequence and the underlying rule, let's analyze the pattern step-by-step.\n\n### Step 1: Analyze the Differences\nLet's look at the difference between consecutive terms:\n*   $6 - 2 = 4$\n*   $12 - 6 = 6$\n*   $20 - 12 = 8$\n*   $30 - 20 = 10$\n\nThe differences are $4, 6, 8, 10$. These are consecutive even numbers increasing by 2.\nFollowing this pattern",
+      "completion_tokens": 128
+    },
+    {
+      "index": 4,
+      "prompt": "Write a Python function that returns the factorial of a non-negative integer.",
+      "text": "```python\ndef factorial(n: int) -> int:\n    \"\"\"\n    Returns the factorial of a non-negative integer n.\n    \n    Args:\n        n: A non-negative integer.\n        \n    Returns:\n        The factorial of n (n!).\n        \n    Raises:\n        ValueError: If n is negative.\n        TypeError: If n is not an integer.\n    \"\"\"\n    if not isinstance(n, int):\n        raise TypeError(\"Input must be an integer.\")\n    if n < 0:\n        raise ValueError(\"Input must be a non-negative integer.\")\n    \n    if",
+      "completion_tokens": 128
+    },
+    {
+      "index": 5,
+      "prompt": "What does this Python expression print: sum(i*i for i in range(5))?",
+      "text": "To determine what the expression `sum(i*i for i in range(5))` prints, we can break it down step by step.\n\n### Step 1: Understand `range(5)`\nThe function `range(5)` generates a sequence of integers starting from 0 up to (but not including) 5.\nSo, the values of `i` will be: **0, 1, 2, 3, 4**.\n\n### Step 2: Evaluate the generator expression `i*i for i in range(5)`\nFor each value of `i`, we calculate $i^2",
+      "completion_tokens": 128
+    },
+    {
+      "index": 6,
+      "prompt": "Find the bug: def add(x, items=[]): items.append(x); return items",
+      "text": "The bug in this code is the use of a **mutable default argument** (`items=[]`).\n\n### The Problem\nIn Python, default argument values are evaluated **only once** at function definition time, not every time the function is called. This means that the same list object is shared across all calls to the function that do not provide an explicit `items` argument.\n\n### Example of the Bug\n```python\ndef add(x, items=[]):\n    items.append(x)\n    return items\n\nprint(add(1))  # Output: [1]\nprint(add(2))  # Output: [1,",
+      "completion_tokens": 128
+    },
+    {
+      "index": 7,
+      "prompt": "Give the time complexity of binary search and one sentence explaining why.",
+      "text": "The time complexity of binary search is **O(log n)**.\n\nThis is because the algorithm repeatedly divides the search interval in half, reducing the problem size by a factor of 2 at each step until the target is found or the interval is empty.",
+      "completion_tokens": 51
+    },
+    {
+      "index": 8,
+      "prompt": "Explain the difference between stack and heap memory in two sentences.",
+      "text": "Stack memory is a fast, LIFO-structured region used for storing local variables and function call contexts with automatic memory management, whereas heap memory is a larger, dynamically allocated pool used for objects and data structures that persist beyond the scope of a single function. While stack allocation is handled automatically by the compiler and is highly efficient, heap allocation requires manual or garbage-collected management and offers greater flexibility for variable-sized data.",
+      "completion_tokens": 84
+    },
+    {
+      "index": 9,
+      "prompt": "Summarize the plot of Hamlet in three sentences.",
+      "text": "Prince Hamlet seeks revenge against his uncle Claudius, who murdered Hamlet's father to seize the throne and marry Hamlet's mother. As Hamlet feigns madness to investigate the truth, his actions lead to a series of tragic deaths, including those of his love interest Ophelia and her father Polonius. The play culminates in a final duel where Hamlet kills Claudius but is himself fatally poisoned, leaving Fortinbras to take the throne.",
+      "completion_tokens": 96
+    },
+    {
+      "index": 10,
+      "prompt": "What is the capital of France? Answer with one word.",
+      "text": "Paris",
+      "completion_tokens": 2
+    },
+    {
+      "index": 11,
+      "prompt": "Name the chemical symbol for gold and its atomic number.",
+      "text": "Based on the periodic table of elements, here are the details for gold:\n\n*   **Chemical Symbol**: **Au** (derived from the Latin word *aurum*)\n*   **Atomic Number**: **79**",
+      "completion_tokens": 48
+    },
+    {
+      "index": 12,
+      "prompt": "Translate 'The library closes at six' into Italian.",
+      "text": "La biblioteca chiude alle sei.",
+      "completion_tokens": 7
+    },
+    {
+      "index": 13,
+      "prompt": "Rewrite this politely: Send me the report now.",
+      "text": "Here are a few polite ways to rewrite \"Send me the report now,\" depending on the context and your relationship with the recipient:\n\n**Professional & Direct:**\n*   \"Could you please send me the report at your earliest convenience?\"\n*   \"Please share the report when you have a moment.\"\n\n**If it\u2019s urgent:**\n*   \"I\u2019d appreciate it if you could send the report as soon as possible, as I need it for an upcoming meeting.\"\n*   \"Could you please prioritize sending the report? I need it by [specific time].\"\n\n**Softer & Collaborative:**\n*  ",
+      "completion_tokens": 128
+    },
+    {
+      "index": 14,
+      "prompt": "Return valid JSON with keys name and enabled for a service named alpha that is enabled.",
+      "text": "```json\n{\n  \"name\": \"alpha\",\n  \"enabled\": true\n}\n```",
+      "completion_tokens": 23
+    },
+    {
+      "index": 15,
+      "prompt": "Classify the sentiment as positive, negative, or neutral: The update works, but startup is slower.",
+      "text": "The statement acknowledges that the update functions correctly (\"works\"), which is a positive aspect. However, the conjunction \"but\" introduces a criticism regarding performance (\"startup is slower\"), which is a negative aspect. Since the sentence contains both a positive and a negative element, balancing the functionality against the performance drawback, the overall sentiment is mixed.\n\n**Neutral**",
+      "completion_tokens": 71
+    },
+    {
+      "index": 16,
+      "prompt": "A box contains 3 red and 2 blue balls. What is the probability of drawing a blue ball?",
+      "text": "To find the probability of drawing a blue ball, we can follow these steps:\n\n**1. Determine the total number of possible outcomes:**\nThe box contains 3 red balls and 2 blue balls.\n$$ \\text{Total balls} = 3 + 2 = 5 $$\n\n**2. Determine the number of favorable outcomes:**\nWe are interested in drawing a blue ball. There are 2 blue balls in the box.\n$$ \\text{Number of blue balls} = 2 $$\n\n**3. Calculate the probability:**\nThe probability $P$ of an event is given by the ratio of",
+      "completion_tokens": 128
+    },
+    {
+      "index": 17,
+      "prompt": "Which is larger, 2^10 or 10^3, and by how much?",
+      "text": "To determine which number is larger and by how much, we will calculate the value of each expression and then compare them.\n\n### Step 1: Calculate $2^{10}$\n\n$$2^{10} = 2 \\times 2 \\times 2 \\times 2 \\times 2 \\times 2 \\times 2 \\times 2 \\times 2 \\times 2$$\n\nWe can break this down:\n$$2^{10} = 1024$$\n\n### Step 2: Calculate $10^3$\n\n$$10^3 = 10",
+      "completion_tokens": 128
+    },
+    {
+      "index": 18,
+      "prompt": "State one advantage and one disadvantage of unified memory for LLM inference.",
+      "text": "Here is one advantage and one disadvantage of using Unified Memory (such as Apple's M-series chips or NVIDIA's Hopper architecture with HBM) for Large Language Model (LLM) inference:\n\n### Advantage: **Larger Model Capacity via High Memory Bandwidth and Capacity**\nUnified Memory allows the CPU and GPU to share a single, large pool of high-bandwidth memory (HBM). This enables the loading of significantly larger LLMs (e.g., 70B+ parameters) onto a single device without needing to shard the model across multiple GPUs. The high memory bandwidth ensures that the GPU can feed data to the",
+      "completion_tokens": 128
+    },
+    {
+      "index": 19,
+      "prompt": "In one paragraph, explain why floating-point addition is not associative.",
+      "text": "Floating-point addition is not associative because finite precision and rounding errors cause the order of operations to affect the final result. In floating-point arithmetic, numbers are represented with a limited number of significant digits, so when adding a very small number to a very large number, the small number may be lost due to rounding (absorption), whereas adding two small numbers first might preserve their sum before adding it to the large number. For example, if $a$ is a large number and $b, c$ are small numbers such that $b + c$ is still small but non-zero, $(a + b) + c$ might equal $",
+      "completion_tokens": 128
+    }
+  ]
+}

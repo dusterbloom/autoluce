@@ -1,0 +1,215 @@
+diff --git a/server/src/common/model_backend.h b/server/src/common/model_backend.h
+index b88f6f2..4032f31 100644
+--- a/server/src/common/model_backend.h
++++ b/server/src/common/model_backend.h
+@@ -99,6 +99,8 @@ struct GenerateRequest {
+     SamplerCfg                 sampler;
+     bool                       do_sample   = false;
+     bool                       stream      = false;  // emit tokens to stream_fd
++    // Raw F32 logits at the final prompt position, before sampling transforms.
++    bool                       capture_first_token_logits = false;
+     // Optional inline-snap: snapshot at this position after prefill.
+     int                        snap_pos    = -1;
+     int                        snap_slot   = -1;
+@@ -130,6 +132,7 @@ struct GenerateResult {
+     bool                       ok          = false;
+     std::string                error;               // "prefill", "decode", etc.
+     std::vector<int32_t>       tokens;
++    std::vector<float>         first_token_logits;
+     double                     prefill_s   = 0.0;
+     double                     decode_s    = 0.0;
+     // True when the backend's Level 2 hook injected the </think> close
+diff --git a/server/src/qwen35/qwen35_backend.cpp b/server/src/qwen35/qwen35_backend.cpp
+index d37c1b7..1f4f46c 100644
+--- a/server/src/qwen35/qwen35_backend.cpp
++++ b/server/src/qwen35/qwen35_backend.cpp
+@@ -24,6 +24,7 @@
+ 
+ #include <algorithm>
+ #include <chrono>
++#include <cmath>
+ #include <cstdio>
+ #include <cstdlib>
+ #include <cstdint>
+@@ -779,6 +780,16 @@ void Qwen35Backend::release_scratch() {
+ 
+ // ── Generate (speculative decode) ───────────────────────────────────────
+ 
++bool Qwen35Backend::capture_prefill_logits(std::vector<float> & out) const {
++    if (!prefill_last_logits_valid_ || !sg_.logits || w_.n_vocab <= 0) return false;
++    out.resize((size_t) w_.n_vocab);
++    ggml_backend_tensor_get(sg_.logits, out.data(), prefill_last_logits_offset_,
++                            out.size() * sizeof(float));
++    return std::all_of(out.begin(), out.end(), [](float value) {
++        return std::isfinite(value);
++    });
++}
++
+ GenerateResult Qwen35Backend::generate_impl(const GenerateRequest & req,
+                                             const DaemonIO & io) {
+     GenerateResult result;
+@@ -802,6 +813,11 @@ GenerateResult Qwen35Backend::generate_impl(const GenerateRequest & req,
+     }
+     auto t_prefill_end = std::chrono::steady_clock::now();
+     result.prefill_s = std::chrono::duration<double>(t_prefill_end - t_prefill_start).count();
++    if (req.capture_first_token_logits &&
++        !capture_prefill_logits(result.first_token_logits)) {
++        result.error = "first-token logits";
++        return result;
++    }
+ 
+     // Decode (speculative)
+     if (req.n_gen > 0) {
+diff --git a/server/src/qwen35/qwen35_backend.h b/server/src/qwen35/qwen35_backend.h
+index 53e5b69..34bc624 100644
+--- a/server/src/qwen35/qwen35_backend.h
++++ b/server/src/qwen35/qwen35_backend.h
+@@ -268,6 +268,8 @@ private:
+                    int snap_pos = -1, int snap_slot = -1,
+                    int kv_offset = 0);
+ 
++    bool capture_prefill_logits(std::vector<float> & out) const;
++
+     // Speculative decode loop: draft → verify → accept until EOS/max.
+     // When budget_hook is non-null and (n_gen - generated) drops to the
+     // hard-limit boundary, breaks out of the spec-decode loop and tails
+diff --git a/server/src/server/http_server.cpp b/server/src/server/http_server.cpp
+index 8d4bdab..a072956 100644
+--- a/server/src/server/http_server.cpp
++++ b/server/src/server/http_server.cpp
+@@ -33,6 +33,7 @@
+ #include <cerrno>
+ #include <chrono>
+ #include <cctype>
++#include <cmath>
+ #include <cstdint>
+ #include <cstdio>
+ #include <cstdlib>
+@@ -1400,6 +1401,27 @@ bool HttpServer::route_request(int fd, const HttpRequest & hr) {
+ 
+         // Common fields.
+         req.stream = body.value("stream", false);
++        if (body.contains("diagnostics")) {
++            const json & diagnostics = body["diagnostics"];
++            if (!diagnostics.is_object()) {
++                send_error(fd, 400, "diagnostics must be an object");
++                return true;
++            }
++            if (diagnostics.contains("first_token_logits")) {
++                if (!diagnostics["first_token_logits"].is_boolean()) {
++                    send_error(fd, 400, "diagnostics.first_token_logits must be boolean");
++                    return true;
++                }
++                req.capture_first_token_logits =
++                    diagnostics["first_token_logits"].get<bool>();
++                if (req.capture_first_token_logits &&
++                    (req.stream || hr.path != "/v1/chat/completions")) {
++                    send_error(fd, 400,
++                               "first-token logits require non-streaming chat completions");
++                    return true;
++                }
++            }
++        }
+         req.model = body.value("model", config_.model_name);
+         req.disk_cache_policy = config_.disk_cache_policy;
+         // Default when client omits all three: use --default-max-tokens
+@@ -2392,6 +2414,7 @@ void HttpServer::worker_loop() {
+         gen_req.sampler = req.sampler;
+         gen_req.do_sample = req.sampler.needs_logit_processing();
+         gen_req.stream = false;  // we handle streaming via on_token callback
++        gen_req.capture_first_token_logits = req.capture_first_token_logits;
+ 
+         // Level 2 force-close: when thinking is opted in, the server is
+         // configured with a hard-limit reply budget, and we resolved the
+@@ -2458,10 +2481,10 @@ void HttpServer::worker_loop() {
+         }
+ 
+         // Full-prompt cache: exact raw-prompt hit skips most/all prefill.
+-        int cache_slot = full_cache_hit_slot;
+-        int prefix_len = full_cache_hit_len;
++        int cache_slot = req.capture_first_token_logits ? -1 : full_cache_hit_slot;
++        int prefix_len = req.capture_first_token_logits ? 0 : full_cache_hit_len;
+         bool using_restore = (cache_slot >= 0);
+-        if (!using_restore) {
++        if (!using_restore && !req.capture_first_token_logits) {
+             auto [full_slot, full_len] = prefix_cache_.lookup_full(req.prompt_tokens);
+             if (full_slot >= 0) {
+                 cache_slot = full_slot;
+@@ -2476,7 +2499,7 @@ void HttpServer::worker_loop() {
+ 
+         // Inline prefix cache: check for cached turn-boundary KV state if no
+         // exact full-prompt cache was available.
+-        if (!using_restore) {
++        if (!using_restore && !req.capture_first_token_logits) {
+             auto [inline_slot, inline_len] = prefix_cache_.lookup(effective_prompt);
+             cache_slot = inline_slot;
+             prefix_len = inline_len;
+@@ -2490,6 +2513,9 @@ void HttpServer::worker_loop() {
+         static constexpr int DISK_STAGING_SLOT = ModelBackend::kMaxSlots - 1;
+         bool disk_hit = false;
+         DiskPrefixCachePolicy disk_policy = req.disk_cache_policy;
++        if (req.capture_first_token_logits) {
++            disk_policy.mode = DiskPrefixCacheMode::Off;
++        }
+         // system_end: first chat-marker boundary; FlowKV clamps disk cache to verbatim system prefix.
+         int system_end = 0;
+         if (pflash_compressed && req.disk_cache_policy.compress) {
+@@ -2690,7 +2716,7 @@ void HttpServer::worker_loop() {
+         int full_snap_slot = -1;
+         int full_snap_pos = 0;
+         bool full_snap_prepared = false;
+-        if (!using_restore) {
++        if (!using_restore && !req.capture_first_token_logits) {
+             full_snap_slot = prefix_cache_.prepare_full_snap(req.prompt_tokens);
+             if (full_snap_slot >= 0) {
+                 full_snap_pos = (int)effective_prompt.size();
+@@ -2705,7 +2731,7 @@ void HttpServer::worker_loop() {
+         // priority when enabled.
+         int snap_slot = -1;
+         int snap_cut = 0;
+-        if (!full_snap_prepared) {
++        if (!full_snap_prepared && !req.capture_first_token_logits) {
+             auto prepared = prefix_cache_.prepare_inline_snap(effective_prompt);
+             snap_slot = prepared.first;
+             snap_cut = prepared.second;
+@@ -2881,6 +2907,14 @@ void HttpServer::worker_loop() {
+         // doesn't grow monotonically across requests with different sizes.
+         backend_.release_scratch();
+ 
++        if (req.capture_first_token_logits &&
++            (result.first_token_logits.empty() ||
++             !std::all_of(result.first_token_logits.begin(), result.first_token_logits.end(),
++                          [](float value) { return std::isfinite(value); }))) {
++            send_error(fd, 500, "first-token logits capture failed");
++            return;
++        }
++
+         // Bandit: update when spec decode actually ran — including 0-accept case,
+         // which signals the current keep_ratio is too low.
+         if (!req.session_id.empty() && result.spec_decode_ran) {
+@@ -3276,6 +3310,13 @@ void HttpServer::worker_loop() {
+             default:
+                 resp = {{"text", emitter.accumulated_text()}};
+             }
++            if (req.capture_first_token_logits) {
++                resp["diagnostics"]["first_token_logits"] = {
++                    {"dtype", "float32"},
++                    {"axis", "token_id"},
++                    {"values", result.first_token_logits},
++                };
++            }
+             // Set socket back to blocking for the final send.
+             int flags = sock_get_flags(fd);
+             if (flags >= 0) sock_set_block(fd);
+diff --git a/server/src/server/http_server.h b/server/src/server/http_server.h
+index 957741b..10ca751 100644
+--- a/server/src/server/http_server.h
++++ b/server/src/server/http_server.h
+@@ -194,6 +194,7 @@ struct ParsedRequest {
+     std::vector<int32_t>      prompt_tokens;  // tokenized prompt
+     int                       max_output   = 4096;
+     bool                      stream       = true;
++    bool                      capture_first_token_logits = false;
+     SamplerCfg                sampler;
+     std::string               model;
+     // Tool definitions (stored as JSON for response formatting)

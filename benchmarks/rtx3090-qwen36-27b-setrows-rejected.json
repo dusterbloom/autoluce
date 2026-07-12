@@ -1,0 +1,481 @@
+{
+  "clean": {
+    "arm": "dflash",
+    "binary": "/tmp/autoluce-gdn-only-build/dflash_server",
+    "binary_md5": "110090e38aae0f8fc23a2d4a2b79f8ab",
+    "lucebox_git_rev": "5e302cbb483819cd21e72f5dd8becaa609eca8cf",
+    "lucebox_checkout_dirty": true,
+    "lucebox_dirty_files": [
+      "?? build-cuda-sm86/"
+    ],
+    "command": [
+      "/tmp/autoluce-gdn-only-build/dflash_server",
+      "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "60619",
+      "--max-ctx",
+      "8448",
+      "--prefix-cache-slots",
+      "0",
+      "--prefill-cache-slots",
+      "0",
+      "--cache-type-k",
+      "f16",
+      "--cache-type-v",
+      "f16"
+    ],
+    "cache_type_k": "f16",
+    "cache_type_v": "f16",
+    "server_ctx": 8448,
+    "flash_attention": "always-on (no CLI toggle in dflash_server; fa-window=0 means full FA)",
+    "cells": {
+      "8192": {
+        "raw_reps": [
+          {
+            "text": "Based",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1473.1328456606159,
+            "decode_tok_s": 13735.1,
+            "prefill_ms": 5536.5,
+            "decode_ms": 0.1,
+            "wall_s": 5.541975902044214
+          },
+          {
+            "text": "Based",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1472.4679545044232,
+            "decode_tok_s": 11218.4,
+            "prefill_ms": 5539.0,
+            "decode_ms": 0.1,
+            "wall_s": 5.552686722017825
+          },
+          {
+            "text": "The",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1468.1475347866003,
+            "decode_tok_s": 13504.2,
+            "prefill_ms": 5555.3,
+            "decode_ms": 0.1,
+            "wall_s": 5.560528766945936
+          },
+          {
+            "text": "Based",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1466.9856287209743,
+            "decode_tok_s": 13946.6,
+            "prefill_ms": 5559.7,
+            "decode_ms": 0.1,
+            "wall_s": 5.565046136034653
+          },
+          {
+            "text": "It",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1464.6410228782818,
+            "decode_tok_s": 5076.6,
+            "prefill_ms": 5568.6,
+            "decode_ms": 0.2,
+            "wall_s": 5.574504921911284
+          },
+          {
+            "text": "Based",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1463.6422367382097,
+            "decode_tok_s": 13898.9,
+            "prefill_ms": 5572.4,
+            "decode_ms": 0.1,
+            "wall_s": 5.577865101979114
+          },
+          {
+            "text": "Based",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1460.4709463694153,
+            "decode_tok_s": 13594.0,
+            "prefill_ms": 5584.5,
+            "decode_ms": 0.1,
+            "wall_s": 5.5894548170035705
+          }
+        ],
+        "prefix_cache_evidence": [
+          {
+            "rep": 0,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 1,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 2,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 3,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 4,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 5,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 6,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          }
+        ],
+        "warmup_prompt_tokens": 8157
+      }
+    },
+    "name": "clean"
+  },
+  "candidate": {
+    "arm": "dflash",
+    "binary": "/tmp/autoluce-gdn-setrows-build/dflash_server",
+    "binary_md5": "7cc78daeea4239283632c9c056aa2bf7",
+    "lucebox_git_rev": "5e302cbb483819cd21e72f5dd8becaa609eca8cf",
+    "lucebox_checkout_dirty": true,
+    "lucebox_dirty_files": [
+      "M server/src/qwen35/graph_builders.cpp",
+      " M server/src/qwen35/qwen35_backend.cpp",
+      " M server/src/qwen35/qwen35_target_graph.cpp",
+      "?? build-cuda-sm86-cuda126/"
+    ],
+    "command": [
+      "/tmp/autoluce-gdn-setrows-build/dflash_server",
+      "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "39275",
+      "--max-ctx",
+      "8448",
+      "--prefix-cache-slots",
+      "0",
+      "--prefill-cache-slots",
+      "0",
+      "--cache-type-k",
+      "f16",
+      "--cache-type-v",
+      "f16"
+    ],
+    "cache_type_k": "f16",
+    "cache_type_v": "f16",
+    "server_ctx": 8448,
+    "flash_attention": "always-on (no CLI toggle in dflash_server; fa-window=0 means full FA)",
+    "cells": {
+      "8192": {
+        "raw_reps": [
+          {
+            "text": "Based",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1460.8371693145386,
+            "decode_tok_s": 13104.3,
+            "prefill_ms": 5583.1,
+            "decode_ms": 0.1,
+            "wall_s": 5.588084977003746
+          },
+          {
+            "text": "Based",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1459.5823117808122,
+            "decode_tok_s": 13699.0,
+            "prefill_ms": 5587.9,
+            "decode_ms": 0.1,
+            "wall_s": 5.592866303981282
+          },
+          {
+            "text": "The",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1458.9556911078118,
+            "decode_tok_s": 13816.9,
+            "prefill_ms": 5590.3,
+            "decode_ms": 0.1,
+            "wall_s": 5.5950628449209034
+          },
+          {
+            "text": "Based",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1454.454668663956,
+            "decode_tok_s": 13583.4,
+            "prefill_ms": 5607.6,
+            "decode_ms": 0.1,
+            "wall_s": 5.612716609961353
+          },
+          {
+            "text": "It",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1449.6720641296813,
+            "decode_tok_s": 12750.5,
+            "prefill_ms": 5626.1,
+            "decode_ms": 0.1,
+            "wall_s": 5.6310523430584
+          },
+          {
+            "text": "Based",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1449.182658137882,
+            "decode_tok_s": 11490.0,
+            "prefill_ms": 5628.0,
+            "decode_ms": 0.1,
+            "wall_s": 5.633727596956305
+          },
+          {
+            "text": "Based",
+            "prompt_tokens": 8156,
+            "completion_tokens": 1,
+            "prefill_tok_s": 1448.7193150733594,
+            "decode_tok_s": 14182.0,
+            "prefill_ms": 5629.8,
+            "decode_ms": 0.1,
+            "wall_s": 5.635207548970357
+          }
+        ],
+        "prefix_cache_evidence": [
+          {
+            "rep": 0,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 1,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 2,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 3,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 4,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 5,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          },
+          {
+            "rep": 6,
+            "prompt_tokens": 8156,
+            "prefix_len_field_present": false,
+            "raw_usage_keys": [
+              "accept_rate",
+              "completion_tokens",
+              "completion_tokens_details",
+              "prompt_tokens",
+              "timings",
+              "total_tokens"
+            ],
+            "raw_timings_keys": [
+              "decode_ms",
+              "decode_tokens_per_sec",
+              "prefill_ms"
+            ]
+          }
+        ],
+        "warmup_prompt_tokens": 8157
+      }
+    },
+    "name": "setrows"
+  }
+}

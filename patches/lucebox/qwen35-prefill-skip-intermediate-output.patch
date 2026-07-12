@@ -1,0 +1,166 @@
+diff --git a/server/src/internal.h b/server/src/internal.h
+index 9cb36b1..58ce044 100644
+--- a/server/src/internal.h
++++ b/server/src/internal.h
+@@ -597,6 +597,7 @@ struct QwenGraphInputs {
+     bool          capture_moe_router = false; // if true, expose selected expert ids for MoE layers
+     int           fa_window = 0;  // sliding window for FA layers: 0 = full attention
+     bool          last_token_logits_only = false; // if true, only compute logits for last token (prefill optimization)
++    bool          skip_output = false; // if true, persist recurrent state without final norm/logits
+     ggml_tensor * parent_ids = nullptr; // [n_tokens] i32; tree mode when non-null
+     // [n_tokens,n_head_kv] i64; non-null = step-invariant KV write via ggml_set_rows (carries kv_start).
+     ggml_tensor * kv_write_rows = nullptr;
+diff --git a/server/src/qwen35/graph_builders.cpp b/server/src/qwen35/graph_builders.cpp
+index 842314b..04dc6bb 100644
+--- a/server/src/qwen35/graph_builders.cpp
++++ b/server/src/qwen35/graph_builders.cpp
+@@ -272,7 +272,8 @@ bool build_target_step(
+     int kq_stride_pad,
+     bool capture_moe_router,
+     bool kvflash_mask,
+-    bool capture_qk) {
++    bool capture_qk,
++    bool skip_output) {
+     step_graph_free(sg);
+ 
+     // Persistent thread_local arena: rebuilt step graphs land at identical
+@@ -350,20 +351,23 @@ bool build_target_step(
+     gi.capture_moe_router         = capture_moe_router;
+     gi.fa_window                  = fa_window;
+     gi.last_token_logits_only     = last_token_logits_only;
++    gi.skip_output                = skip_output;
+     gi.kv_write_rows              = sg.kv_write_rows;
+     gi.q_capture                  = capture_qk;
+ 
+     QwenGraphOutputs go = build_qwen35_graph(sg.ctx, sg.gf, w, cache, gi);
+-    if (!go.logits) return false;
++    if (!go.logits && !skip_output) return false;
+     sg.logits = go.logits;
+     sg.delta_captures = std::move(go.delta_captures);
+     sg.moe_selected = std::move(go.moe_selected);
+-    ggml_set_output(sg.logits);
++    if (sg.logits) {
++        ggml_set_output(sg.logits);
+ 
+-    sg.argmax_tokens = ggml_argmax(sg.ctx, sg.logits);
+-    ggml_set_name(sg.argmax_tokens, "chain_verify_argmax");
+-    ggml_set_output(sg.argmax_tokens);
+-    ggml_build_forward_expand(sg.gf, sg.argmax_tokens);
++        sg.argmax_tokens = ggml_argmax(sg.ctx, sg.logits);
++        ggml_set_name(sg.argmax_tokens, "chain_verify_argmax");
++        ggml_set_output(sg.argmax_tokens);
++        ggml_build_forward_expand(sg.gf, sg.argmax_tokens);
++    }
+ 
+     if (!sg.alloc) {
+         sg.alloc = ggml_gallocr_new(ggml_backend_get_default_buffer_type(backend));
+diff --git a/server/src/qwen35/graph_builders.h b/server/src/qwen35/graph_builders.h
+index 7557a1f..c3a7127 100644
+--- a/server/src/qwen35/graph_builders.h
++++ b/server/src/qwen35/graph_builders.h
+@@ -93,7 +93,8 @@ bool build_target_step(
+     int kq_stride_pad = KQ_MASK_PAD,
+     bool capture_moe_router = false,
+     bool kvflash_mask = false,
+-    bool capture_qk = false);
++    bool capture_qk = false,
++    bool skip_output = false);
+ 
+ // Full target forward: DDTree tree-verify mode.
+ bool build_target_step_tree(
+diff --git a/server/src/qwen35/qwen35_backend.cpp b/server/src/qwen35/qwen35_backend.cpp
+index d37c1b7..f22d1a0 100644
+--- a/server/src/qwen35/qwen35_backend.cpp
++++ b/server/src/qwen35/qwen35_backend.cpp
+@@ -1012,6 +1012,8 @@ int Qwen35Backend::do_prefill(const std::vector<int32_t> & tokens,
+     if (const char * s = std::getenv("DFLASH27B_PREFILL_UBATCH")) {
+         prefill_ubatch = std::max(1, std::atoi(s));
+     }
++    const bool skip_intermediate_output =
++        std::getenv("DFLASH_PREFILL_SKIP_INTERMEDIATE_OUTPUT") != nullptr;
+     const int prompt_len = (int)tokens.size();
+     prefill_last_logits_valid_ = false;
+ 
+@@ -1119,15 +1121,23 @@ int Qwen35Backend::do_prefill(const std::vector<int32_t> & tokens,
+         // positions encode the complete context — critical for tool
+         // definitions at prompt start to propagate into KV values that
+         // decode-time windowed attention will later read.
++        const bool is_final_chunk = (start + n_tokens >= prompt_len);
++        const bool last_token_logits_only =
++            skip_intermediate_output || !is_final_chunk;
+         if (!build_target_step(sg_, w_, cache_, target_backend_,
+                                /*kv_start=*/kv_pos, /*n_tokens=*/n_tokens,
+-                               with_mask, /*capture=*/true,
++                               with_mask,
++                               /*capture=*/cfg_.draft_path != nullptr ||
++                                             remote_draft_.active() ||
++                                             feature_mirror_.target_feat != nullptr,
+                                /*capture_delta_intermediate=*/false,
+                                /*fa_window=*/0,
+-                               /*last_token_logits_only=*/(start + n_tokens < prompt_len),
++                               last_token_logits_only,
+                                cfg_.kq_stride_pad,
+                                should_capture_moe_router(),
+-                               /*kvflash_mask=*/kvf_paged)) {
++                               /*kvflash_mask=*/kvf_paged,
++                               /*capture_qk=*/false,
++                               /*skip_output=*/skip_intermediate_output && !is_final_chunk)) {
+             std::fprintf(stderr, "prefill build @%d\n", kv_pos);
+             return -1;
+         }
+@@ -1212,14 +1222,19 @@ int Qwen35Backend::do_prefill(const std::vector<int32_t> & tokens,
+         }
+         after_target_compute(sg_, kv_pos, n_tokens);
+ 
+-        int32_t last_tok = -1;
+-        const bool is_final_chunk = (start + n_tokens >= prompt_len);
+-        const size_t argmax_off =
+-            is_final_chunk ? sizeof(int32_t) * (size_t)(n_tokens - 1) : 0;
+-        ggml_backend_tensor_get(sg_.argmax_tokens, &last_tok, argmax_off, sizeof(int32_t));
+-        cache_.last_tok = last_tok;
++        if (sg_.argmax_tokens) {
++            int32_t last_tok = -1;
++            const size_t argmax_off =
++                is_final_chunk && !last_token_logits_only
++                    ? sizeof(int32_t) * (size_t)(n_tokens - 1)
++                    : 0;
++            ggml_backend_tensor_get(sg_.argmax_tokens, &last_tok, argmax_off, sizeof(int32_t));
++            cache_.last_tok = last_tok;
++        }
+         if (is_final_chunk) {
+-            prefill_last_logits_offset_ = (size_t)(n_tokens - 1) * (size_t)vocab * sizeof(float);
++            prefill_last_logits_offset_ = last_token_logits_only
++                ? 0
++                : (size_t)(n_tokens - 1) * (size_t)vocab * sizeof(float);
+             prefill_last_logits_valid_ = true;
+         }
+ 
+diff --git a/server/src/qwen35/qwen35_target_graph.cpp b/server/src/qwen35/qwen35_target_graph.cpp
+index ea4684e..b185a64 100644
+--- a/server/src/qwen35/qwen35_target_graph.cpp
++++ b/server/src/qwen35/qwen35_target_graph.cpp
+@@ -1294,14 +1294,20 @@ QwenGraphOutputs build_qwen35_graph(
+         inpL = cur;
+     }
+ 
+-    // 2. Final norm
+-    ggml_tensor * out = rms_norm_mul(ctx, inpL, w.out_norm, w.rms_eps);
++    ggml_tensor * out = nullptr;
++    if (!in.skip_output) {
++        // 2. Final norm
++        out = rms_norm_mul(ctx, inpL, w.out_norm, w.rms_eps);
++    }
+ 
+     // 3. LM head — optionally only for the last token (prefill optimization:
+     //    reduces logits from [vocab, n_tokens] to [vocab, 1], saving ~233MB
+     //    scratch at ubatch=384 and eliminating a large matmul).
+     ggml_tensor * logits = nullptr;
+-    if (w.output) {
++    if (in.skip_output) {
++        // KV and recurrent-state writes were expanded while building layers.
++        // Intermediate prefill chunks do not expose a token prediction.
++    } else if (w.output) {
+         if (in.last_token_logits_only && n_tokens > 1) {
+             out = ggml_view_2d(ctx, out, hidden, 1, out->nb[1],
+                                (size_t)(n_tokens - 1) * out->nb[1]);
+

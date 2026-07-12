@@ -1,12 +1,28 @@
 # RTX 3090 Qwen3.6-27B Frontier
 
-Last reviewed: 2026-07-10.
+Last reviewed: 2026-07-11.
 
 This is the external target for one RTX 3090 (24 GiB), batch one. No reproducible
 public context-depth curve was found for the exact
 `unsloth/Qwen3.6-27B-NVFP4` checkpoint. Until AutoLuce measures it, use the best
 comparable Qwen3.6-27B results on the same GPU as cross-quant targets, not as an
 NVFP4 baseline.
+
+AutoLuce now has a resident compact mixed GGUF baseline. It preserves all 168 NVFP4
+tensors and converts the non-NVFP4 fallback tensors to Q4_K/Q6_K; it is not the same
+artifact as the original HF checkpoint or the larger NVFP4+Q8 fallback GGUF.
+
+| Validated prompt depth | Default prefill | Best measured prefill | Best configuration |
+|---|---:|---:|---|
+| 1K (986 actual) | 1,110.1 | 1,110.1 | default |
+| 16K (16,346 actual) | 908.9 | 908.9 | default |
+| 64K (65,498 actual) | 557.9 | 637.5 | ubatch/qbatch 3072, KV tile 8192 |
+| 128K (131,034 actual) | 368.0 | 407.7 | ubatch/qbatch 3072, KV tile 8192 |
+
+These are target-only prefill results from Lucebox `dflash_server`, TQ3_0 KV, caches
+off, exact one-token output preserved, and prompt-sized server contexts. The tuned
+64K/128K cells are context-specific winners, not one global configuration. They do
+not beat the cross-quant targets below.
 
 | Context/workload | Prefill target | Decode target |
 |---|---:|---:|

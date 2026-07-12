@@ -1,0 +1,621 @@
+{
+  "arm": "dflash",
+  "binary": "/tmp/vendor-abba/dflash_server",
+  "binary_md5": "4186bc1c06ab758e555d1b3d88de7df2",
+  "lucebox_git_rev": "5e302cbb483819cd21e72f5dd8becaa609eca8cf",
+  "lucebox_checkout_dirty": true,
+  "lucebox_dirty_files": [
+    "M server/deps/llama.cpp/ggml/src/ggml-cuda/argsort.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/argsort.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/binbcast.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/common.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/concat.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/conv-transpose-1d.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/convert.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/cpy.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/dequantize.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/fattn-common.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/fattn-mma-f16.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/fattn-tile.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/fattn-tile.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/fattn-vec.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/fattn-wmma-f16.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/fattn.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/fattn.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/getrows.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/ggml-cuda.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/im2col.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/mean.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/mma.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/mmf.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/mmq.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/mmq.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/mmvf.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/mmvq.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/mmvq.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/norm.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/out-prod.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/quantize.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/quantize.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/reduce_rows.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/rope.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/scale.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/set-rows.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/softcap.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/ssm-conv.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/ssm-conv.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/ssm-scan.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/sumrows.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_1-ncols2_16.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_1-ncols2_32.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_1-ncols2_8.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_16-ncols2_2.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_2-ncols2_16.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_2-ncols2_32.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_2-ncols2_8.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_32-ncols2_2.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_4-ncols2_16.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_4-ncols2_2.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_4-ncols2_8.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_8-ncols2_2.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-mma-f16-instance-ncols1_8-ncols2_8.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/generate_cu_files.py",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/top-k.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/topk-moe.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/unary.cu",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/unary.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/vecdotq.cuh",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/vendors/hip.h",
+    " M server/deps/llama.cpp/ggml/src/ggml-cuda/vendors/musa.h",
+    "?? build-cuda-sm86/",
+    "?? server/deps/llama.cpp/ggml/src/ggml-cuda/allreduce.cu",
+    "?? server/deps/llama.cpp/ggml/src/ggml-cuda/allreduce.cuh",
+    "?? server/deps/llama.cpp/ggml/src/ggml-cuda/snake.cu",
+    "?? server/deps/llama.cpp/ggml/src/ggml-cuda/snake.cuh",
+    "?? server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-tile-instance-dkq192-dv128.cu",
+    "?? server/deps/llama.cpp/ggml/src/ggml-cuda/template-instances/fattn-tile-instance-dkq320-dv256.cu"
+  ],
+  "command": [
+    "/tmp/vendor-abba/dflash_server",
+    "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "60557",
+    "--max-ctx",
+    "8448",
+    "--prefix-cache-slots",
+    "0",
+    "--prefill-cache-slots",
+    "0",
+    "--cache-type-k",
+    "f16",
+    "--cache-type-v",
+    "f16"
+  ],
+  "cache_type_k": "f16",
+  "cache_type_v": "f16",
+  "server_ctx": 8448,
+  "flash_attention": "always-on (no CLI toggle in dflash_server; fa-window=0 means full FA)",
+  "cells": {
+    "1024": {
+      "raw_reps": [
+        {
+          "text": "The",
+          "prompt_tokens": 988,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1379.3103448275863,
+          "decode_tok_s": 11514.1,
+          "prefill_ms": 716.3,
+          "decode_ms": 0.1,
+          "wall_s": 0.7208408820442855
+        },
+        {
+          "text": "The",
+          "prompt_tokens": 988,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1374.3218806509947,
+          "decode_tok_s": 14459.6,
+          "prefill_ms": 718.9,
+          "decode_ms": 0.1,
+          "wall_s": 0.7237561889924109
+        },
+        {
+          "text": "It",
+          "prompt_tokens": 988,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1381.6249475597817,
+          "decode_tok_s": 11718.9,
+          "prefill_ms": 715.1,
+          "decode_ms": 0.1,
+          "wall_s": 0.7200753990327939
+        },
+        {
+          "text": "It",
+          "prompt_tokens": 988,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1380.081016901802,
+          "decode_tok_s": 14137.1,
+          "prefill_ms": 715.9,
+          "decode_ms": 0.1,
+          "wall_s": 0.7205834939377382
+        },
+        {
+          "text": "It",
+          "prompt_tokens": 988,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1384.3351548269582,
+          "decode_tok_s": 13227.3,
+          "prefill_ms": 713.7,
+          "decode_ms": 0.1,
+          "wall_s": 0.7180297049926594
+        },
+        {
+          "text": "It",
+          "prompt_tokens": 988,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1377.195427934207,
+          "decode_tok_s": 13861.9,
+          "prefill_ms": 717.4,
+          "decode_ms": 0.1,
+          "wall_s": 0.7218192520085722
+        },
+        {
+          "text": "It",
+          "prompt_tokens": 988,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1366.3393721476973,
+          "decode_tok_s": 12625.3,
+          "prefill_ms": 723.1,
+          "decode_ms": 0.1,
+          "wall_s": 0.7272605380276218
+        }
+      ],
+      "prefix_cache_evidence": [
+        {
+          "rep": 0,
+          "prompt_tokens": 988,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 1,
+          "prompt_tokens": 988,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 2,
+          "prompt_tokens": 988,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 3,
+          "prompt_tokens": 988,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 4,
+          "prompt_tokens": 988,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 5,
+          "prompt_tokens": 988,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 6,
+          "prompt_tokens": 988,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        }
+      ],
+      "warmup_prompt_tokens": 989
+    },
+    "8192": {
+      "raw_reps": [
+        {
+          "text": "Based",
+          "prompt_tokens": 8156,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1396.4318734376604,
+          "decode_tok_s": 14324.4,
+          "prefill_ms": 5840.6,
+          "decode_ms": 0.1,
+          "wall_s": 5.845947640016675
+        },
+        {
+          "text": "Based",
+          "prompt_tokens": 8156,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1393.2591947248843,
+          "decode_tok_s": 13881.0,
+          "prefill_ms": 5853.9,
+          "decode_ms": 0.1,
+          "wall_s": 5.860850943950936
+        },
+        {
+          "text": "Based",
+          "prompt_tokens": 8156,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1390.788329382876,
+          "decode_tok_s": 14487.5,
+          "prefill_ms": 5864.3,
+          "decode_ms": 0.1,
+          "wall_s": 5.869312384049408
+        },
+        {
+          "text": "Based",
+          "prompt_tokens": 8156,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1387.8773440424734,
+          "decode_tok_s": 10557.4,
+          "prefill_ms": 5876.6,
+          "decode_ms": 0.1,
+          "wall_s": 5.8852809619857
+        },
+        {
+          "text": "Based",
+          "prompt_tokens": 8156,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1387.6648234793704,
+          "decode_tok_s": 10399.7,
+          "prefill_ms": 5877.5,
+          "decode_ms": 0.1,
+          "wall_s": 5.8833234960911795
+        },
+        {
+          "text": "Based",
+          "prompt_tokens": 8156,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1385.1666921417773,
+          "decode_tok_s": 13542.8,
+          "prefill_ms": 5888.1,
+          "decode_ms": 0.1,
+          "wall_s": 5.893310924060643
+        },
+        {
+          "text": "It",
+          "prompt_tokens": 8156,
+          "completion_tokens": 1,
+          "prefill_tok_s": 1385.3784481587172,
+          "decode_tok_s": 7854.8,
+          "prefill_ms": 5887.2,
+          "decode_ms": 0.1,
+          "wall_s": 5.892555485013872
+        }
+      ],
+      "prefix_cache_evidence": [
+        {
+          "rep": 0,
+          "prompt_tokens": 8156,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 1,
+          "prompt_tokens": 8156,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 2,
+          "prompt_tokens": 8156,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 3,
+          "prompt_tokens": 8156,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 4,
+          "prompt_tokens": 8156,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 5,
+          "prompt_tokens": 8156,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        },
+        {
+          "rep": 6,
+          "prompt_tokens": 8156,
+          "prefix_len_field_present": false,
+          "raw_usage_keys": [
+            "accept_rate",
+            "completion_tokens",
+            "completion_tokens_details",
+            "prompt_tokens",
+            "timings",
+            "total_tokens"
+          ],
+          "raw_timings_keys": [
+            "decode_ms",
+            "decode_tokens_per_sec",
+            "prefill_ms"
+          ]
+        }
+      ],
+      "warmup_prompt_tokens": 8157
+    }
+  },
+  "label": "subset-clean-a",
+  "runtime_artifacts": {
+    "executable": {
+      "name": "dflash_server",
+      "path": "/tmp/vendor-abba/dflash_server",
+      "sha256": "001d7cc850682ebe9ea3d2bc2ecd50d92839cddd846eae4ad89ddcf4739b51dc",
+      "size_bytes": 14483568
+    },
+    "dependencies": [
+      {
+        "name": "ld-linux-x86-64.so.2",
+        "path": "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "sha256": "1cd555ac46b7887edeaf3c42aac5408c8135e52f6b37870da2cf82d5fe14e829",
+        "size_bytes": 236616
+      },
+      {
+        "name": "libc.so.6",
+        "path": "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "sha256": "d8db8739a1633c972cec6a4fe0566bdcec6fd088f98723492ab0361f66238f75",
+        "size_bytes": 2125328
+      },
+      {
+        "name": "libcublas.so.12",
+        "path": "/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublas.so.12.6.4.1",
+        "sha256": "d9343511e1d2ed51e4d65fa94a25cb8f73b0ebc5ae5487da794e18e6950c98dc",
+        "size_bytes": 108244960
+      },
+      {
+        "name": "libcublasLt.so.12",
+        "path": "/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublasLt.so.12.6.4.1",
+        "sha256": "a4ddaed1410acc604815f0e84cdd6c4a70c61cfd2b95dc96360f0799169f0374",
+        "size_bytes": 491106832
+      },
+      {
+        "name": "libcuda.so.1",
+        "path": "/usr/lib/wsl/lib/libcuda.so.1",
+        "sha256": "158e0c4e9427a5fbc34ebe07000505744adf115f3baf857dae87dcf1f0674732",
+        "size_bytes": 187984
+      },
+      {
+        "name": "libcudart.so.12",
+        "path": "/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcudart.so.12.6.77",
+        "sha256": "095296727cfb5f51e5b3ae69a3cb88cbd7b6592f314ace0fdfc4e1d758c2aa85",
+        "size_bytes": 716128
+      },
+      {
+        "name": "libdl.so.2",
+        "path": "/usr/lib/x86_64-linux-gnu/libdl.so.2",
+        "sha256": "850b46fd4f4478060fc106f4d1dc4aa35c969eb5c9bd98aaf64dc6cb3d6a5e32",
+        "size_bytes": 14408
+      },
+      {
+        "name": "libgcc_s.so.1",
+        "path": "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+        "sha256": "d93224d2b0dab4247598be683adca02f5cf00586f99c187579cd7e92058fb7cb",
+        "size_bytes": 183024
+      },
+      {
+        "name": "libggml-base.so.0",
+        "path": "/tmp/autoluce-gdn-broadcast-lucebox/build-cuda-sm86-cuda126/deps/llama.cpp/ggml/src/libggml-base.so.0.9.11",
+        "sha256": "80d4d96db33b67fc6152bfb427fd640b88e6daf9487c1787802a311f790c06fd",
+        "size_bytes": 865752
+      },
+      {
+        "name": "libggml-cpu.so.0",
+        "path": "/tmp/autoluce-gdn-broadcast-lucebox/build-cuda-sm86-cuda126/deps/llama.cpp/ggml/src/libggml-cpu.so.0.9.11",
+        "sha256": "f318ed9a5e3206d4f7bba85dec7854088ec99af9580dca9683098e67e3855eea",
+        "size_bytes": 998864
+      },
+      {
+        "name": "libggml-cuda.so.0",
+        "path": "/tmp/autoluce-gdn-broadcast-lucebox/build-cuda-sm86-cuda126/deps/llama.cpp/ggml/src/ggml-cuda/libggml-cuda.so.0.9.11",
+        "sha256": "76c2aa020e85af58bfef26b19f8c989936483dec704566585c6d508dfc40cbc1",
+        "size_bytes": 336800056
+      },
+      {
+        "name": "libggml.so.0",
+        "path": "/tmp/autoluce-gdn-broadcast-lucebox/build-cuda-sm86-cuda126/deps/llama.cpp/ggml/src/libggml.so.0.9.11",
+        "sha256": "48c22d7c28bf87bbbca2f1a3439bcfb8c608b2d32bd634344c1f1e67c775c85f",
+        "size_bytes": 56016
+      },
+      {
+        "name": "libgomp.so.1",
+        "path": "/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0",
+        "sha256": "135f3c8f006d2fe5e68e51281c7974cb991a03de3bfb3593d68d174dfcf854d1",
+        "size_bytes": 352304
+      },
+      {
+        "name": "libm.so.6",
+        "path": "/usr/lib/x86_64-linux-gnu/libm.so.6",
+        "sha256": "1b87a1a50b496cfead2b0ad134c2ff536705c82608db240c7e8aa48d6c0e4217",
+        "size_bytes": 952616
+      },
+      {
+        "name": "libpthread.so.0",
+        "path": "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
+        "sha256": "92dcea07a5b11d939c22a96131d3fbb995e0a84a4d02db7d799bf357689cd794",
+        "size_bytes": 14408
+      },
+      {
+        "name": "librt.so.1",
+        "path": "/usr/lib/x86_64-linux-gnu/librt.so.1",
+        "sha256": "9d1cefae4c0e4995cc35ea3195f805454b2d59a27ad15397a1096e735d341faf",
+        "size_bytes": 14624
+      },
+      {
+        "name": "libstdc++.so.6",
+        "path": "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33",
+        "sha256": "1fd75fe70354a416d75aef22bcae68c47bd25d20e2d0568c30b1a9838cf62f11",
+        "size_bytes": 2592224
+      }
+    ]
+  }
+}

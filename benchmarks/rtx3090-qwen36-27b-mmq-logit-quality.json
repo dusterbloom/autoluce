@@ -1,0 +1,747 @@
+{
+  "schema_version": 1,
+  "model_sha256": "8a3365759dc1b33b52c4e7d91d5a67d5ee1418e8408aa54196f04a98da53e5dc",
+  "executable_sha256": "2780101a88073c5cc4b3eb7d0f51b82944bad98caddfab5e771a1d3762dbc47f",
+  "clean_cuda_sha256": "76c2aa020e85af58bfef26b19f8c989936483dec704566585c6d508dfc40cbc1",
+  "candidate_cuda_sha256": "42c09f1552d3fa8e41947be2dd9a1a3ba9dfcc168bf5b6a1ab5fd2266f749d91",
+  "policy": {
+    "kl_tau": 0.01,
+    "max_kl_multiplier": 10,
+    "min_top_k_overlap": 0.9,
+    "top_k": 20
+  },
+  "repeat_determinism": {
+    "clean_bit_exact": true,
+    "candidate_bit_exact": true
+  },
+  "overall": {
+    "aggregate": {
+      "sample_count": 34,
+      "mean_kl_divergence": 0.002728780653945732,
+      "max_kl_divergence": 0.01667199334533883,
+      "max_abs_error": 1.6068517565727234,
+      "mean_abs_error": 0.08732760975281294,
+      "min_top_k_overlap": 0.9,
+      "argmax_changes": 3
+    },
+    "gate": []
+  },
+  "groups": {
+    "depth_1024": {
+      "aggregate": {
+        "sample_count": 7,
+        "mean_kl_divergence": 0.003960759914635301,
+        "max_kl_divergence": 0.0126176293906457,
+        "max_abs_error": 0.9696779251098633,
+        "mean_abs_error": 0.0885183190400243,
+        "min_top_k_overlap": 0.9,
+        "argmax_changes": 1
+      },
+      "gate": [],
+      "samples": [
+        {
+          "repetition": 0,
+          "clean_text": "It",
+          "candidate_text": "The",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.0019292207064653694,
+            "max_abs_error": 0.5125625133514404,
+            "mean_abs_error": 0.07859060037481,
+            "rmse": 0.0989019171756647,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 2064,
+            "candidate_argmax": 760,
+            "argmax_changed": true,
+            "reference_margin": 0.011201858520507812,
+            "candidate_margin": 0.09726524353027344
+          }
+        },
+        {
+          "repetition": 1,
+          "clean_text": "The",
+          "candidate_text": "The",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.001894484069310048,
+            "max_abs_error": 0.7256793975830078,
+            "mean_abs_error": 0.09983779271909096,
+            "rmse": 0.12530217168968175,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 760,
+            "candidate_argmax": 760,
+            "argmax_changed": false,
+            "reference_margin": 0.15941429138183594,
+            "candidate_margin": 0.1273345947265625
+          }
+        },
+        {
+          "repetition": 2,
+          "clean_text": "It",
+          "candidate_text": "It",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.0018054265345798673,
+            "max_abs_error": 0.6580042839050293,
+            "mean_abs_error": 0.07764455747166973,
+            "rmse": 0.09926410760449945,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 2064,
+            "candidate_argmax": 2064,
+            "argmax_changed": false,
+            "reference_margin": 0.08025169372558594,
+            "candidate_margin": 0.11871719360351562
+          }
+        },
+        {
+          "repetition": 3,
+          "clean_text": "It",
+          "candidate_text": "It",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.002030416468394764,
+            "max_abs_error": 0.6720085144042969,
+            "mean_abs_error": 0.10352524021683103,
+            "rmse": 0.12946652550491897,
+            "top_k": 20,
+            "top_k_overlap": 0.9,
+            "reference_argmax": 2064,
+            "candidate_argmax": 2064,
+            "argmax_changed": false,
+            "reference_margin": 0.2432994842529297,
+            "candidate_margin": 0.17823219299316406
+          }
+        },
+        {
+          "repetition": 4,
+          "clean_text": "It",
+          "candidate_text": "It",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.0126176293906457,
+            "max_abs_error": 0.9696779251098633,
+            "mean_abs_error": 0.08551227662794533,
+            "rmse": 0.10864337873803642,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 2064,
+            "candidate_argmax": 2064,
+            "argmax_changed": false,
+            "reference_margin": 0.060665130615234375,
+            "candidate_margin": 0.3882579803466797
+          }
+        },
+        {
+          "repetition": 5,
+          "clean_text": "It",
+          "candidate_text": "It",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.004944770576554755,
+            "max_abs_error": 0.6923346519470215,
+            "mean_abs_error": 0.07949455518308612,
+            "rmse": 0.1013554812853487,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 2064,
+            "candidate_argmax": 2064,
+            "argmax_changed": false,
+            "reference_margin": 0.4489021301269531,
+            "candidate_margin": 0.2525920867919922
+          }
+        },
+        {
+          "repetition": 6,
+          "clean_text": "The",
+          "candidate_text": "The",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.002503371656496601,
+            "max_abs_error": 0.9252000153064728,
+            "mean_abs_error": 0.09502321068673691,
+            "rmse": 0.12155474089701261,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 760,
+            "candidate_argmax": 760,
+            "argmax_changed": false,
+            "reference_margin": 0.07605743408203125,
+            "candidate_margin": 0.015649795532226562
+          }
+        }
+      ]
+    },
+    "depth_8192": {
+      "aggregate": {
+        "sample_count": 7,
+        "mean_kl_divergence": 0.007234471987916774,
+        "max_kl_divergence": 0.01667199334533883,
+        "max_abs_error": 1.2551918029785156,
+        "mean_abs_error": 0.11579496883929793,
+        "min_top_k_overlap": 0.9,
+        "argmax_changes": 2
+      },
+      "gate": [],
+      "samples": [
+        {
+          "repetition": 0,
+          "clean_text": "Based",
+          "candidate_text": "Based",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.005874738232964914,
+            "max_abs_error": 0.8897542953491211,
+            "mean_abs_error": 0.11676485350876459,
+            "rmse": 0.14342443538399186,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 27775,
+            "candidate_argmax": 27775,
+            "argmax_changed": false,
+            "reference_margin": 0.2707366943359375,
+            "candidate_margin": 0.05809974670410156
+          }
+        },
+        {
+          "repetition": 1,
+          "clean_text": "Based",
+          "candidate_text": "Based",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.0015971176158566197,
+            "max_abs_error": 0.8695001602172852,
+            "mean_abs_error": 0.11521475333391586,
+            "rmse": 0.14340089587703927,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 27775,
+            "candidate_argmax": 27775,
+            "argmax_changed": false,
+            "reference_margin": 0.34340858459472656,
+            "candidate_margin": 0.30236053466796875
+          }
+        },
+        {
+          "repetition": 2,
+          "clean_text": "Based",
+          "candidate_text": "The",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.00618385980745467,
+            "max_abs_error": 0.6620655059814453,
+            "mean_abs_error": 0.09024515971762267,
+            "rmse": 0.11499541050944165,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 27775,
+            "candidate_argmax": 760,
+            "argmax_changed": true,
+            "reference_margin": 0.18343353271484375,
+            "candidate_margin": 0.057788848876953125
+          }
+        },
+        {
+          "repetition": 3,
+          "clean_text": "Based",
+          "candidate_text": "Based",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.00399026419748917,
+            "max_abs_error": 1.0568366050720215,
+            "mean_abs_error": 0.12058783195394132,
+            "rmse": 0.1490803305684761,
+            "top_k": 20,
+            "top_k_overlap": 0.9,
+            "reference_argmax": 27775,
+            "candidate_argmax": 27775,
+            "argmax_changed": false,
+            "reference_margin": 0.39447021484375,
+            "candidate_margin": 0.437255859375
+          }
+        },
+        {
+          "repetition": 4,
+          "clean_text": "Based",
+          "candidate_text": "It",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.009710849462307427,
+            "max_abs_error": 0.9912500381469727,
+            "mean_abs_error": 0.10329848142266186,
+            "rmse": 0.13163746914140484,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 27775,
+            "candidate_argmax": 2064,
+            "argmax_changed": true,
+            "reference_margin": 0.28307533264160156,
+            "candidate_margin": 0.00199127197265625
+          }
+        },
+        {
+          "repetition": 5,
+          "clean_text": "Based",
+          "candidate_text": "Based",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.01667199334533883,
+            "max_abs_error": 1.0254840850830078,
+            "mean_abs_error": 0.14618117692244162,
+            "rmse": 0.17731055003920776,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 27775,
+            "candidate_argmax": 27775,
+            "argmax_changed": false,
+            "reference_margin": 0.6587200164794922,
+            "candidate_margin": 0.36754417419433594
+          }
+        },
+        {
+          "repetition": 6,
+          "clean_text": "Based",
+          "candidate_text": "Based",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.006612481254005782,
+            "max_abs_error": 1.2551918029785156,
+            "mean_abs_error": 0.11827252501573758,
+            "rmse": 0.15024420883918324,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 27775,
+            "candidate_argmax": 27775,
+            "argmax_changed": false,
+            "reference_margin": 0.14826011657714844,
+            "candidate_margin": 0.011898040771484375
+          }
+        }
+      ]
+    },
+    "diverse_corpus": {
+      "aggregate": {
+        "sample_count": 20,
+        "mean_kl_divergence": 0.0007205959458145184,
+        "max_kl_divergence": 0.004083041903551967,
+        "max_abs_error": 1.6068517565727234,
+        "mean_abs_error": 0.0769472858220192,
+        "min_top_k_overlap": 0.95,
+        "argmax_changes": 0
+      },
+      "gate": [],
+      "samples": [
+        {
+          "index": 0,
+          "prompt": "What is 17 multiplied by 23? Answer with the number only.",
+          "clean_text": "3",
+          "candidate_text": "3",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 4.807449240103915e-07,
+            "max_abs_error": 0.9800763130187988,
+            "mean_abs_error": 0.13294628170185918,
+            "rmse": 0.16771902130161853,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 18,
+            "candidate_argmax": 18,
+            "argmax_changed": false,
+            "reference_margin": 13.516958236694336,
+            "candidate_margin": 13.16347885131836
+          }
+        },
+        {
+          "index": 1,
+          "prompt": "A train travels 120 km in 90 minutes. What is its average speed in km/h?",
+          "clean_text": "To",
+          "candidate_text": "To",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 5.503745259344468e-06,
+            "max_abs_error": 0.35115718841552734,
+            "mean_abs_error": 0.06268831744521568,
+            "rmse": 0.07677362760734384,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 1206,
+            "candidate_argmax": 1206,
+            "argmax_changed": false,
+            "reference_margin": 8.175392150878906,
+            "candidate_margin": 8.179936408996582
+          }
+        },
+        {
+          "index": 2,
+          "prompt": "If all glims are trops and no trop is a zed, can any glim be a zed? Explain briefly.",
+          "clean_text": "No",
+          "candidate_text": "No",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.0006955461235217139,
+            "max_abs_error": 0.4383206367492676,
+            "mean_abs_error": 0.04952443174560025,
+            "rmse": 0.06301007843817127,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 2665,
+            "candidate_argmax": 2665,
+            "argmax_changed": false,
+            "reference_margin": 1.128255844116211,
+            "candidate_margin": 1.042226791381836
+          }
+        },
+        {
+          "index": 3,
+          "prompt": "Continue the sequence 2, 6, 12, 20, 30 and state the rule.",
+          "clean_text": "To",
+          "candidate_text": "To",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.0007336523627786522,
+            "max_abs_error": 0.488336443901062,
+            "mean_abs_error": 0.057531816284466276,
+            "rmse": 0.07117541007490992,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 1206,
+            "candidate_argmax": 1206,
+            "argmax_changed": false,
+            "reference_margin": 1.2337398529052734,
+            "candidate_margin": 1.3048343658447266
+          }
+        },
+        {
+          "index": 4,
+          "prompt": "Write a Python function that returns the factorial of a non-negative integer.",
+          "clean_text": "```",
+          "candidate_text": "```",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 5.514960992465545e-06,
+            "max_abs_error": 0.8366886377334595,
+            "mean_abs_error": 0.10388155061246311,
+            "rmse": 0.13006833848333524,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 71093,
+            "candidate_argmax": 71093,
+            "argmax_changed": false,
+            "reference_margin": 5.377983093261719,
+            "candidate_margin": 5.395048141479492
+          }
+        },
+        {
+          "index": 5,
+          "prompt": "What does this Python expression print: sum(i*i for i in range(5))?",
+          "clean_text": "To",
+          "candidate_text": "To",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.004083041903551967,
+            "max_abs_error": 0.876732349395752,
+            "mean_abs_error": 0.11705472139412729,
+            "rmse": 0.14442553498587657,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 1206,
+            "candidate_argmax": 1206,
+            "argmax_changed": false,
+            "reference_margin": 0.5213203430175781,
+            "candidate_margin": 0.5845756530761719
+          }
+        },
+        {
+          "index": 6,
+          "prompt": "Find the bug: def add(x, items=[]): items.append(x); return items",
+          "clean_text": "The",
+          "candidate_text": "The",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.002669100316730515,
+            "max_abs_error": 0.4651641845703125,
+            "mean_abs_error": 0.05802593175321489,
+            "rmse": 0.07356444963438202,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 760,
+            "candidate_argmax": 760,
+            "argmax_changed": false,
+            "reference_margin": 0.7806625366210938,
+            "candidate_margin": 0.7060737609863281
+          }
+        },
+        {
+          "index": 7,
+          "prompt": "Give the time complexity of binary search and one sentence explaining why.",
+          "clean_text": "The",
+          "candidate_text": "The",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.0007528705466517566,
+            "max_abs_error": 0.3067159652709961,
+            "mean_abs_error": 0.04784889178883415,
+            "rmse": 0.060275977810305095,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 760,
+            "candidate_argmax": 760,
+            "argmax_changed": false,
+            "reference_margin": 2.7233028411865234,
+            "candidate_margin": 2.5650386810302734
+          }
+        },
+        {
+          "index": 8,
+          "prompt": "Explain the difference between stack and heap memory in two sentences.",
+          "clean_text": "Stack",
+          "candidate_text": "Stack",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.0004079783564166769,
+            "max_abs_error": 0.28878557682037354,
+            "mean_abs_error": 0.03636412052950555,
+            "rmse": 0.046405464797454166,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 4195,
+            "candidate_argmax": 4195,
+            "argmax_changed": false,
+            "reference_margin": 1.8326148986816406,
+            "candidate_margin": 1.9153213500976562
+          }
+        },
+        {
+          "index": 9,
+          "prompt": "Summarize the plot of Hamlet in three sentences.",
+          "clean_text": "Prince",
+          "candidate_text": "Prince",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.0003221644572742957,
+            "max_abs_error": 0.5220592021942139,
+            "mean_abs_error": 0.07112490614119335,
+            "rmse": 0.08206971773907067,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 65640,
+            "candidate_argmax": 65640,
+            "argmax_changed": false,
+            "reference_margin": 0.08840560913085938,
+            "candidate_margin": 0.05652046203613281
+          }
+        },
+        {
+          "index": 10,
+          "prompt": "What is the capital of France? Answer with one word.",
+          "clean_text": "Paris",
+          "candidate_text": "Paris",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.00039947561605313,
+            "max_abs_error": 0.9054269790649414,
+            "mean_abs_error": 0.12002004480000206,
+            "rmse": 0.147499451663674,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 57590,
+            "candidate_argmax": 57590,
+            "argmax_changed": false,
+            "reference_margin": 3.5401973724365234,
+            "candidate_margin": 3.40643310546875
+          }
+        },
+        {
+          "index": 11,
+          "prompt": "Name the chemical symbol for gold and its atomic number.",
+          "clean_text": "Based",
+          "candidate_text": "Based",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.0011969737615004034,
+            "max_abs_error": 0.4943122863769531,
+            "mean_abs_error": 0.04706719870083958,
+            "rmse": 0.05972709914642157,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 27775,
+            "candidate_argmax": 27775,
+            "argmax_changed": false,
+            "reference_margin": 1.1422786712646484,
+            "candidate_margin": 1.097799301147461
+          }
+        },
+        {
+          "index": 12,
+          "prompt": "Translate 'The library closes at six' into Italian.",
+          "clean_text": "La",
+          "candidate_text": "La",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 5.675747665626966e-05,
+            "max_abs_error": 0.5205841064453125,
+            "mean_abs_error": 0.07888240169357592,
+            "rmse": 0.09835826683539589,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 8482,
+            "candidate_argmax": 8482,
+            "argmax_changed": false,
+            "reference_margin": 4.734930038452148,
+            "candidate_margin": 4.812034606933594
+          }
+        },
+        {
+          "index": 13,
+          "prompt": "Rewrite this politely: Send me the report now.",
+          "clean_text": "Here",
+          "candidate_text": "Here",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 5.584901187007291e-05,
+            "max_abs_error": 0.4256715774536133,
+            "mean_abs_error": 0.07721500176826404,
+            "rmse": 0.09111426455919953,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 8160,
+            "candidate_argmax": 8160,
+            "argmax_changed": false,
+            "reference_margin": 7.572683334350586,
+            "candidate_margin": 7.28961181640625
+          }
+        },
+        {
+          "index": 14,
+          "prompt": "Return valid JSON with keys name and enabled for a service named alpha that is enabled.",
+          "clean_text": "```",
+          "candidate_text": "```",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 1.8331405241904586e-05,
+            "max_abs_error": 1.6068517565727234,
+            "mean_abs_error": 0.2139577866709223,
+            "rmse": 0.2725665409322149,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 71093,
+            "candidate_argmax": 71093,
+            "argmax_changed": false,
+            "reference_margin": 6.602895736694336,
+            "candidate_margin": 6.680091857910156
+          }
+        },
+        {
+          "index": 15,
+          "prompt": "Classify the sentiment as positive, negative, or neutral: The update works, but startup is slower.",
+          "clean_text": "The",
+          "candidate_text": "The",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.00013898634621998398,
+            "max_abs_error": 0.3887805938720703,
+            "mean_abs_error": 0.043724522171804746,
+            "rmse": 0.05549447639678237,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 760,
+            "candidate_argmax": 760,
+            "argmax_changed": false,
+            "reference_margin": 5.387727737426758,
+            "candidate_margin": 5.319530487060547
+          }
+        },
+        {
+          "index": 16,
+          "prompt": "A box contains 3 red and 2 blue balls. What is the probability of drawing a blue ball?",
+          "clean_text": "To",
+          "candidate_text": "To",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.00025113774851046484,
+            "max_abs_error": 0.39668703079223633,
+            "mean_abs_error": 0.06324895464109859,
+            "rmse": 0.07506232014566733,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 1206,
+            "candidate_argmax": 1206,
+            "argmax_changed": false,
+            "reference_margin": 4.329130172729492,
+            "candidate_margin": 4.462862014770508
+          }
+        },
+        {
+          "index": 17,
+          "prompt": "Which is larger, 2^10 or 10^3, and by how much?",
+          "clean_text": "To",
+          "candidate_text": "To",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 1.687831309967031e-05,
+            "max_abs_error": 0.5397491455078125,
+            "mean_abs_error": 0.04981217515019289,
+            "rmse": 0.06354510644615868,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 1206,
+            "candidate_argmax": 1206,
+            "argmax_changed": false,
+            "reference_margin": 5.96327018737793,
+            "candidate_margin": 5.914695739746094
+          }
+        },
+        {
+          "index": 18,
+          "prompt": "State one advantage and one disadvantage of unified memory for LLM inference.",
+          "clean_text": "Here",
+          "candidate_text": "Here",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 0.00258970150691055,
+            "max_abs_error": 0.4915022850036621,
+            "mean_abs_error": 0.06684693537129785,
+            "rmse": 0.08397106804816318,
+            "top_k": 20,
+            "top_k_overlap": 1.0,
+            "reference_argmax": 8160,
+            "candidate_argmax": 8160,
+            "argmax_changed": false,
+            "reference_margin": 0.24949073791503906,
+            "candidate_margin": 0.12200736999511719
+          }
+        },
+        {
+          "index": 19,
+          "prompt": "In one paragraph, explain why floating-point addition is not associative.",
+          "clean_text": "Floating",
+          "candidate_text": "Floating",
+          "metrics": {
+            "vocabulary_size": 248320,
+            "kl_divergence": 1.197421212652065e-05,
+            "max_abs_error": 0.43880271911621094,
+            "mean_abs_error": 0.0411797260759065,
+            "rmse": 0.05269445002375449,
+            "top_k": 20,
+            "top_k_overlap": 0.95,
+            "reference_argmax": 82693,
+            "candidate_argmax": 82693,
+            "argmax_changed": false,
+            "reference_margin": 6.436956405639648,
+            "candidate_margin": 6.476045608520508
+          }
+        }
+      ]
+    }
+  },
+  "raw_evidence_sha256": {
+    "depth_clean": "0e6d55475cdd080a84589bf9bccb766867b4456d7abe370731e9afcb659229d3",
+    "depth_clean_repeat": "6112d95131791b7d92d47766d16f196ee91f99474c5eacf889ef0e1db75a942e",
+    "depth_mmq": "981c8e54f3e04e16ca5e7748ae3d9618f37cd2023426ed559bbea70789e96256",
+    "depth_mmq_repeat": "cd1086dedcb8c37d5a31ac71974a8b4c1d43022b80c5598f86476bed57c12ac8",
+    "corpus_clean": "4de1a34aa7d57187434d8d006ca3094a944a99ae5987433c04cb4968790e0271",
+    "corpus_mmq": "4133e8f039507fd26659c0e056918e3ee74a2061ea533fe518b55adfc7f25407"
+  }
+}

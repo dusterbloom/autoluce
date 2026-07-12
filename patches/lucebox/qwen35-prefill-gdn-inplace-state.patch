@@ -1,0 +1,35 @@
+diff --git a/server/src/qwen35/qwen35_target_graph.cpp b/server/src/qwen35/qwen35_target_graph.cpp
+--- a/server/src/qwen35/qwen35_target_graph.cpp
++++ b/server/src/qwen35/qwen35_target_graph.cpp
+@@ -917,6 +917,9 @@ static ggml_tensor * build_delta_net_block(
+     ggml_tensor * output = nullptr;
+     ggml_tensor * new_state = nullptr;
+ 
++    const bool inplace_state = parent_ids == nullptr && cap == nullptr &&
++                               persist_inter == nullptr && can_skip_gdn_intermediate;
++
+     if (use_chunked) {
+         auto r = build_delta_net_chunked(ctx, q_c, k_c, v_c, g_tensor, beta, s);
+         output    = r.output;
+@@ -937,7 +940,9 @@ static ggml_tensor * build_delta_net_block(
+         // cache buffer — same mechanism as _tree_persist, but without tree
+         // parent_ids. Avoids the legacy result-region cpy (and the OOB it
+         // could cause if the result tensor has no embedded intermediate region).
+-        result = ggml_gated_delta_net(ctx, q_c, k_c, v_c, g_tensor, beta, s);
++        result = inplace_state
++            ? ggml_gated_delta_net_inplace(ctx, q_c, k_c, v_c, g_tensor, beta, s)
++            : ggml_gated_delta_net(ctx, q_c, k_c, v_c, g_tensor, beta, s);
+         if (persist_inter) {
+             result->src[7] = persist_inter;
+         }
+@@ -965,7 +970,9 @@ static ggml_tensor * build_delta_net_block(
+         S_v * H_v * n_seq_tokens * n_seqs * r_elt);
+ 
+     // Persist new_state back to cache
+-    ggml_build_forward_expand(gf, ggml_cpy(ctx, new_state, ssm_state));
++    if (!inplace_state) {
++        ggml_build_forward_expand(gf, ggml_cpy(ctx, new_state, ssm_state));
++    }
+ 
+     // Expose per-step intermediate states for spec-decode rollback. The patched
+     // ggml_gated_delta_net kernel appends an intermediate-states region to the

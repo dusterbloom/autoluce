@@ -1,0 +1,4 @@
+engine,request_scope,cudaLaunchKernel,cudaStreamSynchronize,cudaMemcpyAsync
+luce_gdn_broadcast,two_requests_including_first_request,66368,3342,4843
+luce_gdn_inplace,two_requests_including_first_request,69440,3342,3307
+upstream_llama,two_requests_including_first_request,76432,1816,1394

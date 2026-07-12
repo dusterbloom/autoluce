@@ -17,16 +17,19 @@ uv run autoluce nvfp4 test
 
 AutoLuce currently provides:
 
-- One pinned Lucebox product and vendor contract.
+- One pinned Lucebox product and vendor contract, with content-addressed run evidence.
 - CUDA and HIP product builds.
 - Safe machine inventory and research contracts.
 - A shared queue for people and machines.
 - Bounded challenges where agents can implement, review, and recombine ideas.
 - Live `dflash_server` HTTP benchmarks with exact frozen-output quality gates.
+- Full-vocabulary logit comparison with aggregate KL, top-k, margin, and finite-value gates.
 - A tested SM86 NVFP4 W4A16 CUDA operator and microbenchmark for RTX 3090 work.
+- Context-validated, prefill-only NVFP4 campaigns with recorded Lucebox/GGML tuning overrides.
 
-The product API does not expose token logits. Exact quality is operational; benchmarks
-that explicitly require KL fail closed until Lucebox gains a logits endpoint.
+The pinned Hub product does not expose token logits by default. AutoLuce carries a
+validated, opt-in Lucebox patch for non-streaming first-token logits; product KL remains
+fail-closed until that patch or an equivalent endpoint lands in Hub.
 
 ## Start Here
 
@@ -55,7 +58,21 @@ Setup:
 5. Builds `dflash_server`, `test_dflash`, and `test_deepseek4_unit` with at most four jobs.
 
 The product currently supports CUDA and HIP. Vulkan, Metal, and CPU are rejected at
-the product boundary rather than silently using a different build.
+the product boundary rather than silently using a different build. The vendored GGML
+layer retains its separate CPU, CUDA, HIP, and Vulkan portability contract; AutoLuce
+does not confuse vendor capability with a Lucebox product entry point.
+
+Every real result bundle records the product revision, exact product and vendor tree
+digests, runtime binary SHA-256, the resolved shared-library closure with content hashes,
+dirty paths, and selected backend. AutoLuce snapshots that evidence immediately after
+building and rejects the run if another person or agent changes source, executable, or a
+loaded library before measurement finishes. Real local harness runs also hold a
+nonblocking per-checkout source/build lease, so cooperating agents fail fast instead of
+resetting or rebuilding underneath one another.
+
+GPU clocks and thermal state can move an apparent result by several percent. Frontier
+decisions therefore require interleaved clean/candidate measurements on the same
+machine session; historical or sequential controls are diagnostic only.
 
 ## Current Status
 
@@ -68,12 +85,29 @@ the product boundary rather than silently using a different build.
 | Agent challenges and isolated worktrees | Ready |
 | HTTP `baseline`, `run`, exact `freeze`, live worker | Ready |
 | Live `test-drive` | Ready after product/model setup |
-| Product KL capture | Needs a Lucebox token-logits endpoint |
+| Product KL capture | Candidate endpoint validated; pending Hub integration |
 | Interleaved remote `verify` | Not yet wired to the HTTP adapter |
 | RTX 3090 NVFP4 operator test and microbenchmark | Ready |
 
 Simulation is only a control-plane test. It never produces performance evidence or
 updates the research frontier.
+
+### Validated RTX 3090 win
+
+The current PR-ready candidate backports upstream llama.cpp's MMQ stream-k scheduler
+into Hub's vendored GGML. On Qwen3.6-27B IQ4_XS it improves target-only prefill by
+**6.02% at 1K** and **5.71% at 8K**.
+
+Quality was checked independently of generated-text equality:
+
+- 5/5 targeted IQ4_XS CUDA-vs-CPU operator cases passed `NMSE <= 5e-4`.
+- 34 matched 248,320-value logit distributions measured mean KL `0.002729` and
+  maximum KL `0.016672`, within the `0.01` mean / `0.1` maximum policy.
+- Top-20 overlap remained at least 90%; clean and candidate repeats were bit-exact.
+- Twenty diverse 128-token generation canaries showed no factual or structural corruption.
+
+The patch, provenance, artifact hashes, per-prompt evidence, and quality decision are in
+[`benchmarks/rtx3090-qwen36-27b-mmq-quality.md`](benchmarks/rtx3090-qwen36-27b-mmq-quality.md).
 
 ## Work As A Team
 
@@ -209,11 +243,38 @@ and fused W4A16 GEMV. AutoLuce prefers CUDA 12.6 under `/usr/local/cuda`, target
 and caps the build at four jobs. The test compares CUDA output with an independent CPU
 oracle; the benchmark compares the packed operator with the same naive FP16 GEMV.
 
-This is the operator foundation, not complete Unsloth checkpoint support. Vendored GGML
-already builds an NVFP4 MMQ template, which is now the first product comparison target.
-The current Unsloth release is mixed FP8/NVFP4, so Lucebox still needs an HF tensor
-loader that preserves both config groups plus product graph dispatch before the model
-can be served end to end.
+Vendored GGML includes the NVFP4 MMQ path. AutoLuce can convert the mixed Unsloth
+checkpoint to GGUF, run it through Lucebox's product server, and benchmark actual
+server-reported prompt depths. Select the local artifact explicitly; the compact
+derivative leaves enough VRAM for the 128K campaign:
+
+```bash
+export AUTOLUCE_BENCHMARKS=qwen36-27b-nvfp4-prefill
+export AUTOLUCE_QWEN36_NVFP4_MODEL="$HOME/models/Qwen3.6-27B-NVFP4-Q4_K_M.gguf"
+export AUTOLUCE_BUILD_SUBDIR=build-cuda-sm86
+export GGML_CUDA=ON
+
+uv run autoluce setup
+uv run autoluce freeze --benchmark qwen36-27b-nvfp4-prefill --overwrite
+uv run autoluce baseline
+```
+
+Existing Lucebox environment controls work directly and are recorded with the result:
+
+```bash
+export DFLASH_PREFILL_UBATCH=1024
+export DFLASH_CHUNKED_Q_BATCH=3072
+export DFLASH_CHUNKED_CHUNK=8192
+uv run autoluce harness --contexts 65536 --repetitions 1
+```
+
+AutoLuce discovers inherited uppercase `DFLASH*`, `GGML_*`, and `LUCE_*` controls, passes them
+to the managed server, and stores their effective values in result provenance. For an
+experiment-specific override or explicit unset, use `AUTOLUCE_RUNTIME_ENV_JSON`; its
+values take precedence over the inherited environment. Diagnostic `--contexts` and
+`--repetitions` overrides are written into result bundles; they do not mutate the
+benchmark contract. The stable generic prefill names above are translated to the current
+Lucebox `DFLASH27B_*` spellings, with an explicitly set product spelling taking precedence.
 
 The shared 3090 performance targets and measurement rules live in
 [`benchmarks/rtx3090-qwen36-27b-frontier.md`](benchmarks/rtx3090-qwen36-27b-frontier.md).

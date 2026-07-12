@@ -1,0 +1,109 @@
+diff --git a/server/src/qwen35/qwen35_graph_options.h b/server/src/qwen35/qwen35_graph_options.h
+new file mode 100644
+index 00000000..ae218929
+--- /dev/null
++++ b/server/src/qwen35/qwen35_graph_options.h
+@@ -0,0 +1,29 @@
++#pragma once
++
++#include "ggml.h"
++
++#include <cstdlib>
++#include <cstring>
++
++namespace dflash::common {
++
++inline bool qwen35_env_flag_is_one(const char * name) {
++    const char * value = std::getenv(name);
++    return value != nullptr && std::strcmp(value, "1") == 0;
++}
++
++inline bool qwen35_should_use_graph_wht_k_rotation(ggml_type kv_k_type) {
++    // tq3_0 applies WHT during quantization — never rotate at graph level.
++    if (kv_k_type == GGML_TYPE_TQ3_0) {
++        return false;
++    }
++    // Opt-in: skip graph-level FWHT for a q4_0 K cache to drop two turbo-wht
++    // kernels per chunk and match llama.cpp's leaner q4_0 path. Off by default
++    // so warm-restore snapshots written with rotated K stay valid across upgrade.
++    if (kv_k_type == GGML_TYPE_Q4_0 && qwen35_env_flag_is_one("DFLASH_SKIP_WHT")) {
++        return false;
++    }
++    return true;
++}
++
++}  // namespace dflash::common
+diff --git a/server/src/qwen35/qwen35_target_graph.cpp b/server/src/qwen35/qwen35_target_graph.cpp
+index ea4684e0..98247303 100644
+--- a/server/src/qwen35/qwen35_target_graph.cpp
++++ b/server/src/qwen35/qwen35_target_graph.cpp
+@@ -33,6 +33,7 @@
+ #include "internal.h"
+ #include "delta_net_chunked.h"
+ #include "kv_quant.h"
++#include "qwen35/qwen35_graph_options.h"
+ #include "qwen35_ops.h"
+ #include "qwen35moe_ffn.h"
+ 
+@@ -128,10 +129,7 @@ bool create_target_cache_partial(const TargetWeights & w,
+     out.kv_k_type = kv_k_type;
+     out.kv_v_type = kv_v_type;
+ 
+-    // Graph-level FWHT K-rotation (TurboQuant-style outlier spreading with
+-    // standard quant types that keep fast FA kernel paths on all arches).
+-    // Skip for TQ3_0 K cache — that type already applies WHT during quantization.
+-    out.kv_k_rotated = (kv_k_type != GGML_TYPE_TQ3_0);
++    out.kv_k_rotated = qwen35_should_use_graph_wht_k_rotation(kv_k_type);
+ 
+     const bool needs_256_stride =
+         kv_k_type == GGML_TYPE_TQ3_0 || kv_v_type == GGML_TYPE_TQ3_0;
+diff --git a/server/test/test_server_unit.cpp b/server/test/test_server_unit.cpp
+index 534d553d..5c432631 100644
+--- a/server/test/test_server_unit.cpp
++++ b/server/test/test_server_unit.cpp
+@@ -30,6 +30,7 @@
+ #include "common/kvflash_pager.h"
+ #include "placement/draft_residency.h"
+ #include "common/gguf_bounds.h"
++#include "qwen35/qwen35_graph_options.h"
+ #include "ggml-cpu.h"
+ #include "server/prompt_normalize.h"
+ #include "qwen3_drafter_model.h"
+@@ -2306,6 +2307,27 @@ static void test_layer_split_backend_capability_proxy() {
+     TEST_ASSERT(backend.supports_mixed_backend_layer_split());
+ }
+ 
++// FWHT K-rotation opt-in tests
++// ═══════════════════════════════════════════════════════════════════════
++
++static void test_qwen35_q4_0_k_cache_rotates_by_default() {
++    unsetenv("DFLASH_SKIP_WHT");
++
++    TEST_ASSERT(qwen35_should_use_graph_wht_k_rotation(GGML_TYPE_Q4_0));
++}
++
++static void test_qwen35_skip_wht_opt_in_disables_rotation_for_q4_0() {
++    setenv("DFLASH_SKIP_WHT", "1", 1);
++
++    TEST_ASSERT(!qwen35_should_use_graph_wht_k_rotation(GGML_TYPE_Q4_0));
++
++    unsetenv("DFLASH_SKIP_WHT");
++}
++
++static void test_qwen35_tq3_0_never_rotates() {
++    TEST_ASSERT(!qwen35_should_use_graph_wht_k_rotation(GGML_TYPE_TQ3_0));
++}
++
+ // Disk Prefix Cache Tests
+ // ═══════════════════════════════════════════════════════════════════════
+ 
+@@ -4523,6 +4545,9 @@ int main() {
+     RUN_TEST(test_layer_split_compress_rejects_bad_keep_ratio);
+     RUN_TEST(test_layer_split_backend_shutdown_is_idempotent);
+     RUN_TEST(test_layer_split_backend_capability_proxy);
++    RUN_TEST(test_qwen35_q4_0_k_cache_rotates_by_default);
++    RUN_TEST(test_qwen35_skip_wht_opt_in_disables_rotation_for_q4_0);
++    RUN_TEST(test_qwen35_tq3_0_never_rotates);
+ 
+     std::fprintf(stderr, "\n── Disk prefix cache ──\n");
+     RUN_TEST(test_disk_cache_config_defaults);

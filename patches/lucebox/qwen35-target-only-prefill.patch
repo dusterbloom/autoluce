@@ -1,0 +1,15 @@
+diff --git a/server/src/qwen35/qwen35_backend.cpp b/server/src/qwen35/qwen35_backend.cpp
+--- a/server/src/qwen35/qwen35_backend.cpp
++++ b/server/src/qwen35/qwen35_backend.cpp
+@@ -1121,7 +1121,10 @@ int Qwen35Backend::do_prefill(const std::vector<int32_t> & tokens,
+         // decode-time windowed attention will later read.
+         if (!build_target_step(sg_, w_, cache_, target_backend_,
+                                /*kv_start=*/kv_pos, /*n_tokens=*/n_tokens,
+-                               with_mask, /*capture=*/true,
++                               with_mask,
++                               /*capture=*/cfg_.draft_path != nullptr ||
++                                             remote_draft_.active() ||
++                                             feature_mirror_.target_feat != nullptr,
+                                /*capture_delta_intermediate=*/false,
+                                /*fa_window=*/0,
+                                /*last_token_logits_only=*/(start + n_tokens < prompt_len),
