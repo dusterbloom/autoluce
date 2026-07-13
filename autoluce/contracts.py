@@ -32,6 +32,8 @@ class ResearchContract:
     schema_version: int = 1
 
     def validate(self) -> None:
+        if self.schema_version != 1:
+            raise ValueError(f"unsupported research contract schema {self.schema_version}")
         supported = set(SourceManifest.load().supported_backends)
         if self.primary_backend not in self.backends:
             raise ValueError("primary_backend must be allowed by backends")

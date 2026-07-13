@@ -139,7 +139,7 @@ bundle.
 
 ## Meta — dynamic, machine- & request-aware compilation
 
-The harness today assumes one machine, one fixed benchmark, one scalar score. That
+The legacy keep/revert harness assumes one machine, one fixed benchmark, one scalar score. That
 makes a *dynamic* build — one that adapts its flags, kernels, and code paths to the
 host hardware and the incoming request — structurally invisible: a per-target policy
 either looks like noise (it picks the same config on the reference box) or gets kept
@@ -161,6 +161,13 @@ one-file / keep-revert loop, arXiv:2603.21331) — but it too is single-frontier
 the population/archive layer is the open frontier, and it is higher-leverage here because
 speculative decoding's structure (tree verify, hidden-state drafting, UMA zero-copy) is far
 less trodden than AutoKernel's matmul/softmax/attention kernels.
+
+**Campaign/archive foundation — shipped.** `autoluce research` now separates versioned
+campaign scope, immutable measurements, compatibility-checked reference interpretation,
+and a quality-constrained Pareto index. Evidence can be collected without a competitor
+and interpreted later without changing its identity. This supplies the safe storage and
+policy seam for items 15–18; the current harness still needs multi-target measurement
+providers and strategy operators before those items are complete.
 
 15. **Multi-target scoring = archive axis 1 (machine).** Run the loop on both boxes, score
     per-target, and let an experiment's payoff be a *vector* over hardware, not a scalar.

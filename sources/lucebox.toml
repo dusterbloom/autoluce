@@ -1,7 +1,7 @@
 schema_version = 1
 name = "lucebox"
 repository = "https://github.com/Luce-Org/lucebox-hub.git"
-ref = "5e302cbb483819cd21e72f5dd8becaa609eca8cf"
+ref = "0e0023649131a23f45d58be71f2bfc60d6cd25a0"
 track = "refs/heads/main"
 layout = "lucebox-hub-vendored"
 checkout_subdir = "work/lucebox"

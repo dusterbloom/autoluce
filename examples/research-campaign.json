@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "name": "rtx3090-qwen36-prefill",
+  "system": {
+    "machine": "replace-with-doctor-machine-fingerprint",
+    "model": "qwen36-27b",
+    "model_fingerprint": "replace-with-model-fingerprint",
+    "runtime": "lucebox:dflash-server-http",
+    "hardware": "rtx-3090-sm86",
+    "backend": "cuda",
+    "quantization": "IQ4_XS",
+    "environment": "replace-with-environment-fingerprint"
+  },
+  "workload": {
+    "contexts": [1024, 8192],
+    "batch_shape": {"batch": 1, "ubatch": 512},
+    "mode": "prefill",
+    "prompts": ["Continue analyzing this deterministic synthetic record."]
+  },
+  "objective": {
+    "metric": "prefill_tok_s",
+    "direction": "maximize"
+  },
+  "constraints": {
+    "correctness": "exact",
+    "peak_mem_GiB": {"max": 24.0},
+    "quality": {"kl_mean_max": 0.01, "kl_max": 0.1}
+  },
+  "reference": null,
+  "evidence": [],
+  "lifecycle_stage": "observe"
+}

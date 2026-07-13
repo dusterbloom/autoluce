@@ -8,6 +8,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Machine-aware research campaigns**: added a versioned campaign contract and the
+  `autoluce research` lifecycle (`observe → discover → explore → [compare] → explain →
+  promote`). Campaigns always declare the system, workload, objective direction, and
+  constraints, while performance references remain optional and attachable without
+  rewriting earlier evidence. Content-addressed measurement files, fail-closed
+  compatibility checks, absolute goals, runtime/candidate/bundle/manual references, and
+  a quality-constrained Pareto archive now share one JSON-capable human/agent workflow.
+  Version-1 execution contracts migrate to typed headroom, baseline, power, and KL gates;
+  unresolved identities block evidence collection. Legacy bundles remain diagnostic
+  rather than silently comparable, and lifecycle transitions are enforced consistently.
 - **Runtime shared-library provenance**: real product runs now resolve the executable's
   dynamic dependency closure under the effective server environment and record canonical
   paths, sizes, and SHA-256 hashes. Mutation of `libggml-cuda`, GGML CPU/base libraries,

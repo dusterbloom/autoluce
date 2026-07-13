@@ -92,6 +92,79 @@ machine session; historical or sequential controls are diagnostic only.
 Simulation is only a control-plane test. It never produces performance evidence or
 updates the research frontier.
 
+## Run A Research Campaign
+
+`autoluce research` is the single campaign entry point. A campaign always names the
+system under test, workload, objective direction, and constraints. A performance
+reference is optional and is separate from correctness or quality oracles.
+
+Start from the versioned campaign example:
+
+```bash
+mkdir -p .autoluce/research
+cp examples/research-campaign.json .autoluce/research/campaign.json
+uv run autoluce research
+uv run autoluce research --json
+```
+
+The first command reports `observe` state with no reference. Record a harness bundle or
+the compact measurement shape shown in `examples/research-measurement.json`:
+
+```bash
+uv run autoluce research --record examples/research-measurement.json --json
+uv run autoluce research --advance discover
+uv run autoluce research --advance explore
+```
+
+Comparison can be attached later without changing the campaign ID or any content-derived
+evidence ID:
+
+```bash
+uv run autoluce research --goal 'prefill_tok_s >= 1500' --compare --json
+
+mkdir -p .autoluce/references
+cp examples/upstream-llama-reference.json .autoluce/references/upstream-llama.json
+AUTOLUCE_REFERENCE_DIR=.autoluce/references \
+  uv run autoluce research --against upstream-llama --compare --json
+```
+
+The bundled measurement is `1425 ± 8 tok/s`, so the `1500` SLO is intentionally
+unmet; this demonstrates that goal interpretation is fail-closed rather than a
+guaranteed happy-path result.
+
+Named executable, branch/candidate, saved-bundle, accepted-baseline, published/manual
+measurement, and absolute-goal references share the same campaign state. A named
+reference may be attached for planning without measurements, but comparison fails closed
+until it includes compatible machine, model, quantization, workload, backend, and
+environment evidence. Runtime differences are allowed only when the reference explicitly
+represents another runtime. Legacy result bundles remain recordable diagnostics; they are
+not silently treated as comparable.
+
+Plain output guides human decisions. `--json` emits one document for agents. Both use the
+same campaign and immutable evidence archive. The lifecycle is:
+
+```text
+observe -> discover -> explore -> [compare] -> explain -> promote
+```
+
+Promotion closes one iteration, not the campaign: advancing from `promote` to
+`discover` starts another cycle while retaining the accepted result and all evidence.
+
+`compare` is optional. Promotion by evidence ID is explicit and limited to the
+quality-constrained Pareto frontier:
+
+```bash
+uv run autoluce research --advance explain
+uv run autoluce research --promote evidence-<sha256> --json
+```
+
+The older `consult` YAML remains the version-1 remote execution contract used by
+`freeze`, `harness`, and `run`. AutoLuce can normalize it for campaign planning, but
+unknown runtime, hardware, quantization, and environment identities remain explicit and
+must be resolved in a fully observed v2 campaign before evidence can be recorded or
+compared. Migrated headroom, accepted-baseline, power-mode, and KL policies become typed
+gates rather than advisory fields. Unknown future schema versions are rejected.
+
 ### Validated RTX 3090 win
 
 The current PR-ready candidate backports upstream llama.cpp's MMQ stream-k scheduler
