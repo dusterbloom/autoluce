@@ -1,0 +1,967 @@
+{
+  "comparison": {
+    "candidate": {
+      "max": 1428.6464993256145,
+      "mean": 1418.8288788041757,
+      "median": 1418.6446267177193,
+      "min": 1401.0856867999726,
+      "n": 10,
+      "raw": [
+        1417.818339852238,
+        1418.212801474552,
+        1424.3800209570381,
+        1401.0856867999726,
+        1417.2024326672458,
+        1413.3467343649818,
+        1421.7976431211214,
+        1428.6464993256145,
+        1426.7221775181051,
+        1419.0764519608867
+      ],
+      "sem": 2.465992493376592,
+      "stdev": 7.798152971947717
+    },
+    "candidate_vs_upstream_percent": -3.9098714182639216,
+    "combined_standard_error": 3.3492134150794866,
+    "delta_tok_s": -57.731616790637645,
+    "direction": "candidate behind",
+    "upstream": {
+      "max": 1484.2484497768523,
+      "mean": 1476.5604955948133,
+      "median": 1477.635258902629,
+      "min": 1461.6280461726578,
+      "n": 10,
+      "raw": [
+        1479.3611499489837,
+        1480.910905679577,
+        1469.6055650122717,
+        1461.6280461726578,
+        1475.9093678562742,
+        1473.3684669478077,
+        1483.5746571055283,
+        1484.2484497768523,
+        1482.8407251717492,
+        1474.157622276433
+      ],
+      "sem": 2.266299080518433,
+      "stdev": 7.16666695358358
+    }
+  },
+  "constraints": {
+    "candidate_server_cache_slots_zero": true,
+    "candidate_tracked_source_clean": true,
+    "quality_scope": "performance control; reuse separate PR #518 MMQ correctness evidence",
+    "shared_libraries_isolated": true,
+    "upstream_cache_n_all_zero": true,
+    "upstream_tracked_source_clean": true
+  },
+  "evidence_id": "evidence-sha256-09a4fcb31fe4e16aee60a329f0e953096510a40fb961803109795b43d5c88545",
+  "kind": "iq4_xs_runtime_control",
+  "objective": {
+    "direction": "maximize",
+    "metric": "prefill_tok_s"
+  },
+  "phase_summaries": {
+    "candidate_a1": {
+      "decode_tok_s": {
+        "best": 42.8,
+        "mean": 42.0,
+        "median": 42.1,
+        "min": 41.4,
+        "raw": [
+          41.5,
+          42.8,
+          42.1,
+          41.4,
+          42.2
+        ]
+      },
+      "prefill_tok_s": {
+        "best": 1424.3800209570381,
+        "mean": 1415.7398563502093,
+        "median": 1417.818339852238,
+        "min": 1401.0856867999726,
+        "raw": [
+          1417.818339852238,
+          1418.212801474552,
+          1424.3800209570381,
+          1401.0856867999726,
+          1417.2024326672458
+        ]
+      },
+      "prompt_tokens": {
+        "best": 8156.0,
+        "mean": 8156.0,
+        "median": 8156.0,
+        "min": 8156.0,
+        "raw": [
+          8156.0,
+          8156.0,
+          8156.0,
+          8156.0,
+          8156.0
+        ]
+      },
+      "wall_s": {
+        "best": 8.750819348031655,
+        "mean": 8.816218136413955,
+        "median": 8.79263003799133,
+        "min": 8.750819348031655,
+        "raw": [
+          8.847879613051191,
+          8.750819348031655,
+          8.774942293064669,
+          8.914819389930926,
+          8.79263003799133
+        ]
+      }
+    },
+    "candidate_a2": {
+      "decode_tok_s": {
+        "best": 42.8,
+        "mean": 42.68,
+        "median": 42.7,
+        "min": 42.6,
+        "raw": [
+          42.6,
+          42.8,
+          42.7,
+          42.7,
+          42.6
+        ]
+      },
+      "prefill_tok_s": {
+        "best": 1428.6464993256145,
+        "mean": 1421.917901258142,
+        "median": 1421.7976431211214,
+        "min": 1413.3467343649818,
+        "raw": [
+          1413.3467343649818,
+          1421.7976431211214,
+          1428.6464993256145,
+          1426.7221775181051,
+          1419.0764519608867
+        ]
+      },
+      "prompt_tokens": {
+        "best": 8156.0,
+        "mean": 8156.0,
+        "median": 8156.0,
+        "min": 8156.0,
+        "raw": [
+          8156.0,
+          8156.0,
+          8156.0,
+          8156.0,
+          8156.0
+        ]
+      },
+      "wall_s": {
+        "best": 8.711899698944762,
+        "mean": 8.738953170226887,
+        "median": 8.729091183049604,
+        "min": 8.711899698944762,
+        "raw": [
+          8.779523339006118,
+          8.729091183049604,
+          8.711899698944762,
+          8.715952811064199,
+          8.75829881906975
+        ]
+      }
+    },
+    "llama_b1": {
+      "decode_tok_s": {
+        "best": 46.79294669442561,
+        "mean": 46.502915978616514,
+        "median": 46.55688214379894,
+        "min": 45.99964781519641,
+        "raw": [
+          46.48715120563337,
+          46.79294669442561,
+          45.99964781519641,
+          46.67795203402823,
+          46.55688214379894
+        ]
+      },
+      "prefill_tok_s": {
+        "best": 1480.910905679577,
+        "mean": 1473.4830069339528,
+        "median": 1475.9093678562742,
+        "min": 1461.6280461726578,
+        "raw": [
+          1479.3611499489837,
+          1480.910905679577,
+          1469.6055650122717,
+          1461.6280461726578,
+          1475.9093678562742
+        ]
+      },
+      "prompt_tokens": {
+        "best": 8144.0,
+        "mean": 8144.0,
+        "median": 8144.0,
+        "min": 8144.0,
+        "raw": [
+          8144.0,
+          8144.0,
+          8144.0,
+          8144.0,
+          8144.0
+        ]
+      },
+      "wall_s": {
+        "best": 8.478954143007286,
+        "mean": 8.537191166984849,
+        "median": 8.535552921937779,
+        "min": 8.478954143007286,
+        "raw": [
+          8.478954143007286,
+          8.508048960007727,
+          8.585991346975788,
+          8.577408462995663,
+          8.535552921937779
+        ]
+      }
+    },
+    "llama_b2": {
+      "decode_tok_s": {
+        "best": 46.778975189601034,
+        "mean": 46.330319743146596,
+        "median": 46.44193125868518,
+        "min": 45.570316065743725,
+        "raw": [
+          45.570316065743725,
+          46.44193125868518,
+          46.71110060111347,
+          46.778975189601034,
+          46.149275600589554
+        ]
+      },
+      "prefill_tok_s": {
+        "best": 1484.2484497768523,
+        "mean": 1479.637984255674,
+        "median": 1482.8407251717492,
+        "min": 1473.3684669478077,
+        "raw": [
+          1473.3684669478077,
+          1483.5746571055283,
+          1484.2484497768523,
+          1482.8407251717492,
+          1474.157622276433
+        ]
+      },
+      "prompt_tokens": {
+        "best": 8144.0,
+        "mean": 8144.0,
+        "median": 8144.0,
+        "min": 8144.0,
+        "raw": [
+          8144.0,
+          8144.0,
+          8144.0,
+          8144.0,
+          8144.0
+        ]
+      },
+      "wall_s": {
+        "best": 8.47693237196654,
+        "mean": 8.523101314995438,
+        "median": 8.499884753022343,
+        "min": 8.47693237196654,
+        "raw": [
+          8.59535279800184,
+          8.499884753022343,
+          8.47693237196654,
+          8.482804127968848,
+          8.560532524017617
+        ]
+      }
+    }
+  },
+  "phases": {
+    "candidate_a1": {
+      "arm": "dflash",
+      "binary": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/dflash_server",
+      "binary_md5": "830eeb86dabe9220ac2096807dcacf42",
+      "cache_type_k": "f16",
+      "cache_type_v": "f16",
+      "cells": {
+        "8192": {
+          "prefix_cache_evidence": [
+            {
+              "prefix_len_field_present": false,
+              "prompt_tokens": 8156,
+              "raw_timings_keys": [
+                "decode_ms",
+                "decode_tokens_per_sec",
+                "prefill_ms"
+              ],
+              "raw_usage_keys": [
+                "accept_rate",
+                "completion_tokens",
+                "completion_tokens_details",
+                "prompt_tokens",
+                "timings",
+                "total_tokens"
+              ],
+              "rep": 0
+            },
+            {
+              "prefix_len_field_present": false,
+              "prompt_tokens": 8156,
+              "raw_timings_keys": [
+                "decode_ms",
+                "decode_tokens_per_sec",
+                "prefill_ms"
+              ],
+              "raw_usage_keys": [
+                "accept_rate",
+                "completion_tokens",
+                "completion_tokens_details",
+                "prompt_tokens",
+                "timings",
+                "total_tokens"
+              ],
+              "rep": 1
+            },
+            {
+              "prefix_len_field_present": false,
+              "prompt_tokens": 8156,
+              "raw_timings_keys": [
+                "decode_ms",
+                "decode_tokens_per_sec",
+                "prefill_ms"
+              ],
+              "raw_usage_keys": [
+                "accept_rate",
+                "completion_tokens",
+                "completion_tokens_details",
+                "prompt_tokens",
+                "timings",
+                "total_tokens"
+              ],
+              "rep": 2
+            },
+            {
+              "prefix_len_field_present": false,
+              "prompt_tokens": 8156,
+              "raw_timings_keys": [
+                "decode_ms",
+                "decode_tokens_per_sec",
+                "prefill_ms"
+              ],
+              "raw_usage_keys": [
+                "accept_rate",
+                "completion_tokens",
+                "completion_tokens_details",
+                "prompt_tokens",
+                "timings",
+                "total_tokens"
+              ],
+              "rep": 3
+            },
+            {
+              "prefix_len_field_present": false,
+              "prompt_tokens": 8156,
+              "raw_timings_keys": [
+                "decode_ms",
+                "decode_tokens_per_sec",
+                "prefill_ms"
+              ],
+              "raw_usage_keys": [
+                "accept_rate",
+                "completion_tokens",
+                "completion_tokens_details",
+                "prompt_tokens",
+                "timings",
+                "total_tokens"
+              ],
+              "rep": 4
+            }
+          ],
+          "raw_reps": [
+            {
+              "completion_tokens": 128,
+              "decode_ms": 3081.6,
+              "decode_tok_s": 41.5,
+              "prefill_ms": 5752.5,
+              "prefill_tok_s": 1417.818339852238,
+              "prompt_tokens": 8156,
+              "text": "Based on the output provided, here is the analysis:\n\n### **Result: PASS**\n\nThe output shows a sequence of `x` characters. In the context of cryptographic benchmarking tools like **AutoLuce** (which tests implementations of cryptographic primitives such as hash functions, MACs, or ciphers), this pattern typically indicates that the **parity check passed** for all tested inputs.\n\n*   **`parity salt depth=8192`**: The test used a salt with a depth/size of 8192 bits (or bytes, depending on the specific implementation context, but usually bits in parity contexts",
+              "wall_s": 8.847879613051191
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2993.0,
+              "decode_tok_s": 42.8,
+              "prefill_ms": 5750.9,
+              "prefill_tok_s": 1418.212801474552,
+              "prompt_tokens": 8156,
+              "text": "Based on the output provided, here is the analysis:\n\n### **Result: PASS**\n\nThe output shows a long sequence of `x` characters. In the context of the **AutoLuce** test suite (part of the **Lucee** Java-based CFML engine), this specific test (`parity salt depth=8192 rep=1`) is a stress test for the random number generator or cryptographic salt generation.\n\n*   **`x`** typically indicates a **successful** iteration or check in this specific verbose output format.\n*   If there were failures, you would usually see `f` (",
+              "wall_s": 8.750819348031655
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 3042.8,
+              "decode_tok_s": 42.1,
+              "prefill_ms": 5726.0,
+              "prefill_tok_s": 1424.3800209570381,
+              "prompt_tokens": 8156,
+              "text": "The output you provided appears to be a **parity check failure** or a **data corruption indicator** from a system named `AutoLuce`.\n\n### Breakdown of the Message:\n- **`AutoLuce`**: Likely the name of the software, hardware module, or test suite.\n- **`parity salt depth=8192`**: This suggests a cryptographic or error-checking operation involving:\n  - **Parity**: A simple error-detection method (checking if the number of 1s in a binary string is even or odd).\n  - **Salt**: Random data added to ensure uniqueness",
+              "wall_s": 8.774942293064669
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 3088.5,
+              "decode_tok_s": 41.4,
+              "prefill_ms": 5821.2,
+              "prefill_tok_s": 1401.0856867999726,
+              "prompt_tokens": 8156,
+              "text": "Based on the input provided, it appears you are referencing a specific configuration or test case for **AutoLuce**, likely related to cryptographic hashing, error correction codes, or a specific benchmarking tool.\n\nHowever, the input consists of:\n1.  **Parameters**: `parity salt depth=8192 rep=3`\n2.  **Data**: A very long string of repeated `x` characters.\n\n### Analysis\n\n*   **AutoLuce**: This is not a widely recognized standard cryptographic algorithm or library in public documentation (as of 2024). It may be:\n    *  ",
+              "wall_s": 8.914819389930926
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 3032.4,
+              "decode_tok_s": 42.2,
+              "prefill_ms": 5755.0,
+              "prefill_tok_s": 1417.2024326672458,
+              "prompt_tokens": 8156,
+              "text": "It appears that the output you provided is a **test pattern** or a **debugging artifact** rather than actual data from an AutoLuce parity check.\n\nHere\u2019s a breakdown of what this likely means:\n\n### 1. **What is AutoLuce?**\nAutoLuce is not a widely recognized standard cryptographic or data integrity algorithm in public literature. It may be:\n- A proprietary internal tool or library.\n- A misspelling or variant of a known algorithm (e.g., **AutoLUC**, **Luce**, or a custom parity-checking utility).\n- A fictional or example name used",
+              "wall_s": 8.79263003799133
+            }
+          ],
+          "warmup_prompt_tokens": 8157
+        }
+      },
+      "command": [
+        "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/dflash_server",
+        "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "57379",
+        "--max-ctx",
+        "8448",
+        "--prefix-cache-slots",
+        "0",
+        "--prefill-cache-slots",
+        "0",
+        "--cache-type-k",
+        "f16",
+        "--cache-type-v",
+        "f16"
+      ],
+      "flash_attention": "always-on (no CLI toggle in dflash_server; fa-window=0 means full FA)",
+      "lucebox_checkout_dirty": true,
+      "lucebox_dirty_files": [
+        "?? build-cuda-sm86/"
+      ],
+      "lucebox_git_rev": "506cd97288208b8f4d71a3d7212f743440eccfd6",
+      "server_ctx": 8448
+    },
+    "candidate_a2": {
+      "arm": "dflash",
+      "binary": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/dflash_server",
+      "binary_md5": "830eeb86dabe9220ac2096807dcacf42",
+      "cache_type_k": "f16",
+      "cache_type_v": "f16",
+      "cells": {
+        "8192": {
+          "prefix_cache_evidence": [
+            {
+              "prefix_len_field_present": false,
+              "prompt_tokens": 8156,
+              "raw_timings_keys": [
+                "decode_ms",
+                "decode_tokens_per_sec",
+                "prefill_ms"
+              ],
+              "raw_usage_keys": [
+                "accept_rate",
+                "completion_tokens",
+                "completion_tokens_details",
+                "prompt_tokens",
+                "timings",
+                "total_tokens"
+              ],
+              "rep": 0
+            },
+            {
+              "prefix_len_field_present": false,
+              "prompt_tokens": 8156,
+              "raw_timings_keys": [
+                "decode_ms",
+                "decode_tokens_per_sec",
+                "prefill_ms"
+              ],
+              "raw_usage_keys": [
+                "accept_rate",
+                "completion_tokens",
+                "completion_tokens_details",
+                "prompt_tokens",
+                "timings",
+                "total_tokens"
+              ],
+              "rep": 1
+            },
+            {
+              "prefix_len_field_present": false,
+              "prompt_tokens": 8156,
+              "raw_timings_keys": [
+                "decode_ms",
+                "decode_tokens_per_sec",
+                "prefill_ms"
+              ],
+              "raw_usage_keys": [
+                "accept_rate",
+                "completion_tokens",
+                "completion_tokens_details",
+                "prompt_tokens",
+                "timings",
+                "total_tokens"
+              ],
+              "rep": 2
+            },
+            {
+              "prefix_len_field_present": false,
+              "prompt_tokens": 8156,
+              "raw_timings_keys": [
+                "decode_ms",
+                "decode_tokens_per_sec",
+                "prefill_ms"
+              ],
+              "raw_usage_keys": [
+                "accept_rate",
+                "completion_tokens",
+                "completion_tokens_details",
+                "prompt_tokens",
+                "timings",
+                "total_tokens"
+              ],
+              "rep": 3
+            },
+            {
+              "prefix_len_field_present": false,
+              "prompt_tokens": 8156,
+              "raw_timings_keys": [
+                "decode_ms",
+                "decode_tokens_per_sec",
+                "prefill_ms"
+              ],
+              "raw_usage_keys": [
+                "accept_rate",
+                "completion_tokens",
+                "completion_tokens_details",
+                "prompt_tokens",
+                "timings",
+                "total_tokens"
+              ],
+              "rep": 4
+            }
+          ],
+          "raw_reps": [
+            {
+              "completion_tokens": 128,
+              "decode_ms": 3003.9,
+              "decode_tok_s": 42.6,
+              "prefill_ms": 5770.7,
+              "prefill_tok_s": 1413.3467343649818,
+              "prompt_tokens": 8156,
+              "text": "Based on the output provided, here is the analysis:\n\n### **Result: PASS**\n\nThe output shows a sequence of `x` characters. In the context of cryptographic benchmarking tools like **AutoLuce** (which tests implementations of cryptographic primitives such as hash functions, MACs, or ciphers), this pattern typically indicates that the **parity check passed** for all tested inputs.\n\n*   **`parity salt depth=8192`**: The test used a salt with a depth/size of 8192 bits (or bytes, depending on the specific implementation context, but usually bits in parity contexts",
+              "wall_s": 8.779523339006118
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2988.0,
+              "decode_tok_s": 42.8,
+              "prefill_ms": 5736.4,
+              "prefill_tok_s": 1421.7976431211214,
+              "prompt_tokens": 8156,
+              "text": "Based on the output provided, here is the analysis:\n\n### **Result: PASS**\n\nThe output shows a long sequence of `x` characters. In the context of the **AutoLuce** test suite (part of the **Lucee** Java-based CFML engine), this specific test (`parity salt depth=8192 rep=1`) is a stress test for the random number generator or cryptographic salt generation.\n\n*   **`x`** typically indicates a **successful** iteration or check in this specific verbose output format.\n*   If there were failures, you would usually see `f` (",
+              "wall_s": 8.729091183049604
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2998.3,
+              "decode_tok_s": 42.7,
+              "prefill_ms": 5708.9,
+              "prefill_tok_s": 1428.6464993256145,
+              "prompt_tokens": 8156,
+              "text": "The output you provided appears to be a **parity check failure** or a **data corruption indicator** from a system named `AutoLuce`.\n\n### Breakdown of the Message:\n- **`AutoLuce`**: Likely the name of the software, hardware module, or test suite.\n- **`parity salt depth=8192`**: This suggests a cryptographic or error-checking operation involving:\n  - **Parity**: A simple error-detection method (checking if the number of 1s in a binary string is even or odd).\n  - **Salt**: Random data added to ensure uniqueness",
+              "wall_s": 8.711899698944762
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2994.5,
+              "decode_tok_s": 42.7,
+              "prefill_ms": 5716.6,
+              "prefill_tok_s": 1426.7221775181051,
+              "prompt_tokens": 8156,
+              "text": "Based on the input provided, it appears you are referencing a specific configuration or test case for **AutoLuce**, likely related to cryptographic hashing, error correction codes, or a specific benchmarking tool.\n\nHowever, the input consists of:\n1.  **Parameters**: `parity salt depth=8192 rep=3`\n2.  **Data**: A very long string of repeated `x` characters.\n\n### Analysis\n\n*   **AutoLuce**: This is not a widely recognized standard cryptographic algorithm or library in public documentation (as of 2024). It may be:\n    *  ",
+              "wall_s": 8.715952811064199
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 3005.4,
+              "decode_tok_s": 42.6,
+              "prefill_ms": 5747.4,
+              "prefill_tok_s": 1419.0764519608867,
+              "prompt_tokens": 8156,
+              "text": "It appears that the output you provided is a **test pattern** or a **debugging artifact** rather than actual data from an AutoLuce parity check.\n\nHere\u2019s a breakdown of what this likely means:\n\n### 1. **What is AutoLuce?**\nAutoLuce is not a widely recognized standard cryptographic or data integrity algorithm in public literature. It may be:\n- A proprietary internal tool or library.\n- A misspelling or variant of a known algorithm (e.g., **AutoLUC**, **Luce**, or a custom parity-checking utility).\n- A fictional or example name used",
+              "wall_s": 8.75829881906975
+            }
+          ],
+          "warmup_prompt_tokens": 8157
+        }
+      },
+      "command": [
+        "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/dflash_server",
+        "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "45899",
+        "--max-ctx",
+        "8448",
+        "--prefix-cache-slots",
+        "0",
+        "--prefill-cache-slots",
+        "0",
+        "--cache-type-k",
+        "f16",
+        "--cache-type-v",
+        "f16"
+      ],
+      "flash_attention": "always-on (no CLI toggle in dflash_server; fa-window=0 means full FA)",
+      "lucebox_checkout_dirty": true,
+      "lucebox_dirty_files": [
+        "?? build-cuda-sm86/"
+      ],
+      "lucebox_git_rev": "506cd97288208b8f4d71a3d7212f743440eccfd6",
+      "server_ctx": 8448
+    },
+    "llama_b1": {
+      "arm": "llama.cpp",
+      "binary": "/home/peppi/llama.cpp/build/bin/llama-server",
+      "binary_md5": "97f3534f099e72d4f44c41ec3298120d",
+      "cache_type_k": "f16",
+      "cache_type_v": "f16",
+      "cells": {
+        "8192": {
+          "prefix_cache_evidence": [
+            {
+              "prompt_n": 8144,
+              "rep": 0,
+              "timings_cache_n": 0,
+              "tokens_cached_field": 8271,
+              "truncated": false
+            },
+            {
+              "prompt_n": 8144,
+              "rep": 1,
+              "timings_cache_n": 0,
+              "tokens_cached_field": 8271,
+              "truncated": false
+            },
+            {
+              "prompt_n": 8144,
+              "rep": 2,
+              "timings_cache_n": 0,
+              "tokens_cached_field": 8271,
+              "truncated": false
+            },
+            {
+              "prompt_n": 8144,
+              "rep": 3,
+              "timings_cache_n": 0,
+              "tokens_cached_field": 8271,
+              "truncated": false
+            },
+            {
+              "prompt_n": 8144,
+              "rep": 4,
+              "timings_cache_n": 0,
+              "tokens_cached_field": 8271,
+              "truncated": false
+            }
+          ],
+          "raw_reps": [
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2753.449,
+              "decode_tok_s": 46.48715120563337,
+              "prefill_ms": 5505.079,
+              "prefill_tok_s": 1479.3611499489837,
+              "prompt_tokens": 8144,
+              "wall_s": 8.478954143007286
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2735.455,
+              "decode_tok_s": 46.79294669442561,
+              "prefill_ms": 5499.318,
+              "prefill_tok_s": 1480.910905679577,
+              "prompt_tokens": 8144,
+              "wall_s": 8.508048960007727
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2782.63,
+              "decode_tok_s": 45.99964781519641,
+              "prefill_ms": 5541.623,
+              "prefill_tok_s": 1469.6055650122717,
+              "prompt_tokens": 8144,
+              "wall_s": 8.585991346975788
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2742.194,
+              "decode_tok_s": 46.67795203402823,
+              "prefill_ms": 5571.869,
+              "prefill_tok_s": 1461.6280461726578,
+              "prompt_tokens": 8144,
+              "wall_s": 8.577408462995663
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2749.325,
+              "decode_tok_s": 46.55688214379894,
+              "prefill_ms": 5517.954,
+              "prefill_tok_s": 1475.9093678562742,
+              "prompt_tokens": 8144,
+              "wall_s": 8.535552921937779
+            }
+          ],
+          "warmup_prompt_tokens": 8145
+        }
+      },
+      "command": [
+        "/home/peppi/llama.cpp/build/bin/llama-server",
+        "-m",
+        "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+        "-c",
+        "8448",
+        "-ngl",
+        "99",
+        "-fa",
+        "on",
+        "--cache-type-k",
+        "f16",
+        "--cache-type-v",
+        "f16",
+        "--no-cache-prompt",
+        "--parallel",
+        "1",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "39957",
+        "--seed",
+        "42"
+      ],
+      "flash_attention": "on (-fa on)",
+      "server_ctx": 8448,
+      "version_output": "version: 9970 (00f5442cc)\nbuilt with GNU 11.5.0 for Linux x86_64"
+    },
+    "llama_b2": {
+      "arm": "llama.cpp",
+      "binary": "/home/peppi/llama.cpp/build/bin/llama-server",
+      "binary_md5": "97f3534f099e72d4f44c41ec3298120d",
+      "cache_type_k": "f16",
+      "cache_type_v": "f16",
+      "cells": {
+        "8192": {
+          "prefix_cache_evidence": [
+            {
+              "prompt_n": 8144,
+              "rep": 0,
+              "timings_cache_n": 0,
+              "tokens_cached_field": 8271,
+              "truncated": false
+            },
+            {
+              "prompt_n": 8144,
+              "rep": 1,
+              "timings_cache_n": 0,
+              "tokens_cached_field": 8271,
+              "truncated": false
+            },
+            {
+              "prompt_n": 8144,
+              "rep": 2,
+              "timings_cache_n": 0,
+              "tokens_cached_field": 8271,
+              "truncated": false
+            },
+            {
+              "prompt_n": 8144,
+              "rep": 3,
+              "timings_cache_n": 0,
+              "tokens_cached_field": 8271,
+              "truncated": false
+            },
+            {
+              "prompt_n": 8144,
+              "rep": 4,
+              "timings_cache_n": 0,
+              "tokens_cached_field": 8271,
+              "truncated": false
+            }
+          ],
+          "raw_reps": [
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2808.846,
+              "decode_tok_s": 45.570316065743725,
+              "prefill_ms": 5527.47,
+              "prefill_tok_s": 1473.3684669478077,
+              "prompt_tokens": 8144,
+              "wall_s": 8.59535279800184
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2756.13,
+              "decode_tok_s": 46.44193125868518,
+              "prefill_ms": 5489.444,
+              "prefill_tok_s": 1483.5746571055283,
+              "prompt_tokens": 8144,
+              "wall_s": 8.499884753022343
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2740.248,
+              "decode_tok_s": 46.71110060111347,
+              "prefill_ms": 5486.952,
+              "prefill_tok_s": 1484.2484497768523,
+              "prompt_tokens": 8144,
+              "wall_s": 8.47693237196654
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2736.272,
+              "decode_tok_s": 46.778975189601034,
+              "prefill_ms": 5492.161,
+              "prefill_tok_s": 1482.8407251717492,
+              "prompt_tokens": 8144,
+              "wall_s": 8.482804127968848
+            },
+            {
+              "completion_tokens": 128,
+              "decode_ms": 2773.608,
+              "decode_tok_s": 46.149275600589554,
+              "prefill_ms": 5524.511,
+              "prefill_tok_s": 1474.157622276433,
+              "prompt_tokens": 8144,
+              "wall_s": 8.560532524017617
+            }
+          ],
+          "warmup_prompt_tokens": 8145
+        }
+      },
+      "command": [
+        "/home/peppi/llama.cpp/build/bin/llama-server",
+        "-m",
+        "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+        "-c",
+        "8448",
+        "-ngl",
+        "99",
+        "-fa",
+        "on",
+        "--cache-type-k",
+        "f16",
+        "--cache-type-v",
+        "f16",
+        "--no-cache-prompt",
+        "--parallel",
+        "1",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "40047",
+        "--seed",
+        "42"
+      ],
+      "flash_attention": "on (-fa on)",
+      "server_ctx": 8448,
+      "version_output": "version: 9970 (00f5442cc)\nbuilt with GNU 11.5.0 for Linux x86_64"
+    }
+  },
+  "provenance": {
+    "cache_type_k": "f16",
+    "cache_type_v": "f16",
+    "candidate": {
+      "binary_sha256": "dddb7db95cd7c54d0a2d0c84b8ab0f3dc30cd5daf7f5153217d5b42c1669b232",
+      "source_commit": "506cd97288208b8f4d71a3d7212f743440eccfd6"
+    },
+    "candidate_ldd": "\tlinux-vdso.so.1 (0x00007ffe0fb8b000)\n\tlibggml.so.0 => /home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/deps/llama.cpp/ggml/src/libggml.so.0 (0x00007fa810e5e000)\n\tlibggml-cuda.so.0 => /home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/deps/llama.cpp/ggml/src/ggml-cuda/libggml-cuda.so.0 (0x00007fa803486000)\n\tlibcudart.so.12 => /usr/local/cuda-12.6/lib64/libcudart.so.12 (0x00007fa803000000)\n\tlibggml-cpu.so.0 => /home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/deps/llama.cpp/ggml/src/libggml-cpu.so.0 (0x00007fa80331f000)\n\tlibggml-base.so.0 => /home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/deps/llama.cpp/ggml/src/libggml-base.so.0 (0x00007fa802f41000)\n\tlibgomp.so.1 => /lib/x86_64-linux-gnu/libgomp.so.1 (0x00007fa8032b4000)\n\tlibstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007fa802cc3000)\n\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007fa802bda000)\n\tlibgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007fa802bac000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fa80299a000)\n\tlibcublas.so.12 => /usr/local/cuda-12.6/lib64/libcublas.so.12 (0x00007fa7fc000000)\n\tlibcuda.so.1 => /usr/lib/wsl/lib/libcuda.so.1 (0x00007fa80296b000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007fa811b95000)\n\tlibdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007fa802966000)\n\tlibpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007fa802961000)\n\tlibrt.so.1 => /lib/x86_64-linux-gnu/librt.so.1 (0x00007fa80295c000)\n\tlibcublasLt.so.12 => /usr/local/cuda-12.6/lib64/libcublasLt.so.12 (0x00007fa7da600000)\n",
+    "depths": [
+      8192
+    ],
+    "finished_at": "2026-07-13T18:26:56+0200",
+    "machine": {
+      "cuda": "12.6.85",
+      "driver": "610.62",
+      "gpu": "NVIDIA GeForce RTX 3090",
+      "gpu_uuid": "GPU-3307b546-fd93-b443-8e4d-27a437ad0082"
+    },
+    "model_path": "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+    "model_sha256": "8a3365759dc1b33b52c4e7d91d5a67d5ee1418e8408aa54196f04a98da53e5dc",
+    "order": [
+      "candidate_a1",
+      "llama_b1",
+      "llama_b2",
+      "candidate_a2"
+    ],
+    "repetitions": {
+      "measured_per_phase": 5,
+      "warmup_per_phase": 1
+    },
+    "sampling": {
+      "n_predict": 128,
+      "seed": 42,
+      "temperature": 0,
+      "top_k": 1
+    },
+    "server_ctx": 8448,
+    "started_at": "2026-07-13T18:22:42+0200",
+    "telemetry": {
+      "after_a1": "543 MiB, 0 %, 70, 247.88 W",
+      "after_a2": "523 MiB, 1 %, 68, 250.48 W",
+      "after_b1": "531 MiB, 0 %, 68, 245.24 W",
+      "after_b2": "534 MiB, 0 %, 66, 252.88 W",
+      "start": "628 MiB, 0 %, 59, 114.97 W"
+    },
+    "upstream": {
+      "binary_sha256": "559b37b2c755b8446dd7819bf79b4982f85f4c660d9defd66b0f9ed5e678e0dd",
+      "source_commit": "00f5442cc4e805293280c8f85d21d8f9d4aad206",
+      "version": "9970"
+    },
+    "upstream_ldd": "\tlinux-vdso.so.1 (0x00007ffce071d000)\n\tlibllama-server-impl.so => /home/peppi/llama.cpp/build/bin/libllama-server-impl.so (0x00007f772455a000)\n\tlibstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007f77242c9000)\n\tlibgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f772429b000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f7724089000)\n\tlibllama-common.so.0 => /home/peppi/llama.cpp/build/bin/libllama-common.so.0 (0x00007f7723bfd000)\n\tlibmtmd.so.0 => /home/peppi/llama.cpp/build/bin/libmtmd.so.0 (0x00007f7723ac9000)\n\tlibllama.so.0 => /home/peppi/llama.cpp/build/bin/libllama.so.0 (0x00007f7723799000)\n\tlibggml.so.0 => /home/peppi/llama.cpp/build/bin/libggml.so.0 (0x00007f772378d000)\n\tlibggml-base.so.0 => /home/peppi/llama.cpp/build/bin/libggml-base.so.0 (0x00007f77236c2000)\n\tlibssl.so.3 => /lib/x86_64-linux-gnu/libssl.so.3 (0x00007f7723618000)\n\tlibcrypto.so.3 => /lib/x86_64-linux-gnu/libcrypto.so.3 (0x00007f7723102000)\n\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f7723019000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f7724b24000)\n\tlibggml-cpu.so.0 => /home/peppi/llama.cpp/build/bin/libggml-cpu.so.0 (0x00007f7722e92000)\n\tlibggml-cuda.so.0 => /home/peppi/llama.cpp/build/bin/libggml-cuda.so.0 (0x00007f771654f000)\n\tlibgomp.so.1 => /lib/x86_64-linux-gnu/libgomp.so.1 (0x00007f77164f9000)\n\tlibcudart.so.12 => /usr/local/cuda-12.6/lib64/libcudart.so.12 (0x00007f7716200000)\n\tlibcublas.so.12 => /usr/local/cuda-12.6/lib64/libcublas.so.12 (0x00007f770f800000)\n\tlibcuda.so.1 => /usr/lib/wsl/lib/libcuda.so.1 (0x00007f77164c8000)\n\tlibdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f77164c3000)\n\tlibpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007f77164be000)\n\tlibrt.so.1 => /lib/x86_64-linux-gnu/librt.so.1 (0x00007f77164b7000)\n\tlibcublasLt.so.12 => /usr/local/cuda-12.6/lib64/libcublasLt.so.12 (0x00007f76ede00000)\n"
+  },
+  "schema_version": 1,
+  "workload": {
+    "cache": "disabled",
+    "candidate_prompt_tokens": 8156,
+    "context": 8192,
+    "kv_cache": {
+      "key": "f16",
+      "value": "f16"
+    },
+    "measured_per_phase": 5,
+    "mode": "target-only prefill",
+    "model": "Qwen3.6-27B-IQ4_XS.gguf",
+    "model_sha256": "8a3365759dc1b33b52c4e7d91d5a67d5ee1418e8408aa54196f04a98da53e5dc",
+    "ordering": "A-B-B-A",
+    "sampling": {
+      "n_predict": 128,
+      "seed": 42,
+      "temperature": 0,
+      "top_k": 1
+    },
+    "upstream_prompt_tokens": 8144,
+    "warmup_per_phase": 1
+  }
+}
