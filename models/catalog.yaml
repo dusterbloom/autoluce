@@ -1,5 +1,22 @@
 schema_version: 1
 models:
+  bonsai-27b-q1:
+    quant: Q1_0_g128
+    repository: prism-ml/Bonsai-27B-gguf
+    revision: 41c6ac111d8a2b8ac11f95b5a88ef3b425940902
+    sha256: 17ef842e47450caeb8eaa3ebfbbab5d2f2278b62b79be107985fb69a2f819aa0
+    path_env: AUTOLUCE_BONSAI_27B_MODEL
+    expected_size_bytes: 3803452480
+    files:
+      - Bonsai-27B-Q1_0.gguf
+    metadata:
+      architecture: qwen35
+      base_model: Qwen/Qwen3.6-27B
+      parameters: 26895998464
+      context_length: 262144
+      vocab_size: 248320
+      vision_projector: optional
+      campaign_scope: text-only
   deepseek-v4-flash:
     quant: IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix
     path_env: AUTOLUCE_DEEPSEEK_V4_MODEL

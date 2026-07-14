@@ -8,9 +8,13 @@ behavior of helpers that already existed when the tests were added.
 
 import pytest
 
+from autoluce.models import load_catalog
 from autoluce.prepare import (
+    _catalog_target_manifest,
     _link_into,
+    _validate_model_artifact,
     build_commands,
+    download_models,
     discover_model,
     model_search_paths,
     validate_product_backend,
@@ -60,6 +64,91 @@ def test_link_into_makes_dest_readable(tmp_path):
     _link_into(src, dest)
     assert dest.exists()
     assert dest.read_bytes() == b"payload"
+
+
+def test_bonsai_27b_catalog_entry_pins_public_q1_artifact():
+    entry = load_catalog()["bonsai-27b-q1"]
+
+    assert entry.quant == "Q1_0_g128"
+    assert entry.files == ["Bonsai-27B-Q1_0.gguf"]
+    assert entry.expected_size_bytes == 3_803_452_480
+    assert entry.path_env == "AUTOLUCE_BONSAI_27B_MODEL"
+    assert entry.repository == "prism-ml/Bonsai-27B-gguf"
+    assert entry.revision == "41c6ac111d8a2b8ac11f95b5a88ef3b425940902"
+    assert entry.sha256 == "17ef842e47450caeb8eaa3ebfbbab5d2f2278b62b79be107985fb69a2f819aa0"
+    assert entry.metadata == {
+        "architecture": "qwen35",
+        "base_model": "Qwen/Qwen3.6-27B",
+        "parameters": 26_895_998_464,
+        "context_length": 262_144,
+        "vocab_size": 248_320,
+        "vision_projector": "optional",
+        "campaign_scope": "text-only",
+    }
+
+
+def test_catalog_target_manifest_honors_external_override(monkeypatch, tmp_path):
+    entry = load_catalog()["bonsai-27b-q1"]
+    external = tmp_path / entry.first_file
+    monkeypatch.setenv(entry.path_env, str(external))
+
+    target = _catalog_target_manifest(entry)
+
+    assert target["path"] == str(external)
+    assert target["files"] == [str(external)]
+    assert "repo" not in target
+    assert target["sha256"] == entry.sha256
+
+
+def test_download_models_resolves_public_bonsai_target(monkeypatch, tmp_path):
+    from autoluce import prepare
+
+    downloads = []
+    validations = []
+
+    def fake_download(*, repo_id, filename, local_dir, revision):
+        downloads.append((repo_id, filename, local_dir, revision))
+        return str(tmp_path / filename)
+
+    monkeypatch.setenv("AUTOLUCE_BENCHMARKS", "bonsai27b-q1-target")
+    monkeypatch.setattr(prepare, "MODELS_DIR", tmp_path)
+    monkeypatch.setattr(prepare, "discover_model", lambda _name: None)
+    monkeypatch.setattr(prepare, "hf_hub_download", fake_download)
+    monkeypatch.setattr(
+        prepare,
+        "_validate_model_artifact",
+        lambda path, expected_size, sha256: validations.append((path, expected_size, sha256)),
+    )
+
+    download_models()
+
+    assert downloads == [(
+        "prism-ml/Bonsai-27B-gguf",
+        "Bonsai-27B-Q1_0.gguf",
+        str(tmp_path),
+        "41c6ac111d8a2b8ac11f95b5a88ef3b425940902",
+    )]
+    assert validations == [(
+        tmp_path / "Bonsai-27B-Q1_0.gguf",
+        3_803_452_480,
+        "17ef842e47450caeb8eaa3ebfbbab5d2f2278b62b79be107985fb69a2f819aa0",
+    )]
+
+
+def test_validate_model_artifact_checks_size_and_sha256(tmp_path):
+    artifact = tmp_path / "model.gguf"
+    artifact.write_bytes(b"bonsai")
+
+    _validate_model_artifact(
+        artifact,
+        expected_size=6,
+        sha256="7dd7122ad9bf240f04fdf988a0df4a2552098ad8ed8df429bed1056ebdb64387",
+    )
+
+    with pytest.raises(ValueError, match="size mismatch"):
+        _validate_model_artifact(artifact, expected_size=7, sha256=None)
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        _validate_model_artifact(artifact, expected_size=6, sha256="0" * 64)
 
 
 # --- backend flag mapping ------------------------------------------------------

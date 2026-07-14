@@ -19,7 +19,7 @@ from huggingface_hub import hf_hub_download
 
 from autoluce import ROOT
 from autoluce.bench.profiling import detect_backend
-from autoluce.models import load_catalog, resolve_entry_files
+from autoluce.models import ModelEntry, load_catalog, resolve_entry_files
 from autoluce.source_layout import SourceLayout
 
 # ---------------------------------------------------------------------------
@@ -45,6 +45,25 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _validate_model_artifact(
+    path: Path, expected_size: int | None, sha256: str | None,
+) -> None:
+    """Validate one pinned model artifact before exposing it to a campaign."""
+    if not path.is_file():
+        raise FileNotFoundError(f"model artifact is missing: {path}")
+    actual_size = path.stat().st_size
+    if expected_size is not None and actual_size != expected_size:
+        raise ValueError(
+            f"model artifact size mismatch for {path}: expected {expected_size}, got {actual_size}"
+        )
+    if sha256 is not None:
+        actual_sha256 = sha256_file(path)
+        if actual_sha256.lower() != sha256.lower():
+            raise ValueError(
+                f"model artifact SHA-256 mismatch for {path}: expected {sha256}, got {actual_sha256}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +170,32 @@ def _link_into(src: Path, dest: Path) -> None:
         shutil.copy2(src, dest)
 
 
+def _catalog_target_manifest(entry: ModelEntry) -> dict:
+    """Translate one catalog entry into the setup manifest's target shape."""
+    override = os.environ.get(entry.path_env, "") if entry.path_env else ""
+    common = {
+        "local": entry.first_file,
+        "quant": entry.quant,
+        "expected_size_bytes": entry.expected_size_bytes,
+        "sha256": entry.sha256,
+    }
+    if override:
+        paths = resolve_entry_files(entry)
+        return {
+            **common,
+            "path": str(paths[0]),
+            "files": [str(path) for path in paths],
+        }
+    if not entry.repository:
+        raise ValueError(f"catalog model '{entry.model_id}' has no repository or path override")
+    return {
+        **common,
+        "repo": entry.repository,
+        "revision": entry.revision,
+        "file": entry.first_file,
+    }
+
+
 def download_models() -> None:
     """Download benchmark models referenced by the selected benchmarks."""
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -158,7 +203,8 @@ def download_models() -> None:
     # Pinned HF sources. The smoke entry is a tiny target-only model so a dev can
     # exercise the full real loop (build -> bench -> correctness -> significance)
     # with ~1 GB instead of ~35 GB: AUTOLUCE_BENCHMARKS=smoke uv run prepare.py
-    dsv4_entry = load_catalog()["deepseek-v4-flash"]
+    catalog = load_catalog()
+    dsv4_entry = catalog["deepseek-v4-flash"]
     dsv4_paths = resolve_entry_files(
         dsv4_entry,
         Path(os.environ.get("AUTOLUCE_MODEL_ROOT", str(MODELS_DIR))),
@@ -169,6 +215,8 @@ def download_models() -> None:
     nvfp4_path = Path(nvfp4_override).expanduser() if nvfp4_override else None
     if nvfp4_path is None and "qwen36-27b-nvfp4" in wanted:
         nvfp4_path = discover_model(nvfp4_name)
+    bonsai_target = _catalog_target_manifest(catalog["bonsai-27b-q1"])
+
     manifest = {
         "smoke": {
             "target": {
@@ -188,6 +236,9 @@ def download_models() -> None:
                 "file": "dflash-draft-3.6-q4_k_m.gguf",
                 "local": "dflash-draft-3.6-q4_k_m.gguf",
             },
+        },
+        "bonsai-27b-q1": {
+            "target": bonsai_target,
         },
         "qwen36-27b-nvfp4": {
             "target": {
@@ -239,23 +290,44 @@ def download_models() -> None:
                         f"external model '{name}' is missing: "
                         + ", ".join(str(path) for path in paths if not path.is_file())
                     )
-                actual_size = sum(path.stat().st_size for path in paths)
                 expected_size = info.get("expected_size_bytes")
-                if expected_size is not None and actual_size != expected_size:
-                    raise ValueError(f"external model '{name}' size mismatch: {actual_size} != {expected_size}")
+                if len(paths) == 1:
+                    _validate_model_artifact(paths[0], expected_size, info.get("sha256"))
+                else:
+                    actual_size = sum(path.stat().st_size for path in paths)
+                    if expected_size is not None and actual_size != expected_size:
+                        raise ValueError(
+                            f"external model '{name}' size mismatch: {actual_size} != {expected_size}"
+                        )
                 print(f"  Using external {role}: {info['path']}")
                 continue
             local_path = MODELS_DIR / info["local"]
             if local_path.exists():
+                _validate_model_artifact(
+                    local_path, info.get("expected_size_bytes"), info.get("sha256")
+                )
                 print(f"  {info['local']} already exists")
                 continue
             found = discover_model(info["local"])
             if found is not None:
                 print(f"  Reusing {info['local']} from {found}")
                 _link_into(found, local_path)
+                _validate_model_artifact(
+                    local_path, info.get("expected_size_bytes"), info.get("sha256")
+                )
                 continue
             print(f"  Downloading {info['repo']}/{info['file']} ...")
-            hf_hub_download(repo_id=info["repo"], filename=info["file"], local_dir=str(MODELS_DIR))
+            download_args = {
+                "repo_id": info["repo"],
+                "filename": info["file"],
+                "local_dir": str(MODELS_DIR),
+            }
+            if info.get("revision"):
+                download_args["revision"] = info["revision"]
+            hf_hub_download(**download_args)
+            _validate_model_artifact(
+                local_path, info.get("expected_size_bytes"), info.get("sha256")
+            )
 
 
 def validate_product_backend(layout: SourceLayout, backend: str) -> None:
