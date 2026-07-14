@@ -10,10 +10,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 - **Automatic Q4_K_M prefill closure**: archived the final content-addressed RTX 3090
   A-B-B-A comparison for the Lucebox MMQ + compact-Q/K + automatic grouped-GDN stack.
-  At the default 512-token ubatch and without force controls, the stack leads llama.cpp
-  by 4.91% at 1K, 2.52% at 8K, and 1.97% at 16K. The record preserves the two-token
-  cross-runtime accounting difference and the missing upstream text capture, so it is
-  comparative performance evidence rather than an exact-output promotion bundle.
+  At the default 512-token ubatch and without force controls, the measured point
+  estimates lead llama.cpp by 4.91% at 1K, 2.52% at 8K, and 1.97% at 16K; the
+  upstream phase imbalance makes the 1K magnitude less precise (its first phase
+  alone implies about 3.3% before drift adjustment).
+  The record preserves the two-token cross-runtime accounting difference and the
+  missing upstream text capture, so it is comparative performance evidence rather
+  than an exact-output promotion bundle. Draft Lucebox PR #524 stacked on #518
+  remains the accepted frontier after four follow-on attention candidates missed
+  promotion; comparable 32K/64K llama.cpp cells remain open.
 - **Normal-KV Qwen3.6 prefill campaign**: added separate content-compatible F16/F16,
   Q8_0/Q8_0, and Q4_0/Q4_0 lanes for the fixed Q4_K_M weight artifact, a target-only
   1K/8K/16K/64K benchmark, optional non-frontier 128K fit probes, an isolated

@@ -16,6 +16,14 @@ GDN disable, ubatch, or chunked-GDN environment override was present.
 | 8,192 | 1393.73 | 1359.53 | +2.52% | 7.3x |
 | 16,384 | 1332.63 | 1306.86 | +1.97% | 5.5x |
 
+These are measured point estimates. Renormalizing Lucebox throughput to the two
+fewer prompt tokens reported by llama.cpp leaves leads of approximately `4.70%`,
+`2.49%`, and `1.96%`, respectively. The 8K and 16K claims are the most stable:
+the two llama.cpp phases agree there within 1%. At 1K the llama.cpp phases are
+farther apart; comparing against the more stable first upstream phase alone gives
+about `3.3%` before drift adjustment. The pooled `4.91%` is therefore not a
+precise slope anchor. No llama.cpp comparison has yet been recorded at 32K or 64K.
+
 Each value pools ten measurements from an A-B-B-A run: one warmup and five
 measured requests per phase. Prompt caches were disabled for both runtimes, each
 request generated one token, K/V were F16/F16, the server context was 17,408, and
@@ -24,6 +32,23 @@ the fixed Q4_K_M model SHA-256 was
 
 This closes the observed prefill gap for the tested MMQ+GDN stack. It does not claim
 universal leadership across models, quantizations, GPUs, or longer contexts.
+
+## Research checkpoint
+
+This bundle identifies draft Lucebox PR #524, stacked on MMQ PR #518, as the
+accepted 1K/8K/16K frontier. Subsequent 16K FlashAttention experiments were kept
+separate and are not arithmetically stacked onto this result: chunked F16
+regressed by `14.72%`, exact GQA6 `8x6` regressed by `0.30%`, wide `16x8`
+regressed by `0.47%`, and a numerically correct `32x2` candidate confirmed only
+`+0.85%` at `2.26` combined standard errors. The latter missed the preregistered
+`>=1%` and `>=4`-SEM promotion gate, so none of those experimental diffs belongs
+in the winning PR.
+
+A read-only GLM5.2 adversarial review agreed that the pinned performance contract
+is ahead at 1K/8K/16K, challenged the exact 1K magnitude, and rejected both
+post-hoc outlier removal and cross-run stacking. The next campaign therefore
+starts from the unchanged PR #524 default and treats 32K, then 64K, as new
+compatible-evidence cells.
 
 ## Compatibility and quality boundary
 

@@ -184,12 +184,18 @@ The patch, provenance, artifact hashes, per-prompt evidence, and quality decisio
 
 The subsequent Q4_K_M campaign stacks compact GDN Q/K broadcast and an automatic
 Ampere grouped-column policy on that MMQ change. With the default 512-token ubatch and
-no force overrides, it leads llama.cpp by **4.91% at 1K**, **2.52% at 8K**, and
-**1.97% at 16K** in the final RTX 3090 A-B-B-A run. The raw comparison is archived
+no force overrides, its measured point estimates lead llama.cpp by **4.91% at 1K**,
+**2.52% at 8K**, and **1.97% at 16K** in the final RTX 3090 A-B-B-A run. The 8K
+and 16K points are the strongest; upstream phase imbalance makes the defensible
+1K magnitude less precise (the first upstream phase alone implies about **3.3%**
+before drift adjustment). The raw comparison is archived
 under its canonical measurement ID in
 [`benchmarks/q4km-prefill-upstream-20260714/`](benchmarks/q4km-prefill-upstream-20260714/README.md).
 The runtimes report a two-token accounting difference, so this is retained as strong
-performance evidence rather than mislabeled as bit-identical output promotion.
+performance evidence rather than mislabeled as bit-identical output promotion. The
+accepted frontier remains draft Lucebox PR #524 stacked on MMQ PR #518; rejected
+follow-on attention experiments are not included or stacked. Comparable 32K/64K
+llama.cpp evidence remains the next campaign phase.
 
 ## Work As A Team
 
