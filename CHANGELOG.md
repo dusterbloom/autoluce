@@ -8,6 +8,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Automatic Q4_K_M prefill closure**: archived the final content-addressed RTX 3090
+  A-B-B-A comparison for the Lucebox MMQ + compact-Q/K + automatic grouped-GDN stack.
+  At the default 512-token ubatch and without force controls, the stack leads llama.cpp
+  by 4.91% at 1K, 2.52% at 8K, and 1.97% at 16K. The record preserves the two-token
+  cross-runtime accounting difference and the missing upstream text capture, so it is
+  comparative performance evidence rather than an exact-output promotion bundle.
+- **Normal-KV Qwen3.6 prefill campaign**: added separate content-compatible F16/F16,
+  Q8_0/Q8_0, and Q4_0/Q4_0 lanes for the fixed Q4_K_M weight artifact, a target-only
+  1K/8K/16K/64K benchmark, optional non-frontier 128K fit probes, an isolated
+  hypothesis ladder, and a fail-closed promotion measurement validator. Product runs
+  now record the resolved K/V pair and label an implicit runtime default unknown.
+  Campaign archives retain the complete raw measurement bundle under a separate content
+  ID, preserving ordered context samples independently from their normalized frontier
+  interpretation. The first RTX 3090 archive covers the replicated frontier through 64K
+  plus Q8/Q4 128K fit probes. TQ3 remains explicitly out of scope until the normal paths
+  are correct and fast.
 - **Machine-aware research campaigns**: added a versioned campaign contract and the
   `autoluce research` lifecycle (`observe → discover → explore → [compare] → explain →
   promote`). Campaigns always declare the system, workload, objective direction, and

@@ -182,6 +182,15 @@ Quality was checked independently of generated-text equality:
 The patch, provenance, artifact hashes, per-prompt evidence, and quality decision are in
 [`benchmarks/rtx3090-qwen36-27b-mmq-quality.md`](benchmarks/rtx3090-qwen36-27b-mmq-quality.md).
 
+The subsequent Q4_K_M campaign stacks compact GDN Q/K broadcast and an automatic
+Ampere grouped-column policy on that MMQ change. With the default 512-token ubatch and
+no force overrides, it leads llama.cpp by **4.91% at 1K**, **2.52% at 8K**, and
+**1.97% at 16K** in the final RTX 3090 A-B-B-A run. The raw comparison is archived
+under its canonical measurement ID in
+[`benchmarks/q4km-prefill-upstream-20260714/`](benchmarks/q4km-prefill-upstream-20260714/README.md).
+The runtimes report a two-token accounting difference, so this is retained as strong
+performance evidence rather than mislabeled as bit-identical output promotion.
+
 ## Work As A Team
 
 One team lead starts the coordinator on a private address:
@@ -351,6 +360,21 @@ Lucebox `DFLASH27B_*` spellings, with an explicitly set product spelling taking 
 
 The shared 3090 performance targets and measurement rules live in
 [`benchmarks/rtx3090-qwen36-27b-frontier.md`](benchmarks/rtx3090-qwen36-27b-frontier.md).
+
+### Normal-KV prefill before TQ3
+
+The Qwen3.6 Q4_K_M prefill campaign treats F16/F16, Q8_0/Q8_0, and Q4_0/Q4_0 KV
+caches as separate compatible-evidence lanes. Both K and V are always selected
+explicitly and recorded in source provenance; AutoLuce does not guess a runtime default.
+The shared 1K/8K/16K/64K benchmark, promotion evidence contract, isolated hypothesis
+ladder, GPU handoff commands, and optional Q8/Q4 128K fit probes are documented in
+[`benchmarks/qwen36-normal-kv-prefill-campaign.md`](benchmarks/qwen36-normal-kv-prefill-campaign.md).
+The initial RTX 3090 run, including content-addressed campaigns, normalized evidence,
+ordered raw samples, and the frozen oracle, is archived in
+[`benchmarks/normal-kv-prefill-20260713/`](benchmarks/normal-kv-prefill-20260713/README.md).
+At 64K, Q4_0 retained 99.59% of F16 prefill throughput while reducing peak VRAM from
+21.91 GiB to 19.26 GiB; its one-shot 128K fit probe also passed at 20.63 GiB.
+TQ3 is intentionally excluded until these normal paths are correct and optimized.
 
 ## Keep Lucebox Current
 

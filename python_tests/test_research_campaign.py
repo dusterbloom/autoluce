@@ -450,3 +450,50 @@ def test_typed_exact_and_kl_quality_evidence_can_pass_all_thresholds(tmp_path):
 
     assert recorded.feasible is True
     assert "campaign_constraint_violations" not in recorded.provenance
+
+
+def test_harness_exact_pass_is_normalized_to_typed_campaign_correctness(tmp_path):
+    exact_campaign = campaign(constraints={"correctness": "exact"})
+    path = tmp_path / "campaign.json"
+    path.write_text(__import__("json").dumps(exact_campaign.to_dict()))
+    store = CampaignStore(path)
+    state = store.load()
+
+    raw = {
+        "prefill_tok_s": 1500.0,
+        "correctness": "pass",
+        "source_evidence": {"binary_sha256": "sha256:harness"},
+        "benchmarks": [{
+            "context_metrics": [{"context_depth": 8192, "prefill_tok_s_samples": [1498, 1500, 1502]}],
+        }],
+    }
+    recorded = store.record(state, raw)
+
+    assert recorded.gates["correctness"] is True
+    assert recorded.feasible is True
+    assert state["frontier"] == [recorded.evidence_id]
+    assert "campaign_constraint_violations" not in recorded.provenance
+    measurement_id = recorded.provenance["measurement_bundle_id"]
+    measurement_path = store.evidence_dir / f"{measurement_id}.json"
+    assert __import__("json").loads(measurement_path.read_text()) == raw
+
+
+def test_diagnostic_workload_cannot_enter_the_frontier(tmp_path):
+    diagnostic = campaign(workload={**WORKLOAD, "frontier_eligible": False})
+    path = tmp_path / "campaign.json"
+    path.write_text(__import__("json").dumps(diagnostic.to_dict()))
+    store = CampaignStore(path)
+    state = store.load()
+
+    recorded = store.record(state, {
+        "metrics": {"prefill_tok_s": 1500.0},
+        "quality": {
+            "correctness": {"kind": "exact", "passed": True},
+            "kl": {"kind": "kl", "mean": 0.005, "max": 0.05},
+        },
+        "artifact_hash": "sha256:diagnostic",
+    })
+
+    assert recorded.gates["frontier_eligible"] is False
+    assert recorded.feasible is False
+    assert state["frontier"] == []

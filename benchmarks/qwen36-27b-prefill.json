@@ -1,0 +1,32 @@
+{
+  "name": "qwen36-27b-prefill",
+  "manifest_entry": "qwen36-27b",
+  "spec_type": "target-only",
+  "quality": "exact",
+  "contexts": [1024, 8192, 16384, 65536],
+  "primary_context_count": 4,
+  "prompt_token_reserve": 64,
+  "prompt_depth_tolerance": 0.05,
+  "context_headroom": 256,
+  "prompts": [
+    "Continue analyzing this deterministic synthetic record."
+  ],
+  "parameters": {
+    "temperature": 0.0,
+    "top_k": 1,
+    "top_p": 1.0,
+    "n_predict": 1,
+    "seed": 42
+  },
+  "llama_bench_args": {
+    "-n": 1,
+    "--repetitions": 3
+  },
+  "objective": {
+    "maximize": "prefill_tok_s",
+    "constraints": {
+      "peak_mem_GiB": {"max": 24.0}
+    }
+  },
+  "context_min_frac_of_baseline": 0.98
+}

@@ -29,6 +29,7 @@ from autoluce.research_contract import (
     validate_lifecycle_transition,
 )
 from autoluce.research_evidence import CampaignEvidence, CompatibilityError
+from autoluce.prefill_plan import promotion_bundle_violations
 
 
 DEFAULT_CAMPAIGN = Path(".autoluce/research/campaign.json")
@@ -219,13 +220,27 @@ class CampaignStore:
             )
         system.setdefault("machine", system.get("hardware"))
         provenance = dict(raw.get("provenance", raw.get("source_evidence", {})))
+        measurement_bundle_id = content_id("measurement", raw)
         if raw.get("experiment"):
             provenance["experiment"] = raw["experiment"]
         if str(system.get("environment", "")).startswith("unknown:"):
             system["environment"] = content_id("environment", provenance)
+        # Archive identity is interpretation metadata, not part of the measured
+        # execution environment used for compatibility checks.
+        provenance["measurement_bundle_id"] = measurement_bundle_id
         quality = dict(raw.get("quality", {}))
         if "correctness" in raw:
-            quality.setdefault("correctness", raw["correctness"])
+            raw_correctness = raw["correctness"]
+            if "correctness" not in quality:
+                correctness_kind = campaign.constraints.get("correctness")
+                passed = raw_correctness is True or str(raw_correctness).lower() == "pass"
+                if isinstance(correctness_kind, str) and correctness_kind:
+                    quality["correctness"] = {
+                        "kind": correctness_kind,
+                        "passed": passed,
+                    }
+                else:
+                    quality["correctness"] = raw_correctness
             quality.setdefault("quality", raw["correctness"])
         benchmark_gates = [
             not item.get("constraint_violations")
@@ -236,6 +251,9 @@ class CampaignStore:
         gates = _quality_gate_results(quality)
         if not gates:
             gates = {"quality": False}
+        if campaign.workload.get("frontier_eligible") is False:
+            gates["frontier_eligible"] = False
+            provenance["frontier_eligible"] = False
         artifact_hash = str(
             raw.get("artifact_hash")
             or provenance.get("binary_sha256")
@@ -264,6 +282,17 @@ class CampaignStore:
         if constraint_violations:
             gates["campaign_constraints"] = False
             provenance["campaign_constraint_violations"] = constraint_violations
+        evidence_profile = campaign.constraints.get("evidence_profile")
+        if evidence_profile == "normal_kv_prefill_v1":
+            promotion_violations = promotion_bundle_violations(raw, campaign)
+            gates["promotion_evidence"] = not promotion_violations
+            if promotion_violations:
+                provenance["promotion_evidence_violations"] = promotion_violations
+        elif evidence_profile is not None:
+            gates["promotion_evidence"] = False
+            provenance["promotion_evidence_violations"] = [
+                f"unsupported evidence profile '{evidence_profile}'"
+            ]
         uncertainty = {
             name.removesuffix("_stddev"): value
             for name, value in metrics.items() if name.endswith("_stddev")
@@ -279,6 +308,11 @@ class CampaignStore:
             provenance=provenance,
         )
         self.evidence_dir.mkdir(parents=True, exist_ok=True)
+        measurement_path = self.evidence_dir / f"{measurement_bundle_id}.json"
+        if not measurement_path.exists():
+            with measurement_path.open("x") as stream:
+                json.dump(raw, stream, indent=2, sort_keys=True)
+                stream.write("\n")
         evidence_path = self.evidence_dir / f"{evidence.evidence_id}.json"
         if not evidence_path.exists():
             # Content address plus exclusive creation makes evidence immutable.

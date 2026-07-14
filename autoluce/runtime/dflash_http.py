@@ -31,6 +31,37 @@ PRODUCT_ENV_ALIASES = {
 }
 
 
+def resolved_kv_cache(runtime_env: dict[str, Any] | None) -> dict[str, str]:
+    """Describe the KV pair selected by declared Lucebox controls.
+
+    An unset pair deliberately remains unknown.  AutoLuce must not label evidence
+    from an implicit default because product documentation and historical builds
+    have used different defaults.
+    """
+
+    environment = runtime_env or {}
+    key = value = "unknown:runtime-default"
+
+    def enabled(name: str) -> bool:
+        raw = str(environment.get(name, "")).strip().lower()
+        return raw not in {"", "0", "false", "off", "no"}
+
+    # Match the product's legacy last-wins order before applying the per-axis
+    # controls, which are authoritative.
+    for name, cache_type in (
+        ("DFLASH27B_KV_F16", "f16"),
+        ("DFLASH27B_KV_Q4", "q4_0"),
+        ("DFLASH27B_KV_TQ3", "tq3_0"),
+    ):
+        if enabled(name):
+            key = value = cache_type
+    if environment.get("DFLASH27B_KV_K") is not None:
+        key = str(environment["DFLASH27B_KV_K"]).lower()
+    if environment.get("DFLASH27B_KV_V") is not None:
+        value = str(environment["DFLASH27B_KV_V"]).lower()
+    return {"key": key, "value": value}
+
+
 def validate_prompt_depth(measured: float, requested: int, tolerance: float) -> None:
     """Fail closed when a measured prompt does not represent its context cell."""
     if requested <= 0:
@@ -251,7 +282,7 @@ class DflashHttpClient:
         response.raise_for_status()
         return parse_completion(response.json())
 
-    def benchmark(self, prompts: list[str], repetitions: int, max_tokens: int) -> dict[str, float | str]:
+    def benchmark(self, prompts: list[str], repetitions: int, max_tokens: int) -> dict[str, Any]:
         if not prompts:
             raise ValueError("benchmark requires at least one prompt")
         if repetitions < 1:
@@ -270,11 +301,13 @@ class DflashHttpClient:
             values = [float(getattr(sample, name)) for sample in samples]
             return statistics.stdev(values) if len(values) > 1 else 0.0
 
-        metrics: dict[str, float | str] = {
+        metrics: dict[str, Any] = {
             "decode_tok_s": mean("decode_tok_s"),
             "decode_tok_s_stddev": deviation("decode_tok_s"),
             "prefill_tok_s": mean("prefill_tok_s"),
             "prefill_tok_s_stddev": deviation("prefill_tok_s"),
+            "prefill_tok_s_samples": [float(sample.prefill_tok_s) for sample in samples],
+            "decode_tok_s_samples": [float(sample.decode_tok_s) for sample in samples],
             "prompt_tokens": mean("prompt_tokens"),
             "prompt_tokens_min": min(sample.prompt_tokens for sample in samples),
             "prompt_tokens_max": max(sample.prompt_tokens for sample in samples),

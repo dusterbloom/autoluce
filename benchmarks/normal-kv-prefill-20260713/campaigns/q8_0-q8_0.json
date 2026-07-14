@@ -1,0 +1,32 @@
+{
+  "schema_version": 2,
+  "name": "rtx3090-qwen36-q4km-prefill-q8_0-q8_0-20260713",
+  "system": {
+    "machine": "gpu-uuid:GPU-3307b546-fd93-b443-8e4d-27a437ad0082",
+    "model": "qwen36-27b",
+    "model_fingerprint": "sha256:5ed60d0af4650a854b1755bd392f9aef4872643dc25a254bc68043fa638392a0",
+    "runtime": "lucebox:dflash-server-http@5e302cbb483819cd21e72f5dd8becaa609eca8cf",
+    "hardware": "nvidia-geforce-rtx-3090-sm86-24576mib",
+    "backend": "cuda",
+    "quantization": {
+      "weights": "Q4_K_M",
+      "kv_cache": {"key": "q8_0", "value": "q8_0"}
+    },
+    "environment": "wsl2-5.15.167.4-driver-610.62-cuda-12.6.85-gcc-11.5"
+  },
+  "workload": {
+    "contexts": [1024, 8192, 16384, 65536],
+    "batch_shape": {"batch": 1, "ubatch": 512},
+    "mode": "prefill",
+    "prompts": ["Continue analyzing this deterministic synthetic record."]
+  },
+  "objective": {"metric": "prefill_tok_s", "direction": "maximize"},
+  "constraints": {
+    "correctness": "exact",
+    "peak_mem_GiB": {"max": 24.0},
+    "evidence_profile": "normal_kv_prefill_v1"
+  },
+  "reference": null,
+  "evidence": [],
+  "lifecycle_stage": "observe"
+}

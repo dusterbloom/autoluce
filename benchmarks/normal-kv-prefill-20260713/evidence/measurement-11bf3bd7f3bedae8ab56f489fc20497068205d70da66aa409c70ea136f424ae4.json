@@ -1,0 +1,218 @@
+{
+  "benchmark_overrides": {
+    "contexts": [
+      131072
+    ],
+    "repetitions": 1
+  },
+  "benchmarks": [
+    {
+      "benchmark": "qwen36-27b-prefill",
+      "build_time_s": 0.011902093887329102,
+      "constraint_violations": [],
+      "context_metrics": [
+        {
+          "acceptance_rate": 0.0,
+          "context_depth": 131072,
+          "decode_tok_s": 7964.1,
+          "decode_tok_s_samples": [
+            7964.1
+          ],
+          "decode_tok_s_stddev": 0.0,
+          "major_faults_delta": 4956.0,
+          "max_gpu_clock_mhz": 2010.0,
+          "measurement_source": "dflash_server.usage.timings",
+          "min_gpu_clock_mhz": 1290.0,
+          "min_mem_available_GiB": 22.93801498413086,
+          "peak_mem_GiB": 22.638671875,
+          "peak_power_w": 302.08,
+          "peak_temperature_c": 73.0,
+          "peak_vram_used_GiB": 22.638671875,
+          "prefill_tok_s": 718.3601954090602,
+          "prefill_tok_s_samples": [
+            718.3601954090602
+          ],
+          "prefill_tok_s_stddev": 0.0,
+          "prompt_tokens": 131034.0,
+          "prompt_tokens_max": 131034,
+          "prompt_tokens_min": 131034,
+          "swap_growth_GiB": 0.00048828125,
+          "telemetry_samples": 347.0
+        }
+      ],
+      "correctness": "pass",
+      "correctness_details": [
+        {
+          "actual": "I",
+          "expected": "I",
+          "passed": true,
+          "prompt": "Continue analyzing this deterministic synthetic record."
+        }
+      ],
+      "decode_tok_s": 7964.099999999999,
+      "decode_tok_s_stddev": 0.0,
+      "major_faults_delta": 4956.0,
+      "min_mem_available_GiB": 22.93801498413086,
+      "peak_mem_GiB": 22.638671875,
+      "peak_power_w": 302.08,
+      "peak_temperature_c": 73.0,
+      "peak_vram_used_GiB": 22.638671875,
+      "prefill_tok_s": 718.3601954090605,
+      "prefill_tok_s_stddev": 0.0,
+      "score": 718.3601954090605,
+      "score_stddev": 0.0,
+      "swap_growth_GiB": 0.00048828125
+    }
+  ],
+  "build_time_s": 0.011902093887329102,
+  "correctness": "pass",
+  "decode_tok_s": 7964.099999999999,
+  "experiment": {
+    "cmake_flags": [],
+    "description": "baseline",
+    "runtime_env": {
+      "DFLASH27B_KV_K": "q8_0",
+      "DFLASH27B_KV_V": "q8_0",
+      "GGML_CUDA": "ON"
+    },
+    "runtime_flags": {}
+  },
+  "peak_mem_GiB": 22.638671875,
+  "prefill_tok_s": 718.3601954090605,
+  "score": 718.3601954090605,
+  "score_stddev": 0.0,
+  "source_evidence": {
+    "backend": "cuda",
+    "binary_sha256": "a066bc87c9068978a70559f892c6f1a155ce9d1020994f60a4551185553e51ba",
+    "dirty_paths": [],
+    "product_backends": [
+      "cuda",
+      "hip"
+    ],
+    "product_digest": "c5ea9979d187f00ca111a025e7642aba29a1425e989f59b85d72292c05912efd",
+    "product_revision": "5e302cbb483819cd21e72f5dd8becaa609eca8cf",
+    "resolved_kv_cache": {
+      "key": "q8_0",
+      "value": "q8_0"
+    },
+    "runtime_artifacts": {
+      "dependencies": [
+        {
+          "name": "ld-linux-x86-64.so.2",
+          "path": "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+          "sha256": "1cd555ac46b7887edeaf3c42aac5408c8135e52f6b37870da2cf82d5fe14e829",
+          "size_bytes": 236616
+        },
+        {
+          "name": "libc.so.6",
+          "path": "/usr/lib/x86_64-linux-gnu/libc.so.6",
+          "sha256": "d8db8739a1633c972cec6a4fe0566bdcec6fd088f98723492ab0361f66238f75",
+          "size_bytes": 2125328
+        },
+        {
+          "name": "libcublas.so.12",
+          "path": "/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublas.so.12.6.4.1",
+          "sha256": "d9343511e1d2ed51e4d65fa94a25cb8f73b0ebc5ae5487da794e18e6950c98dc",
+          "size_bytes": 108244960
+        },
+        {
+          "name": "libcublasLt.so.12",
+          "path": "/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcublasLt.so.12.6.4.1",
+          "sha256": "a4ddaed1410acc604815f0e84cdd6c4a70c61cfd2b95dc96360f0799169f0374",
+          "size_bytes": 491106832
+        },
+        {
+          "name": "libcuda.so.1",
+          "path": "/usr/lib/wsl/lib/libcuda.so.1",
+          "sha256": "158e0c4e9427a5fbc34ebe07000505744adf115f3baf857dae87dcf1f0674732",
+          "size_bytes": 187984
+        },
+        {
+          "name": "libcudart.so.12",
+          "path": "/usr/local/cuda-12.6/targets/x86_64-linux/lib/libcudart.so.12.6.77",
+          "sha256": "095296727cfb5f51e5b3ae69a3cb88cbd7b6592f314ace0fdfc4e1d758c2aa85",
+          "size_bytes": 716128
+        },
+        {
+          "name": "libdl.so.2",
+          "path": "/usr/lib/x86_64-linux-gnu/libdl.so.2",
+          "sha256": "850b46fd4f4478060fc106f4d1dc4aa35c969eb5c9bd98aaf64dc6cb3d6a5e32",
+          "size_bytes": 14408
+        },
+        {
+          "name": "libgcc_s.so.1",
+          "path": "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+          "sha256": "d93224d2b0dab4247598be683adca02f5cf00586f99c187579cd7e92058fb7cb",
+          "size_bytes": 183024
+        },
+        {
+          "name": "libggml-base.so.0",
+          "path": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/prefill-lucebox/build-prefill-sm86/deps/llama.cpp/ggml/src/libggml-base.so.0.9.11",
+          "sha256": "dd36b4248530248c18307bfb3403a82def487dc0685a9154785c32aee457b89c",
+          "size_bytes": 849656
+        },
+        {
+          "name": "libggml-cpu.so.0",
+          "path": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/prefill-lucebox/build-prefill-sm86/deps/llama.cpp/ggml/src/libggml-cpu.so.0.9.11",
+          "sha256": "af4fe91f692bc0fbdba0d99631bdd271e1af8cfbbba96a4401736def0f64a128",
+          "size_bytes": 991688
+        },
+        {
+          "name": "libggml-cuda.so.0",
+          "path": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/prefill-lucebox/build-prefill-sm86/deps/llama.cpp/ggml/src/ggml-cuda/libggml-cuda.so.0.9.11",
+          "sha256": "b2114299425b1f1f9848e79db1b7e47b1157d463e728cee15b54baa2856c8c8e",
+          "size_bytes": 336812344
+        },
+        {
+          "name": "libggml.so.0",
+          "path": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/prefill-lucebox/build-prefill-sm86/deps/llama.cpp/ggml/src/libggml.so.0.9.11",
+          "sha256": "b9ec578fa6d599c6bea9b4e41169984894c83d4be15e4126d46c532f0ba4dcf6",
+          "size_bytes": 55160
+        },
+        {
+          "name": "libgomp.so.1",
+          "path": "/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0",
+          "sha256": "135f3c8f006d2fe5e68e51281c7974cb991a03de3bfb3593d68d174dfcf854d1",
+          "size_bytes": 352304
+        },
+        {
+          "name": "libm.so.6",
+          "path": "/usr/lib/x86_64-linux-gnu/libm.so.6",
+          "sha256": "1b87a1a50b496cfead2b0ad134c2ff536705c82608db240c7e8aa48d6c0e4217",
+          "size_bytes": 952616
+        },
+        {
+          "name": "libpthread.so.0",
+          "path": "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
+          "sha256": "92dcea07a5b11d939c22a96131d3fbb995e0a84a4d02db7d799bf357689cd794",
+          "size_bytes": 14408
+        },
+        {
+          "name": "librt.so.1",
+          "path": "/usr/lib/x86_64-linux-gnu/librt.so.1",
+          "sha256": "9d1cefae4c0e4995cc35ea3195f805454b2d59a27ad15397a1096e735d341faf",
+          "size_bytes": 14624
+        },
+        {
+          "name": "libstdc++.so.6",
+          "path": "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33",
+          "sha256": "1fd75fe70354a416d75aef22bcae68c47bd25d20e2d0568c30b1a9838cf62f11",
+          "size_bytes": 2592224
+        }
+      ],
+      "executable": {
+        "name": "dflash_server",
+        "path": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/prefill-lucebox/build-prefill-sm86/dflash_server",
+        "sha256": "a066bc87c9068978a70559f892c6f1a155ce9d1020994f60a4551185553e51ba",
+        "size_bytes": 14352368
+      }
+    },
+    "vendor_backends": [
+      "cpu",
+      "cuda",
+      "hip",
+      "vulkan"
+    ],
+    "vendor_digest": "a923cb2d70641c971f3c0f6a5c47f976b79c751458519d208996d8ce742347c8"
+  }
+}
