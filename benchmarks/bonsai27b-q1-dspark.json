@@ -1,0 +1,41 @@
+{
+  "name": "bonsai27b-q1-dspark",
+  "manifest_entry": "bonsai-27b-q1",
+  "spec_type": "draft-dspark",
+  "quality": "exact",
+  "frontier_eligible": true,
+  "n_draft": 4,
+  "prompts": [
+    "Write a Python function that returns the nth Fibonacci number.",
+    "Explain virtual memory in two concise sentences.",
+    "What is the capital of France? Answer in one word."
+  ],
+  "contexts": [512, 4096, 16384],
+  "primary_context_count": 3,
+  "prompt_token_reserve": 32,
+  "prompt_depth_tolerance": 0.05,
+  "context_headroom": 256,
+  "parameters": {
+    "temperature": 0.0,
+    "top_k": 1,
+    "top_p": 1.0,
+    "n_predict": 128,
+    "seed": 42
+  },
+  "llama_bench_args": {
+    "-p": 512,
+    "-n": 128,
+    "--repetitions": 3
+  },
+  "expected": {
+    "min_decode_tok_s": 35.0,
+    "min_acceptance_rate": 0.3,
+    "max_peak_mem_GiB": 24.0
+  },
+  "objective": {
+    "maximize": "decode_tok_s",
+    "constraints": {
+      "peak_mem_GiB": {"max": 24.0}
+    }
+  }
+}

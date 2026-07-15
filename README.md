@@ -26,6 +26,7 @@ AutoLuce currently provides:
 - Full-vocabulary logit comparison with aggregate KL, top-k, margin, and finite-value gates.
 - A tested SM86 NVFP4 W4A16 CUDA operator and microbenchmark for RTX 3090 work.
 - Context-validated, prefill-only NVFP4 campaigns with recorded Lucebox/GGML tuning overrides.
+- A pinned public Bonsai-27B Q1 + native DSpark frontier campaign and exact golden gate.
 
 The pinned Hub product does not expose token logits by default. AutoLuce carries a
 validated, opt-in Lucebox patch for non-streaming first-token logits; product KL remains
@@ -88,9 +89,15 @@ machine session; historical or sequential controls are diagnostic only.
 | Product KL capture | Candidate endpoint validated; pending Hub integration |
 | Interleaved remote `verify` | Not yet wired to the HTTP adapter |
 | RTX 3090 NVFP4 operator test and microbenchmark | Ready |
+| Bonsai-27B Q1 native DSpark frontier | Ready; 98.9 tok/s 512-context diagnostic |
 
 Simulation is only a control-plane test. It never produces performance evidence or
 updates the research frontier.
+
+The Bonsai frontier contract pins the public Q1 target and its matched Q4_1
+DSpark drafter by revision, size, and SHA-256. The bring-up evidence and numeric
+caveats are recorded in
+[`benchmarks/bonsai27b-q1-dspark-frontier.md`](benchmarks/bonsai27b-q1-dspark-frontier.md).
 
 ## Run A Research Campaign
 

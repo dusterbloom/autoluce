@@ -103,22 +103,31 @@ def clone_lucebox() -> None:
     layout.validate()
 
 
-def _referenced_manifest_keys() -> set[str]:
-    """Manifest keys needed by the selected benchmarks.
+def _referenced_manifest_roles() -> dict[str, set[str]]:
+    """Manifest roles needed by the selected benchmarks.
 
     Honors AUTOLUCE_BENCHMARKS (comma list) the same way the harness does; when
     unset, all benchmarks/*.json are considered. A manifest entry with no
-    benchmark (e.g. a future model) is not downloaded."""
+    benchmark (e.g. a future model) is not downloaded. Target-only canaries do
+    not fetch a companion draft merely because their manifest entry has one."""
     selected = os.environ.get("AUTOLUCE_BENCHMARKS")
     names = {b.strip() for b in selected.split(",") if b.strip()} if selected else None
-    keys: set[str] = set()
+    roles: dict[str, set[str]] = {}
     for path in sorted((ROOT / "benchmarks").glob("*.json")):
         if names is not None and path.stem not in names:
             continue
-        entry = json.loads(path.read_text()).get("manifest_entry")
+        spec = json.loads(path.read_text())
+        entry = spec.get("manifest_entry")
         if entry:
-            keys.add(entry)
-    return keys
+            roles.setdefault(entry, set()).add("target")
+            if spec.get("spec_type") != "target-only":
+                roles[entry].add("draft")
+    return roles
+
+
+def _referenced_manifest_keys() -> set[str]:
+    """Backward-compatible key-only view used by source/model setup callers."""
+    return set(_referenced_manifest_roles())
 
 
 # ---------------------------------------------------------------------------
@@ -170,8 +179,8 @@ def _link_into(src: Path, dest: Path) -> None:
         shutil.copy2(src, dest)
 
 
-def _catalog_target_manifest(entry: ModelEntry) -> dict:
-    """Translate one catalog entry into the setup manifest's target shape."""
+def _catalog_artifact_manifest(entry: ModelEntry) -> dict:
+    """Translate one catalog artifact into a target/draft manifest role."""
     override = os.environ.get(entry.path_env, "") if entry.path_env else ""
     common = {
         "local": entry.first_file,
@@ -209,13 +218,15 @@ def download_models() -> None:
         dsv4_entry,
         Path(os.environ.get("AUTOLUCE_MODEL_ROOT", str(MODELS_DIR))),
     )
-    wanted = _referenced_manifest_keys()
+    wanted_roles = _referenced_manifest_roles()
+    wanted = set(wanted_roles)
     nvfp4_name = "Qwen3.6-27B-NVFP4-Q4_K_M.gguf"
     nvfp4_override = os.environ.get("AUTOLUCE_QWEN36_NVFP4_MODEL")
     nvfp4_path = Path(nvfp4_override).expanduser() if nvfp4_override else None
     if nvfp4_path is None and "qwen36-27b-nvfp4" in wanted:
         nvfp4_path = discover_model(nvfp4_name)
-    bonsai_target = _catalog_target_manifest(catalog["bonsai-27b-q1"])
+    bonsai_target = _catalog_artifact_manifest(catalog["bonsai-27b-q1"])
+    bonsai_draft = _catalog_artifact_manifest(catalog["bonsai-27b-dspark-q4_1"])
 
     manifest = {
         "smoke": {
@@ -239,6 +250,7 @@ def download_models() -> None:
         },
         "bonsai-27b-q1": {
             "target": bonsai_target,
+            "draft": bonsai_draft,
         },
         "qwen36-27b-nvfp4": {
             "target": {
@@ -278,6 +290,9 @@ def download_models() -> None:
             print(f"  SKIPPED '{name}': no selected benchmark references it")
             continue
         for role, info in entries.items():
+            if role not in wanted_roles[name]:
+                print(f"  SKIPPED '{name}' {role}: selected benchmarks do not use it")
+                continue
             if name == "qwen36-27b-nvfp4" and not info.get("path"):
                 raise FileNotFoundError(
                     f"NVFP4 model '{info['local']}' was not found; set "
