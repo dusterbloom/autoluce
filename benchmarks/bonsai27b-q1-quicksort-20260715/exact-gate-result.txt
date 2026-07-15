@@ -1,0 +1,22 @@
+AR_bytes=1333 DSpark_bytes=1313
+RESULT: DIVERGED
+33,36c33,36
+<     unsorted = [3, 6, 8, 10, 1, 2, 1]
+<     sorted_arr = quicksort(unsorted)
+<     print("Sorted array:", sorted_arr)
+<     # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]
+---
+>     sample_list = [3, 6, 8, 10, 1, 2, 1]
+>     sorted_list = quicksort(sample_list)
+>     print("Original list:", sample_list)
+>     print("Sorted list:", sorted_list)
+39,45c39,47
+< ### Key Points:
+< - **Time Complexity**: 
+<   - Average: `O(n log n)`
+<   - Worst case: `O(n²)` (when pivot is always the smallest/largest element)
+< - **Space Complexity**: `O(n)` due to list slicing and recursion stack
+< - **Stability**: Not stable (equal elements may change relative order)
+< - **In-place variant**:
+---
+> ### Output:

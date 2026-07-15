@@ -1,0 +1,43 @@
+{
+  "prompt": "Implement quicksort in Python.",
+  "params": {
+    "max_tokens": 400,
+    "max_ctx": 16384,
+    "seed": 42,
+    "temperature": 0.0,
+    "top_k": 1,
+    "top_p": 1.0,
+    "repetitions": 5,
+    "warmup": 1
+  },
+  "modes": [
+    {
+      "mode": "ar",
+      "decode_tokens_per_sec": 65.8,
+      "decode_tokens_per_sec_std": 1.5205262246998592,
+      "predicted_per_second": 65.8,
+      "draft_n": null,
+      "draft_n_accepted": null,
+      "accept_rate": 0.0,
+      "prefill_ms": 42.339999999999996,
+      "decode_ms": 6083.74,
+      "completion_tokens": 400.0,
+      "prompt_tokens": 18.0,
+      "speedup_vs_ar": null
+    },
+    {
+      "mode": "dspark-no-ddtree",
+      "decode_tokens_per_sec": 118.12,
+      "decode_tokens_per_sec_std": 2.64680940001353,
+      "predicted_per_second": 118.12,
+      "draft_n": null,
+      "draft_n_accepted": null,
+      "accept_rate": 0.7547169923782349,
+      "prefill_ms": 42.160000000000004,
+      "decode_ms": 3388.1400000000003,
+      "completion_tokens": 400.0,
+      "prompt_tokens": 18.0,
+      "speedup_vs_ar": 1.7951367781155017
+    }
+  ]
+}
