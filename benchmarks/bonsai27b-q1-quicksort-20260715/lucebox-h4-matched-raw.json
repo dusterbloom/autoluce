@@ -1,0 +1,467 @@
+{
+  "prompt": "Implement quicksort in Python.",
+  "params": {
+    "max_tokens": 400,
+    "max_ctx": 16384,
+    "seed": 42,
+    "temperature": 0.0,
+    "top_k": 1,
+    "top_p": 1.0,
+    "repetitions": 5,
+    "warmup": 1
+  },
+  "modes": [
+    {
+      "mode": "ar",
+      "decode_tokens_per_sec": 65.58,
+      "decode_tokens_per_sec_std": 0.8304215796810693,
+      "predicted_per_second": 65.58,
+      "draft_n": null,
+      "draft_n_accepted": null,
+      "accept_rate": 0.0,
+      "prefill_ms": 43.379999999999995,
+      "decode_ms": 6101.58,
+      "completion_tokens": 400.0,
+      "prompt_tokens": 18.0,
+      "speedup_vs_ar": null,
+      "samples": [
+        {
+          "decode_tokens_per_sec": 66.4,
+          "predicted_per_second": 66.4,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "accept_rate": 0.0,
+          "prefill_ms": 42.9,
+          "decode_ms": 6027.9,
+          "completion_tokens": 400,
+          "prompt_tokens": 18,
+          "text": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    unsorted = [3, 6, 8, 10, 1, 2, 1]\n    sorted_arr = quicksort(unsorted)\n    print(\"Sorted array:\", sorted_arr)\n    # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Key Points:\n- **Time Complexity**: \n  - Average: `O(n log n)`\n  - Worst case: `O(n\u00b2)` (when pivot is always the smallest/largest element)\n- **Space Complexity**: `O(n)` due to list slicing and recursion stack\n- **Stability**: Not stable (equal elements may change relative order)\n- **In-place variant**:",
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "length",
+                "index": 0,
+                "message": {
+                  "content": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    unsorted = [3, 6, 8, 10, 1, 2, 1]\n    sorted_arr = quicksort(unsorted)\n    print(\"Sorted array:\", sorted_arr)\n    # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Key Points:\n- **Time Complexity**: \n  - Average: `O(n log n)`\n  - Worst case: `O(n\u00b2)` (when pivot is always the smallest/largest element)\n- **Space Complexity**: `O(n)` due to list slicing and recursion stack\n- **Stability**: Not stable (equal elements may change relative order)\n- **In-place variant**:",
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1784130006,
+            "id": "chatcmpl_0000000000000001",
+            "model": "autoluce-benchmark",
+            "object": "chat.completion",
+            "usage": {
+              "accept_rate": 0.0,
+              "completion_tokens": 400,
+              "completion_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "prompt_tokens": 18,
+              "timings": {
+                "decode_ms": 6027.9,
+                "decode_tokens_per_sec": 66.4,
+                "prefill_ms": 42.9
+              },
+              "total_tokens": 418
+            }
+          }
+        },
+        {
+          "decode_tokens_per_sec": 64.0,
+          "predicted_per_second": 64.0,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "accept_rate": 0.0,
+          "prefill_ms": 41.8,
+          "decode_ms": 6252.2,
+          "completion_tokens": 400,
+          "prompt_tokens": 18,
+          "text": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    unsorted = [3, 6, 8, 10, 1, 2, 1]\n    sorted_arr = quicksort(unsorted)\n    print(\"Sorted array:\", sorted_arr)\n    # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Key Points:\n- **Time Complexity**: \n  - Average: `O(n log n)`\n  - Worst case: `O(n\u00b2)` (when pivot is always the smallest/largest element)\n- **Space Complexity**: `O(n)` due to list slicing and recursion stack\n- **Stability**: Not stable (equal elements may change relative order)\n- **In-place variant**:",
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "length",
+                "index": 0,
+                "message": {
+                  "content": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    unsorted = [3, 6, 8, 10, 1, 2, 1]\n    sorted_arr = quicksort(unsorted)\n    print(\"Sorted array:\", sorted_arr)\n    # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Key Points:\n- **Time Complexity**: \n  - Average: `O(n log n)`\n  - Worst case: `O(n\u00b2)` (when pivot is always the smallest/largest element)\n- **Space Complexity**: `O(n)` due to list slicing and recursion stack\n- **Stability**: Not stable (equal elements may change relative order)\n- **In-place variant**:",
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1784130014,
+            "id": "chatcmpl_0000000000000002",
+            "model": "autoluce-benchmark",
+            "object": "chat.completion",
+            "usage": {
+              "accept_rate": 0.0,
+              "completion_tokens": 400,
+              "completion_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "prompt_tokens": 18,
+              "timings": {
+                "decode_ms": 6252.2,
+                "decode_tokens_per_sec": 64.0,
+                "prefill_ms": 41.8
+              },
+              "total_tokens": 418
+            }
+          }
+        },
+        {
+          "decode_tokens_per_sec": 65.6,
+          "predicted_per_second": 65.6,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "accept_rate": 0.0,
+          "prefill_ms": 48.3,
+          "decode_ms": 6098.0,
+          "completion_tokens": 400,
+          "prompt_tokens": 18,
+          "text": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    unsorted = [3, 6, 8, 10, 1, 2, 1]\n    sorted_arr = quicksort(unsorted)\n    print(\"Sorted array:\", sorted_arr)\n    # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Key Points:\n- **Time Complexity**: \n  - Average: `O(n log n)`\n  - Worst case: `O(n\u00b2)` (when pivot is always the smallest/largest element)\n- **Space Complexity**: `O(n)` due to list slicing and recursion stack\n- **Stability**: Not stable (equal elements may change relative order)\n- **In-place variant**:",
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "length",
+                "index": 0,
+                "message": {
+                  "content": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    unsorted = [3, 6, 8, 10, 1, 2, 1]\n    sorted_arr = quicksort(unsorted)\n    print(\"Sorted array:\", sorted_arr)\n    # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Key Points:\n- **Time Complexity**: \n  - Average: `O(n log n)`\n  - Worst case: `O(n\u00b2)` (when pivot is always the smallest/largest element)\n- **Space Complexity**: `O(n)` due to list slicing and recursion stack\n- **Stability**: Not stable (equal elements may change relative order)\n- **In-place variant**:",
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1784130020,
+            "id": "chatcmpl_0000000000000003",
+            "model": "autoluce-benchmark",
+            "object": "chat.completion",
+            "usage": {
+              "accept_rate": 0.0,
+              "completion_tokens": 400,
+              "completion_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "prompt_tokens": 18,
+              "timings": {
+                "decode_ms": 6098.0,
+                "decode_tokens_per_sec": 65.6,
+                "prefill_ms": 48.3
+              },
+              "total_tokens": 418
+            }
+          }
+        },
+        {
+          "decode_tokens_per_sec": 66.0,
+          "predicted_per_second": 66.0,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "accept_rate": 0.0,
+          "prefill_ms": 42.0,
+          "decode_ms": 6059.1,
+          "completion_tokens": 400,
+          "prompt_tokens": 18,
+          "text": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    unsorted = [3, 6, 8, 10, 1, 2, 1]\n    sorted_arr = quicksort(unsorted)\n    print(\"Sorted array:\", sorted_arr)\n    # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Key Points:\n- **Time Complexity**: \n  - Average: `O(n log n)`\n  - Worst case: `O(n\u00b2)` (when pivot is always the smallest/largest element)\n- **Space Complexity**: `O(n)` due to list slicing and recursion stack\n- **Stability**: Not stable (equal elements may change relative order)\n- **In-place variant**:",
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "length",
+                "index": 0,
+                "message": {
+                  "content": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    unsorted = [3, 6, 8, 10, 1, 2, 1]\n    sorted_arr = quicksort(unsorted)\n    print(\"Sorted array:\", sorted_arr)\n    # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Key Points:\n- **Time Complexity**: \n  - Average: `O(n log n)`\n  - Worst case: `O(n\u00b2)` (when pivot is always the smallest/largest element)\n- **Space Complexity**: `O(n)` due to list slicing and recursion stack\n- **Stability**: Not stable (equal elements may change relative order)\n- **In-place variant**:",
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1784130026,
+            "id": "chatcmpl_0000000000000004",
+            "model": "autoluce-benchmark",
+            "object": "chat.completion",
+            "usage": {
+              "accept_rate": 0.0,
+              "completion_tokens": 400,
+              "completion_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "prompt_tokens": 18,
+              "timings": {
+                "decode_ms": 6059.1,
+                "decode_tokens_per_sec": 66.0,
+                "prefill_ms": 42.0
+              },
+              "total_tokens": 418
+            }
+          }
+        },
+        {
+          "decode_tokens_per_sec": 65.9,
+          "predicted_per_second": 65.9,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "accept_rate": 0.0,
+          "prefill_ms": 41.9,
+          "decode_ms": 6070.7,
+          "completion_tokens": 400,
+          "prompt_tokens": 18,
+          "text": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    unsorted = [3, 6, 8, 10, 1, 2, 1]\n    sorted_arr = quicksort(unsorted)\n    print(\"Sorted array:\", sorted_arr)\n    # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Key Points:\n- **Time Complexity**: \n  - Average: `O(n log n)`\n  - Worst case: `O(n\u00b2)` (when pivot is always the smallest/largest element)\n- **Space Complexity**: `O(n)` due to list slicing and recursion stack\n- **Stability**: Not stable (equal elements may change relative order)\n- **In-place variant**:",
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "length",
+                "index": 0,
+                "message": {
+                  "content": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    unsorted = [3, 6, 8, 10, 1, 2, 1]\n    sorted_arr = quicksort(unsorted)\n    print(\"Sorted array:\", sorted_arr)\n    # Output: Sorted array: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Key Points:\n- **Time Complexity**: \n  - Average: `O(n log n)`\n  - Worst case: `O(n\u00b2)` (when pivot is always the smallest/largest element)\n- **Space Complexity**: `O(n)` due to list slicing and recursion stack\n- **Stability**: Not stable (equal elements may change relative order)\n- **In-place variant**:",
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1784130032,
+            "id": "chatcmpl_0000000000000005",
+            "model": "autoluce-benchmark",
+            "object": "chat.completion",
+            "usage": {
+              "accept_rate": 0.0,
+              "completion_tokens": 400,
+              "completion_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "prompt_tokens": 18,
+              "timings": {
+                "decode_ms": 6070.7,
+                "decode_tokens_per_sec": 65.9,
+                "prefill_ms": 41.9
+              },
+              "total_tokens": 418
+            }
+          }
+        }
+      ]
+    },
+    {
+      "mode": "dspark-no-ddtree",
+      "decode_tokens_per_sec": 111.55999999999999,
+      "decode_tokens_per_sec_std": 2.5024787711387297,
+      "predicted_per_second": 111.55999999999999,
+      "draft_n": null,
+      "draft_n_accepted": null,
+      "accept_rate": 0.7547169923782349,
+      "prefill_ms": 45.46,
+      "decode_ms": 3588.04,
+      "completion_tokens": 400.0,
+      "prompt_tokens": 18.0,
+      "speedup_vs_ar": 1.7011283928026837,
+      "samples": [
+        {
+          "decode_tokens_per_sec": 108.7,
+          "predicted_per_second": 108.7,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "accept_rate": 0.7547169923782349,
+          "prefill_ms": 47.7,
+          "decode_ms": 3681.0,
+          "completion_tokens": 400,
+          "prompt_tokens": 18,
+          "text": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    sample_list = [3, 6, 8, 10, 1, 2, 1]\n    sorted_list = quicksort(sample_list)\n    print(\"Original list:\", sample_list)\n    print(\"Sorted list:\", sorted_list)\n```\n\n### Output:\n```\nOriginal list: [3, 6, 8, 10, 1, 2, 1]\nSorted list: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Notes:\n- This implementation is **not in-place** \u2014 it creates new lists during partitioning, which uses extra memory.\n- For production use, consider an **in-place version** that modifies the",
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "length",
+                "index": 0,
+                "message": {
+                  "content": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    sample_list = [3, 6, 8, 10, 1, 2, 1]\n    sorted_list = quicksort(sample_list)\n    print(\"Original list:\", sample_list)\n    print(\"Sorted list:\", sorted_list)\n```\n\n### Output:\n```\nOriginal list: [3, 6, 8, 10, 1, 2, 1]\nSorted list: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Notes:\n- This implementation is **not in-place** \u2014 it creates new lists during partitioning, which uses extra memory.\n- For production use, consider an **in-place version** that modifies the",
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1784130044,
+            "id": "chatcmpl_0000000000000001",
+            "model": "autoluce-benchmark",
+            "object": "chat.completion",
+            "usage": {
+              "accept_rate": 0.7547169923782349,
+              "completion_tokens": 400,
+              "completion_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "prompt_tokens": 18,
+              "timings": {
+                "decode_ms": 3681.0,
+                "decode_tokens_per_sec": 108.7,
+                "prefill_ms": 47.7
+              },
+              "total_tokens": 418
+            }
+          }
+        },
+        {
+          "decode_tokens_per_sec": 109.1,
+          "predicted_per_second": 109.1,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "accept_rate": 0.7547169923782349,
+          "prefill_ms": 47.5,
+          "decode_ms": 3667.4,
+          "completion_tokens": 400,
+          "prompt_tokens": 18,
+          "text": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    sample_list = [3, 6, 8, 10, 1, 2, 1]\n    sorted_list = quicksort(sample_list)\n    print(\"Original list:\", sample_list)\n    print(\"Sorted list:\", sorted_list)\n```\n\n### Output:\n```\nOriginal list: [3, 6, 8, 10, 1, 2, 1]\nSorted list: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Notes:\n- This implementation is **not in-place** \u2014 it creates new lists during partitioning, which uses extra memory.\n- For production use, consider an **in-place version** that modifies the",
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "length",
+                "index": 0,
+                "message": {
+                  "content": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    sample_list = [3, 6, 8, 10, 1, 2, 1]\n    sorted_list = quicksort(sample_list)\n    print(\"Original list:\", sample_list)\n    print(\"Sorted list:\", sorted_list)\n```\n\n### Output:\n```\nOriginal list: [3, 6, 8, 10, 1, 2, 1]\nSorted list: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Notes:\n- This implementation is **not in-place** \u2014 it creates new lists during partitioning, which uses extra memory.\n- For production use, consider an **in-place version** that modifies the",
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1784130048,
+            "id": "chatcmpl_0000000000000002",
+            "model": "autoluce-benchmark",
+            "object": "chat.completion",
+            "usage": {
+              "accept_rate": 0.7547169923782349,
+              "completion_tokens": 400,
+              "completion_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "prompt_tokens": 18,
+              "timings": {
+                "decode_ms": 3667.4,
+                "decode_tokens_per_sec": 109.1,
+                "prefill_ms": 47.5
+              },
+              "total_tokens": 418
+            }
+          }
+        },
+        {
+          "decode_tokens_per_sec": 113.5,
+          "predicted_per_second": 113.5,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "accept_rate": 0.7547169923782349,
+          "prefill_ms": 45.2,
+          "decode_ms": 3525.6,
+          "completion_tokens": 400,
+          "prompt_tokens": 18,
+          "text": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    sample_list = [3, 6, 8, 10, 1, 2, 1]\n    sorted_list = quicksort(sample_list)\n    print(\"Original list:\", sample_list)\n    print(\"Sorted list:\", sorted_list)\n```\n\n### Output:\n```\nOriginal list: [3, 6, 8, 10, 1, 2, 1]\nSorted list: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Notes:\n- This implementation is **not in-place** \u2014 it creates new lists during partitioning, which uses extra memory.\n- For production use, consider an **in-place version** that modifies the",
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "length",
+                "index": 0,
+                "message": {
+                  "content": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    sample_list = [3, 6, 8, 10, 1, 2, 1]\n    sorted_list = quicksort(sample_list)\n    print(\"Original list:\", sample_list)\n    print(\"Sorted list:\", sorted_list)\n```\n\n### Output:\n```\nOriginal list: [3, 6, 8, 10, 1, 2, 1]\nSorted list: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Notes:\n- This implementation is **not in-place** \u2014 it creates new lists during partitioning, which uses extra memory.\n- For production use, consider an **in-place version** that modifies the",
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1784130051,
+            "id": "chatcmpl_0000000000000003",
+            "model": "autoluce-benchmark",
+            "object": "chat.completion",
+            "usage": {
+              "accept_rate": 0.7547169923782349,
+              "completion_tokens": 400,
+              "completion_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "prompt_tokens": 18,
+              "timings": {
+                "decode_ms": 3525.6,
+                "decode_tokens_per_sec": 113.5,
+                "prefill_ms": 45.2
+              },
+              "total_tokens": 418
+            }
+          }
+        },
+        {
+          "decode_tokens_per_sec": 115.2,
+          "predicted_per_second": 115.2,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "accept_rate": 0.7547169923782349,
+          "prefill_ms": 44.2,
+          "decode_ms": 3471.9,
+          "completion_tokens": 400,
+          "prompt_tokens": 18,
+          "text": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    sample_list = [3, 6, 8, 10, 1, 2, 1]\n    sorted_list = quicksort(sample_list)\n    print(\"Original list:\", sample_list)\n    print(\"Sorted list:\", sorted_list)\n```\n\n### Output:\n```\nOriginal list: [3, 6, 8, 10, 1, 2, 1]\nSorted list: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Notes:\n- This implementation is **not in-place** \u2014 it creates new lists during partitioning, which uses extra memory.\n- For production use, consider an **in-place version** that modifies the",
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "length",
+                "index": 0,
+                "message": {
+                  "content": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    sample_list = [3, 6, 8, 10, 1, 2, 1]\n    sorted_list = quicksort(sample_list)\n    print(\"Original list:\", sample_list)\n    print(\"Sorted list:\", sorted_list)\n```\n\n### Output:\n```\nOriginal list: [3, 6, 8, 10, 1, 2, 1]\nSorted list: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Notes:\n- This implementation is **not in-place** \u2014 it creates new lists during partitioning, which uses extra memory.\n- For production use, consider an **in-place version** that modifies the",
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1784130055,
+            "id": "chatcmpl_0000000000000004",
+            "model": "autoluce-benchmark",
+            "object": "chat.completion",
+            "usage": {
+              "accept_rate": 0.7547169923782349,
+              "completion_tokens": 400,
+              "completion_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "prompt_tokens": 18,
+              "timings": {
+                "decode_ms": 3471.9,
+                "decode_tokens_per_sec": 115.2,
+                "prefill_ms": 44.2
+              },
+              "total_tokens": 418
+            }
+          }
+        },
+        {
+          "decode_tokens_per_sec": 111.3,
+          "predicted_per_second": 111.3,
+          "draft_n": null,
+          "draft_n_accepted": null,
+          "accept_rate": 0.7547169923782349,
+          "prefill_ms": 42.7,
+          "decode_ms": 3594.3,
+          "completion_tokens": 400,
+          "prompt_tokens": 18,
+          "text": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    sample_list = [3, 6, 8, 10, 1, 2, 1]\n    sorted_list = quicksort(sample_list)\n    print(\"Original list:\", sample_list)\n    print(\"Sorted list:\", sorted_list)\n```\n\n### Output:\n```\nOriginal list: [3, 6, 8, 10, 1, 2, 1]\nSorted list: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Notes:\n- This implementation is **not in-place** \u2014 it creates new lists during partitioning, which uses extra memory.\n- For production use, consider an **in-place version** that modifies the",
+          "response": {
+            "choices": [
+              {
+                "finish_reason": "length",
+                "index": 0,
+                "message": {
+                  "content": "Here's a clean and efficient implementation of **Quicksort** in Python:\n\n```python\ndef quicksort(arr):\n    \"\"\"\n    Sorts a list using the Quicksort algorithm.\n    \n    Args:\n        arr (list): The list of comparable elements to sort.\n        \n    Returns:\n        list: A new sorted list.\n    \"\"\"\n    # Base case: lists with 0 or 1 element are already sorted\n    if len(arr) <= 1:\n        return arr\n    \n    # Choose the pivot (here we use the middle element)\n    pivot = arr[len(arr) // 2]\n    \n    # Partition the array into three parts\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    \n    # Recursively sort the left and right partitions and combine\n    return quicksort(left) + middle + quicksort(right)\n```\n\n### Example Usage:\n```python\nif __name__ == \"__main__\":\n    sample_list = [3, 6, 8, 10, 1, 2, 1]\n    sorted_list = quicksort(sample_list)\n    print(\"Original list:\", sample_list)\n    print(\"Sorted list:\", sorted_list)\n```\n\n### Output:\n```\nOriginal list: [3, 6, 8, 10, 1, 2, 1]\nSorted list: [1, 1, 2, 3, 6, 8, 10]\n```\n\n### Notes:\n- This implementation is **not in-place** \u2014 it creates new lists during partitioning, which uses extra memory.\n- For production use, consider an **in-place version** that modifies the",
+                  "role": "assistant"
+                }
+              }
+            ],
+            "created": 1784130058,
+            "id": "chatcmpl_0000000000000005",
+            "model": "autoluce-benchmark",
+            "object": "chat.completion",
+            "usage": {
+              "accept_rate": 0.7547169923782349,
+              "completion_tokens": 400,
+              "completion_tokens_details": {
+                "reasoning_tokens": 0
+              },
+              "prompt_tokens": 18,
+              "timings": {
+                "decode_ms": 3594.3,
+                "decode_tokens_per_sec": 111.3,
+                "prefill_ms": 42.7
+              },
+              "total_tokens": 418
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

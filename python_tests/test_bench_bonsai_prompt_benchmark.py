@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import importlib.util
+import json
 import sys
 
 from autoluce import ROOT
@@ -91,6 +92,46 @@ def test_parse_timings_falls_back_to_usage_timings():
 
 def test_parse_timings_requires_any_timing_block():
     assert _bench.parse_timings({"usage": {"prompt_tokens": 1}}) is None
+
+
+def test_sample_payload_preserves_metrics_text_and_raw_response():
+    response = {
+        "choices": [{"message": {"content": "Paris"}}],
+        "usage": {
+            "prompt_tokens": 18,
+            "completion_tokens": 1,
+            "timings": {
+                "decode_tokens_per_sec": 120.5,
+                "decode_ms": 8.3,
+                "accept_rate": 0.75,
+            },
+        },
+    }
+    sample = _bench.parse_timings(response, mode="dspark-no-ddtree")
+
+    assert sample is not None
+    assert _bench._sample_payload(sample) == {
+        "decode_tokens_per_sec": 120.5,
+        "predicted_per_second": 120.5,
+        "draft_n": None,
+        "draft_n_accepted": None,
+        "accept_rate": 0.75,
+        "prefill_ms": None,
+        "decode_ms": 8.3,
+        "completion_tokens": 1,
+        "prompt_tokens": 18,
+        "text": "Paris",
+        "response": response,
+    }
+
+
+def test_write_json_payload_creates_replayable_artifact(tmp_path: Path):
+    destination = tmp_path / "nested" / "result.json"
+
+    _bench._write_json_payload({"samples": [1, 2]}, destination)
+
+    assert json.loads(destination.read_text()) == {"samples": [1, 2]}
+    assert destination.read_text().endswith("\n")
 
 
 def test_build_server_command_disables_caches_and_includes_mode_args(tmp_path: Path):

@@ -8,27 +8,28 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
-- **Bonsai-27B Q1 quicksort AR-vs-DSpark benchmark + AR-gap forensics** (RTX 3090, WSL2,
-  CUDA 12.6, lucebox `b19b95e`): reproduced the native DSpark spec-decode headline on a
-  matched same-session, same-binary, cache-symmetric workload (`Implement quicksort in
-  Python.`, n_predict 400, temp 0, seed 42, prefix/prefill-cache slots zeroed). Native
-  four-proposal-chain DSpark decodes at **118.12 tok/s (std 2.6), 75.5% accept, 1.80x over
-  its own AR** — above the prior DDTree-22 frontier (108.5). `--ddtree` is unsupported on
-  this HEAD (native chain superseded it); use bench mode `dspark-no-ddtree`. A matched
-  same-session Prism (`b9591`) AR arm measured 72.81 tok/s median vs lucebox AR 65.8, a
-  real −9.6% AR-decode deficit. Exhaustive source diff localized the deficit to *no clean
-  kernel lever*: the Q1_0 GEMV, mmvq launch config (3090 is Ampere → both use the GENERIC
-  param table; Prism's TURING table is gated `arch < AMPERE`), `concat_f32_non_cont`, and
-  the `ggml_rope_multi` invocation are all identical; Prism's Programmatic Dependent Launch
-  is `__CUDA_ARCH__ >= HOPPER`-gated and a no-op on sm_86; and the FWHT K-rotation skip
-  (open PR #471, `DFLASH_SKIP_WHT`) is measured decode-neutral. Residual is structural
-  unified-AR+DSpark-graph overhead, not a portable optimization. Also recorded that greedy
-  DSpark output is **not bit-identical to AR** (width-5 verify vs width-1 AR use different
-  reduction shapes; diverges at close-logit ties) — a by-design GPU-spec-decode property
-  Prism shares and documents (`LLAMA_DSPARK_MARKOV_CUDA`); the shippable correctness gate
-  is a frozen self-consistency golden, not `DSpark==AR`. Evidence bundle:
-  `benchmarks/bonsai27b-q1-quicksort-20260715/` (per-arm JSON, Prism reps, AR/DSpark
-  outputs, exact-gate result, node-level profiling summary).
+- **Bonsai-27B Q1 native DSpark matched diagnostic and frontier probes** (RTX 3090,
+  WSL2, CUDA 12.6, Lucebox `b19b95e`, Prism `b9591-62061f9`): archived raw AR and
+  DSpark requests, responses, logs, runtime properties, hashes, and GPU snapshots for
+  the public no-thinking quicksort workload. Prism measured 72.81 ± 1.96 tok/s AR and
+  115.75 ± 1.05 tok/s DSpark. Lucebox's original aggregates were 65.80 ± 1.52 and
+  118.12 ± 2.65 tok/s, but later raw refreshes placed Lucebox DSpark at 111–112 tok/s
+  with substantial within-launch drift; the small point difference between engines is
+  therefore parity evidence, not a defensible lead. After normalizing telemetry, Prism
+  accepted 293/420 proposals (69.76%) and Lucebox accepted 294/424 (69.34%), with both
+  committing about 3.8 tokens per target verification. Prism AR and Lucebox AR produce
+  the same text; both speculative paths first diverge from AR at generated token 239
+  and choose the same branch. This is consistent with the audited width-dependent Q1
+  MMVQ and FlashAttention paths, but first-mismatch logit margins were not captured, so
+  the deterministic frozen output remains a regression gate rather than a claim of
+  distribution losslessness. The remaining Lucebox AR gap is not root-caused.
+  A normal Qwen3.6 width-16 drafter loaded against Bonsai but fell to about 63 tok/s from
+  low acceptance. A research-only five-proposal metadata extrapolation improved the
+  400-token quicksort prompt by 3.30% in ABBA, then lost all three existing Bonsai golden
+  prompts; horizons six through eight also failed promotion. The published four-proposal
+  model contract remains the default. The benchmark CLI can now retain every measured
+  API response with `--include-samples` and write a replayable artifact with
+  `--json-output`. Evidence: `benchmarks/bonsai27b-q1-quicksort-20260715/`.
 - **Automatic Q4_K_M prefill closure**: archived the final content-addressed RTX 3090
   A-B-B-A comparison for the Lucebox MMQ + compact-Q/K + automatic grouped-GDN stack.
   At the default 512-token ubatch and without force controls, the measured point

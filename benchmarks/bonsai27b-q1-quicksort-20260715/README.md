@@ -1,68 +1,98 @@
-# Bonsai-27B Q1 quicksort AR vs DSpark — 2026-07-15
+# Bonsai-27B Q1 quicksort AR vs native DSpark — 2026-07-15
 
-Same-session matched run on one RTX 3090 (WSL2, CUDA 12.6).
+RTX 3090 / WSL2 diagnostic using the exact public prompt `Implement quicksort
+in Python.`, 400 generated tokens, 16,384 context, temperature zero, top-k 1,
+top-p 1, seed 42, no prefix reuse, and thinking disabled.
 
-- Engine (lucebox): worktree `lucebox-bonsai-dspark` HEAD `b19b95e`
-  (`fix(bonsai): preserve qwen35 speculative target semantics`), built
-  build-cuda-sm86, CUDA arch 86. NOTE: native DSpark on this HEAD is a
-  four-proposal chain; `--ddtree` is NOT supported (superseded the 3ade7bc
-  DDTree-budget-22 frontier path).
-- Prism: `/tmp/prism-b9591-bin/.../llama-server` (b9591-62061f9).
-- Target: Bonsai-27B-Q1_0.gguf, sha256 17ef84..aa0 (verified).
-- Draft: Bonsai-27B-dspark-Q4_1.gguf, sha256 25e73f..b1b (verified).
-- Workload: prompt "Implement quicksort in Python.", n_predict=400, ctx=16384,
-  temp=0, top_k=1, top_p=1, seed=42, caching disabled both arms (lucebox
-  prefix/prefill-cache-slots=0 -> prefix_len=0; prism cache_prompt=false).
-- 1 warmup + 5 measured reps per arm.
+## Runtime and model contract
 
-## Results (decode tok/s)
+- Lucebox source: `b19b95e` on `feat/bonsai27b-dspark-frontier`.
+- Prism binary: `b9591-62061f9`, SHA-256 recorded in
+  `prism-nothink/binary.sha256`.
+- Target: `Bonsai-27B-Q1_0.gguf`, SHA-256
+  `17ef842e47450caeb8eaa3ebfbbab5d2f2278b62b79be107985fb69a2f819aa0`.
+- Drafter: `Bonsai-27B-dspark-Q4_1.gguf`, SHA-256
+  `25e73f9f7ab5d1f7f1336711496dbc12da674e639ec88d579dc8683045befb1b`.
+- The published draft metadata declares four proposals. Both engines therefore
+  verify five target rows per round: one anchor plus four proposals. Lucebox
+  native DSpark does not support `--ddtree` on this revision.
 
-| Arm | tok/s | note |
+Prism used its documented CUDA flags: `-ngl 999 -fa on`, plus `-md`,
+`--spec-type draft-dspark`, `--spec-draft-n-max 4`, and `-ngld 999` for the
+speculative arm. The committed request explicitly sets
+`chat_template_kwargs.enable_thinking=false` and `cache_prompt=false`.
+
+## Matched diagnostic
+
+All statistics are population means and standard deviations over five measured
+responses after warmup.
+
+| Engine / arm | Decode tok/s | Spec telemetry |
 |---|---:|---|
-| lucebox AR | 65.8 (std 1.5) | |
-| Prism AR | 72.81 median / 72.85 mean (std 0.28) | |
-| lucebox DSpark (4-chain) | 118.12 (std 2.6) | 75.5% accept |
+| Prism AR | 72.81 ± 1.96 | — |
+| Prism native DSpark | 115.75 ± 1.05 | 293 / 420 proposals accepted (69.76%) |
+| Lucebox AR, original aggregate | 65.80 ± 1.52 | — |
+| Lucebox native DSpark, original aggregate | 118.12 ± 2.65 | 106 rounds; 3.77 tokens/round |
 
-- lucebox DSpark vs own AR: **1.80x**.
-- lucebox AR vs Prism AR: **0.904x (-9.6%)** — AR parity NOT met on this workload.
-- lucebox DSpark vs Prism AR: 1.622x (spec-vs-nonspec; Prism has no dspark head).
+The Prism raw responses and logs are under `prism-nothink/`. The original
+Lucebox aggregate is `lucebox-ar-dspark.json`. A later raw Lucebox refresh
+(`lucebox-h4-matched-raw.json`) measured AR at 65.58 ± 0.83 but DSpark at
+111.56 ± 2.50; an isolated two-warmup refresh measured 112.42 ± 2.81. Its
+acceptance trajectory and output were unchanged while throughput drifted from
+108.2 to 115.7 tok/s. Consequently, the roughly two-percent point difference
+between the original Lucebox and Prism DSpark aggregates is a parity diagnostic,
+not evidence of a Lucebox lead.
 
-## Caveats
-- 118 exceeds last night's DDTree-22 headline (108.5) and the committed frontier
-  N=1 diagnostic (98.9, different generic prompts).
-- Yesterday's Prism baseline JSONs (/tmp/prism-final-rep*.json) used n_predict=256,
-  prompt_n=37 — a DIFFERENT workload; not parity-comparable to this run.
-- DSpark exactness (output == AR output) NOT yet asserted for quicksort; frozen
-  golden currently covers only the 3 generic campaign prompts.
+The acceptance fields also need normalization. Prism reports accepted draft
+proposals (293 / 420). Lucebox's displayed 400 / 530 includes the always-valid
+anchor row; subtracting 106 anchors gives 294 / 424 proposals (69.34%). The two
+engines therefore have effectively the same proposal acceptance and round
+economics: about 3.8 committed tokens per target verification.
 
-## (a) AR gap root cause — profiler pass (nsys, cuda-graph-trace=node)
+## Output relationship
 
-Decode runs under CUDA graphs (plain nsys undercounts kernels; must use
-`--cuda-graph-trace=node`). With graph nodes captured:
+- Prism AR and Lucebox AR produce the same 400-token text.
+- Both speculative engines match AR for the first 239 generated tokens, then
+  choose `sample_list` where AR chooses `unsorted`.
+- Prism and Lucebox speculative outputs later differ slightly in whitespace and
+  truncation, while each arm is deterministic across its five repetitions.
 
-- GPU is **~89% busy during decode** -> lucebox AR is **GPU-compute-bound, NOT
-  host/launch-bound**. The `tok_embd` Q1_0 CPU-only placement is a red herring:
-  per-token embedding H2D copies (20 KB each) total ~1.6 ms.
-- Decode GPU time breakdown: **`mul_mat_vec_q` (Q1_0 GEMV, ggml_type 41) ~70%**,
-  `quantize_q8_1` ~4.5%, qwen35 GDN kernels (`k_turbo_wht`+`gated_delta_net`+
-  `l2_norm`) ~7%, rms_norm/concat/rope ~14%.
-- Conclusion: the 9.6% AR deficit vs Prism lives in the Q1_0 `mul_mat_vec_q`
-  kernel (both engines read identical weights). Next: `ncu` the GEMV for achieved
-  vs peak DRAM bandwidth; fix is a lucebox CUDA-kernel campaign gated by the
-  harness significance test.
+This alignment is strong evidence against a Lucebox-specific proposal-index or
+rollback bug. Source inspection also finds shape-dependent target arithmetic:
+width-one and width-five Q1 MMVQ use different reduction configurations, and
+FlashAttention dispatches different query tiles. That is consistent with the
+shared divergence, but no first-mismatch logit margins were captured, so this
+bundle does not claim a proven close-logit tie or exact distribution parity.
+The frozen output remains a determinism/regression gate, not an algorithmic
+losslessness proof.
 
-## (c) DSpark vs AR exactness gate — FAILS (documented, not a logic bug)
+## Why this is slower than the 238 tok/s Qwen3.6 DFlash run
 
-Same quicksort prompt, temp0/seed42, AR vs DSpark outputs diffed:
+The historical Qwen3.6-27B `UD-Q4_K_XL` width-16 run committed 13.83 tokens per
+target forward and reached 237.68 tok/s. Native Bonsai commits only 3.77 tokens
+per target forward. Its Q1 target step is much faster (about 32 ms versus 58 ms),
+but it amortizes that step over 3.7 times fewer tokens. At the native maximum of
+five committed tokens, a 32 ms step has a theoretical ceiling near 156 tok/s
+even with perfect acceptance.
 
-- **RESULT: DIVERGED.** 858/1332 chars identical (64% prefix): the quicksort
-  function is byte-identical; they split in the `__main__` example at a close-logit
-  tie (`unsorted` vs `sample_list`). Both outputs are valid, correct code.
-- Cause: width-5 DSpark verify uses different CUDA reduction shapes than width-1
-  AR, so the target argmax differs at near-ties (as the frontier doc predicted).
-  DSpark is deterministic/self-consistent but NOT bit-identical to AR.
-- Implication: a strict `DSpark==AR` gate cannot pass on long prompts. The
-  shippable gate is a frozen DSpark golden (self-consistency), matching the
-  existing `benchmarks/golden/` pattern.
+A shape-compatible Qwen3.6 width-16 drafter was tested as a no-code escape hatch.
+It loaded successfully but accepted only 18.75% as a chain (63.2 tok/s); DDTree-22
+accepted 16.51% (62.1 tok/s). It is not a usable Bonsai drafter.
 
-Evidence: exact-ar-output.txt, exact-dspark-output.txt, exact-gate-result.txt.
+The research-only metadata extrapolation in `horizon-sweep/` found a 3.30%
+quicksort lead at five proposals, but it lost every existing Bonsai golden prompt.
+Horizons six through eight also failed to beat the native default. The published
+four-proposal contract remains the correct default; a broadly faster frontier
+needs a Bonsai-trained wider checkpoint or a new composed drafting algorithm.
+
+## Evidence map
+
+- `prism-nothink/`: commands, request, raw warmup/repetition responses, server
+  logs, properties, GPU snapshots, hashes, and summaries for Prism AR + DSpark.
+- `lucebox-h4-matched-raw.json`: fresh Lucebox AR + DSpark per-response payloads.
+- `lucebox-binary.sha256`: exact Lucebox server binary used for the refreshes.
+- `lucebox-h4-isolated-raw.json` and `lucebox-h4-isolated-server.log`: isolated
+  native DSpark drift control.
+- `exact-ar-output.txt`, `exact-dspark-output.txt`, `exact-gate-result.txt`:
+  deterministic output comparison from the original Lucebox run.
+- `horizon-sweep/`: raw ABBA logs and the rejected wider-horizon research result.

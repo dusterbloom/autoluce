@@ -1,0 +1,18 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Implement quicksort in Python."
+    }
+  ],
+  "max_tokens": 400,
+  "temperature": 0,
+  "top_k": 1,
+  "top_p": 1,
+  "seed": 42,
+  "chat_template_kwargs": {
+    "enable_thinking": false
+  },
+  "cache_prompt": false,
+  "stream": false
+}

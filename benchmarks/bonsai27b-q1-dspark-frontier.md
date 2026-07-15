@@ -24,7 +24,7 @@ golden check across all three campaign prompts:
 | Prefill | 1,388.5 tok/s |
 | Accepted verify positions | 89.63% |
 | Peak VRAM | 7.11 GiB |
-| Exact golden prompts | 3/3 pass |
+| Frozen regression prompts | 3/3 pass |
 | Constraint violations | none |
 
 This is a frontier bring-up diagnostic, not a multi-context/multi-repetition
@@ -34,7 +34,11 @@ server also completed two consecutive requests with request-scoped draft
 unload/reload at a configured 16K context, covering the persistent draft-KV
 lifecycle.
 
-Greedy DSpark and target-only AR can diverge at close logits because width-5
-verify uses different CUDA reduction shapes than width-1 AR. The frozen golden
-therefore protects deterministic product behavior for this exact source and
-artifact pair; it does not claim universal bit identity with token-at-a-time AR.
+Greedy DSpark and target-only AR do diverge on the later 400-token quicksort
+diagnostic. Both Prism and Lucebox take the same speculative branch, and source
+inspection finds different CUDA reduction/attention shapes for width-five
+verification versus width-one AR. That is consistent with numerical
+sensitivity, but no first-mismatch logit margins were captured. The frozen
+output protects deterministic product behavior for this exact source and
+artifact pair; it is a regression check, not proof of universal bit identity or
+distribution losslessness.

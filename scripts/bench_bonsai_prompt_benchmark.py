@@ -173,6 +173,29 @@ def _std_or_none(values: Iterable[float]) -> float | None:
     return std
 
 
+def _sample_payload(sample: BenchResult) -> dict[str, Any]:
+    """Return one measured response without losing evidence needed for replay."""
+
+    return {
+        "decode_tokens_per_sec": sample.decode_tokens_per_sec,
+        "predicted_per_second": sample.predicted_per_second,
+        "draft_n": sample.draft_n,
+        "draft_n_accepted": sample.draft_n_accepted,
+        "accept_rate": sample.accept_rate,
+        "prefill_ms": sample.prefill_ms,
+        "decode_ms": sample.decode_ms,
+        "completion_tokens": sample.completion_tokens,
+        "prompt_tokens": sample.prompt_tokens,
+        "text": sample.text,
+        "response": sample.response_raw,
+    }
+
+
+def _write_json_payload(payload: Mapping[str, Any], destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(payload, indent=2) + "\n")
+
+
 class _ServerRunner(AbstractContextManager["_ServerRunner"]):
     def __init__(self, cmd: list[str], host: str, port: int, timeout_s: float, log_path: Path | None = None):
         self.cmd = cmd
@@ -325,6 +348,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--ddtree-budget", type=int, default=22)
     parser.add_argument("--ddtree", default="on", choices=["on", "off"])
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON summary")
+    parser.add_argument(
+        "--json-output",
+        default="",
+        help="Write machine-readable JSON to this path (also enables JSON mode)",
+    )
+    parser.add_argument(
+        "--include-samples",
+        action="store_true",
+        help="Include each measured API response in --json output for reproducible evidence",
+    )
     return parser.parse_args(argv)
 
 
@@ -385,7 +418,7 @@ def main(argv: list[str] | None = None) -> int:
     ar_row = next((item for item in results if item[0].startswith("ar")), None)
     ar_speed = ar_row[1].decode_tokens_per_sec if ar_row else None
 
-    if args.json:
+    if args.json or args.json_output:
         payload = {
             "prompt": args.prompt,
             "params": {
@@ -404,7 +437,7 @@ def main(argv: list[str] | None = None) -> int:
             speedup = None
             if ar_speed and result.decode_tokens_per_sec and not mode.startswith("ar"):
                 speedup = result.decode_tokens_per_sec / ar_speed
-            payload["modes"].append({
+            mode_payload = {
                 "mode": mode,
                 "decode_tokens_per_sec": result.decode_tokens_per_sec,
                 "decode_tokens_per_sec_std": _std_or_none(
@@ -419,8 +452,14 @@ def main(argv: list[str] | None = None) -> int:
                 "completion_tokens": result.completion_tokens,
                 "prompt_tokens": result.prompt_tokens,
                 "speedup_vs_ar": speedup,
-            })
-        print(json.dumps(payload, indent=2))
+            }
+            if args.include_samples:
+                mode_payload["samples"] = [_sample_payload(sample) for sample in samples]
+            payload["modes"].append(mode_payload)
+        if args.json_output:
+            _write_json_payload(payload, Path(args.json_output))
+        if args.json:
+            print(json.dumps(payload, indent=2))
         return 0
 
     print("mode\tdecode_tok_s\tpredict\tdraft_n\taccept\tprompt_toks\tgen_toks\tspeedup_vs_ar")
