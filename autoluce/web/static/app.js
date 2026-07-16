@@ -1,8 +1,10 @@
-const stages = ['observe', 'discover', 'explore', 'compare', 'explain', 'promote'];
 let allCampaigns = [];
 let currentFilter = 'all';
 
 const TOKEN_KEY = 'autoluce_web_token';
+const ROOT_ORDER = ['research', 'benchmarks'];
+const ROOT_LABEL = { research: 'Research', benchmarks: 'Benchmark archive' };
+const PALETTE = ['#5c7cfa', '#40c057', '#fab005', '#fa5252', '#7950f2', '#15aabf', '#fd7e14'];
 
 function getToken() {
   return localStorage.getItem(TOKEN_KEY) || '';
@@ -32,9 +34,8 @@ async function apiFetch(path) {
 
 function showTokenDialog(message) {
   const dialog = document.getElementById('token-dialog');
-  const error = document.getElementById('token-error');
+  dialog.querySelector('#token-error').textContent = message || '';
   dialog.classList.remove('hidden');
-  error.textContent = message || '';
   document.getElementById('token-input').focus();
 }
 
@@ -57,49 +58,144 @@ async function loadCampaigns() {
 }
 
 function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function metricUnit(metric) {
+  return metric && metric.endsWith('_tok_s') ? ' tok/s' : '';
+}
+
+function objectiveMetric(c) {
+  return (c.objective && c.objective.metric) || 'score';
+}
+
+// --- board: grouped by source root -> family -------------------------------
+
+function groupByTree(campaigns) {
+  const roots = {};
+  for (const c of campaigns) {
+    const families = roots[c.root] || (roots[c.root] = {});
+    (families[c.family] || (families[c.family] = [])).push(c);
+  }
+  return roots;
 }
 
 function renderBoard() {
-  stages.forEach(stage => {
-    const col = document.querySelector(`.column[data-stage="${stage}"]`);
-    col.querySelectorAll('.card, .empty').forEach(el => el.remove());
-  });
-
+  const board = document.getElementById('board');
   const filtered = currentFilter === 'all'
     ? allCampaigns
     : allCampaigns.filter(c => c.status === currentFilter);
+  const roots = groupByTree(filtered);
 
-  stages.forEach(stage => {
-    const col = document.querySelector(`.column[data-stage="${stage}"]`);
-    const items = filtered.filter(c => c.stage === stage);
-    if (items.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.textContent = 'No campaigns';
-      col.appendChild(empty);
-      return;
+  let html = '';
+  for (const root of ROOT_ORDER) {
+    const families = roots[root];
+    if (!families) continue;
+    const names = Object.keys(families).sort();
+    if (!names.length) continue;
+    html += `<section class="root-section"><h2 class="root-title">${ROOT_LABEL[root] || root}</h2>`;
+    for (const family of names) {
+      const items = families[family].slice().sort((a, b) => (a.variant || a.name).localeCompare(b.variant || b.name));
+      html += `<div class="family">
+        <div class="family-head"><span class="family-name">${escapeHtml(family)}</span><span class="family-count">${items.length}</span></div>
+        ${renderFamilyChart(items)}
+        <div class="cards">${items.map(renderCard).join('')}</div>
+      </div>`;
     }
-    items.forEach(c => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.dataset.id = c.id;
-      card.innerHTML = `
-        <div class="card-title">${escapeHtml(c.name)}</div>
-        <div class="card-meta">${escapeHtml(c.system.model || '?')} · ${escapeHtml(c.system.backend || '?')} · ${escapeHtml(c.system.hardware || '?')}</div>
-        <span class="badge ${c.status}">${c.status}</span>
-        <span class="badge">${c.objective.metric}</span>
-        <div class="stats">
-          <span>ev ${c.evidence_count}</span>
-          <span>fr ${c.frontier_count}</span>
-          <span>ref ${c.reference_count}</span>
-        </div>
-      `;
-      card.addEventListener('click', () => showDetail(c.id));
-      col.appendChild(card);
-    });
-  });
+    html += `</section>`;
+  }
+  board.innerHTML = html || '<p class="empty">No campaigns match this filter.</p>';
 }
+
+function renderCard(c) {
+  const title = c.variant || c.name;
+  const subtitle = c.variant ? c.name : `${c.system.model || '?'} · ${c.system.backend || '?'}`;
+  const metric = objectiveMetric(c);
+  return `<div class="card" data-id="${escapeHtml(c.id)}">
+    <div class="card-title">${escapeHtml(title)}</div>
+    <div class="card-meta">${escapeHtml(subtitle)}</div>
+    <div class="badges">
+      <span class="badge stage">${escapeHtml(c.stage)}</span>
+      <span class="badge ${c.status}">${escapeHtml(c.status)}</span>
+      <span class="badge metric">${escapeHtml(metric)}</span>
+    </div>
+    ${renderSparkline(c.sparkline)}
+    <div class="stats">
+      <span title="evidence">ev ${c.evidence_count}</span>
+      <span title="frontier">fr ${c.frontier_count}</span>
+      <span title="references">ref ${c.reference_count}</span>
+    </div>
+  </div>`;
+}
+
+function renderSparkline(values) {
+  if (!values || values.length < 2) return '';
+  const w = 120, h = 26;
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = Math.max(max - min, 1e-9);
+  const x = i => 1 + (i / (values.length - 1)) * (w - 2);
+  const y = v => h - 1 - ((v - min) / range) * (h - 2);
+  const d = values.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <path d="${d}" fill="none" stroke="#5c7cfa" stroke-width="1.5"/>
+    <circle cx="${x(values.length - 1).toFixed(1)}" cy="${y(values[values.length - 1]).toFixed(1)}" r="2" fill="#5c7cfa"/>
+  </svg>`;
+}
+
+// Overlay one metric across the campaigns of a family that share it. This is
+// where a family's variants (e.g. the normal-kv-prefill KV-cache sweep) become
+// comparable on one axis -- the W&B-style moment, honest because variants in a
+// family share metric and direction.
+function renderFamilyChart(campaigns) {
+  const byMetric = {};
+  for (const c of campaigns) {
+    if (!c.sparkline || c.sparkline.length === 0) continue;
+    const m = objectiveMetric(c);
+    (byMetric[m] = byMetric[m] || []).push(c);
+  }
+  const metric = Object.keys(byMetric).find(m => byMetric[m].length >= 2);
+  if (!metric) return '';
+  return renderOverlay(metric, byMetric[metric]);
+}
+
+function renderOverlay(metric, campaigns) {
+  const unit = metricUnit(metric);
+  const w = 540, h = 168;
+  const pad = { top: 12, right: 14, bottom: 26, left: 54 };
+  const iw = w - pad.left - pad.right, ih = h - pad.top - pad.bottom;
+  const all = campaigns.flatMap(c => c.sparkline);
+  const min = Math.min(...all), max = Math.max(...all);
+  const vrange = Math.max(max - min, 1e-9);
+  const maxLen = Math.max(...campaigns.map(c => c.sparkline.length));
+  const xSpan = Math.max(maxLen - 1, 1);
+  const x = i => pad.left + (i / xSpan) * iw;
+  const y = v => pad.top + ih - ((v - min) / vrange) * ih;
+
+  let yAxis = '';
+  const yTicks = 4;
+  for (let i = 0; i <= yTicks; i++) {
+    const v = min + (vrange * i / yTicks);
+    yAxis += `<line x1="${pad.left}" y1="${y(v).toFixed(1)}" x2="${w - pad.right}" y2="${y(v).toFixed(1)}" stroke="#2a2e36" stroke-dasharray="2"/>`;
+    yAxis += `<text x="${pad.left - 6}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end" fill="#9aa0a6" font-size="9">${v.toFixed(0)}</text>`;
+  }
+
+  let lines = '';
+  let legend = '';
+  campaigns.forEach((c, idx) => {
+    const col = PALETTE[idx % PALETTE.length];
+    const vals = c.sparkline;
+    const d = vals.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+    lines += `<path d="${d}" fill="none" stroke="${col}" stroke-width="2"/>`;
+    legend += `<span class="legend-item"><span class="legend-swatch" style="background:${col}"></span>${escapeHtml(c.variant || c.name)}</span>`;
+  });
+
+  return `<div class="family-chart">
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${yAxis}${lines}</svg>
+    <div class="legend">${legend}</div>
+  </div>`;
+}
+
+// --- detail drawer ----------------------------------------------------------
 
 async function showDetail(id) {
   const detail = document.getElementById('detail');
@@ -139,7 +235,6 @@ function renderPlot(plot) {
   const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(p.index)} ${y(p.value)}`).join(' ');
   const dots = points.map(p => `<circle cx="${x(p.index)}" cy="${y(p.value)}" r="3" title="#${p.index + 1}\n${p.value.toFixed(2)} ${plot.unit}\n${escapeHtml(p.evidence_id)}"></circle>`).join('');
 
-  // Y-axis ticks
   const yTicks = 5;
   let yAxis = '';
   for (let i = 0; i <= yTicks; i++) {
@@ -149,7 +244,6 @@ function renderPlot(plot) {
     yAxis += `<text x="${pad.left - 8}" y="${yp + 4}" text-anchor="end" fill="#9aa0a6" font-size="10">${v.toFixed(1)}</text>`;
   }
 
-  // X-axis labels (first and last evidence index)
   const xAxis = `
     <text x="${pad.left}" y="${height - 10}" fill="#9aa0a6" font-size="10">#${indexMin + 1}</text>
     <text x="${width - pad.right}" y="${height - 10}" text-anchor="end" fill="#9aa0a6" font-size="10">#${indexMax + 1}</text>
@@ -171,7 +265,7 @@ function renderPlot(plot) {
 function renderDetail(data) {
   const campaign = data.campaign;
   const state = data.state;
-  const evidence = data.evidence || [];
+  const evidence = (state && state.evidence) || [];
   const frontier = new Set(state && state.frontier ? state.frontier : []);
   document.getElementById('detail-title').textContent = campaign.name;
 
@@ -193,7 +287,7 @@ function renderDetail(data) {
   const refCount = state && state.references ? state.references.length : (campaign.reference ? 1 : 0);
 
   document.getElementById('detail-body').innerHTML = `
-    <p><span class="badge ${data.status}">${data.status}</span> <span class="badge">${campaign.lifecycle_stage}</span></p>
+    <p><span class="badge ${data.status}">${escapeHtml(data.status)}</span> <span class="badge stage">${escapeHtml(campaign.lifecycle_stage)}</span></p>
     <p class="empty">${escapeHtml(data.path)}</p>
 
     <h3>Objective</h3>
@@ -221,6 +315,11 @@ function renderDetail(data) {
 
 document.getElementById('close-detail').addEventListener('click', () => {
   document.getElementById('detail').classList.add('hidden');
+});
+
+document.getElementById('board').addEventListener('click', e => {
+  const card = e.target.closest('.card');
+  if (card && card.dataset.id) showDetail(card.dataset.id);
 });
 
 document.querySelectorAll('.filter').forEach(btn => {

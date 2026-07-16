@@ -53,75 +53,113 @@ nav { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 
 main { flex: 1; padding: 1rem; position: relative; }
 
-#board {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1rem;
-  align-items: start;
+#board { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.root-section { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.root-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
 }
 
-.column {
+.family {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
-  min-height: 120px;
   padding: 0.75rem;
 }
 
-.column h2 {
-  margin: 0 0 0.75rem;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.family-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.family-name { font-weight: 600; font-size: 0.95rem; word-break: break-word; }
+.family-count {
+  font-size: 0.7rem;
+  font-weight: 600;
   color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.6rem;
 }
 
 .card {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 0.75rem;
-  margin-bottom: 0.6rem;
+  padding: 0.7rem;
   cursor: pointer;
   transition: border-color 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .card:hover { border-color: var(--accent); }
 
-.card-title {
-  font-weight: 600;
-  font-size: 0.95rem;
-  margin-bottom: 0.4rem;
-  word-break: break-word;
-}
+.card-title { font-weight: 600; font-size: 0.9rem; word-break: break-word; }
+.card-meta { font-size: 0.75rem; color: var(--muted); word-break: break-word; }
 
-.card-meta {
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-bottom: 0.4rem;
-}
+.badges { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 
 .badge {
   display: inline-block;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 600;
   text-transform: uppercase;
-  padding: 0.15rem 0.45rem;
+  padding: 0.12rem 0.4rem;
   border-radius: 999px;
-  margin-right: 0.35rem;
 }
 
+.badge.stage { background: rgba(154, 160, 166, 0.15); color: var(--muted); }
+.badge.metric { background: rgba(92, 124, 250, 0.12); color: var(--accent); }
 .badge.planned { background: rgba(51, 154, 240, 0.15); color: var(--status-planned); }
 .badge.measured { background: rgba(64, 192, 87, 0.15); color: var(--status-measured); }
 .badge.promoted { background: rgba(121, 80, 242, 0.15); color: var(--status-promoted); }
 
+.sparkline { width: 100%; height: 26px; display: block; }
+
 .stats {
   display: flex;
   gap: 0.6rem;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--muted);
-  margin-top: 0.5rem;
 }
+
+.family-chart {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.family-chart svg { width: 100%; height: auto; display: block; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.legend-item { display: inline-flex; align-items: center; gap: 0.3rem; }
+.legend-swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
 
 #detail {
   position: fixed;

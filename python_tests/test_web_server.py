@@ -161,6 +161,31 @@ def test_corrupt_contract_is_skipped(tmp_path):
     assert len(campaigns) == 1
 
 
+def test_summary_carries_tree_lineage(tmp_path):
+    _write_contract(
+        tmp_path, ".autoluce/research/normal-kv-prefill/f16-f16/campaign.json", name="f16"
+    )
+    _write_contract(tmp_path, "benchmarks/q4km/campaigns/run-a.json", name="run-a")
+
+    by_root = {c["root"]: c for c in web.list_campaigns(root=tmp_path)}
+    research = by_root["research"]
+    benchmark = by_root["benchmarks"]
+
+    assert research["family"] == "normal-kv-prefill"
+    assert research["variant"] == "f16-f16"
+    assert benchmark["family"] == "q4km"
+    assert benchmark["variant"] == "run-a"
+
+
+def test_summary_sparkline_is_ordered_objective_series(tmp_path):
+    path, campaign_id = _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
+    _write_state(path, campaign_id, evidence=3, frontier=1)
+
+    [campaign] = web.list_campaigns(root=tmp_path)
+
+    assert campaign["sparkline"] == [1000.0, 1001.0, 1002.0]
+
+
 def test_routing_predicates_pin_the_webui_surface():
     assert web.is_webui_request("/")
     assert web.is_webui_request("/static/app.js")

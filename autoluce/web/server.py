@@ -60,12 +60,43 @@ def _status(state: dict[str, Any]) -> str:
     return "planned"
 
 
+def _lineage(path: Path, base: Path) -> tuple[str, str, str]:
+    """Derive (root, family, variant) from a campaign's path.
+
+    The WebUI does not invent a taxonomy; it reports the researcher's own
+    directory tree. ``family`` is the top family (or benchmark suite);
+    ``variant`` is the deeper sub-path label, empty when the family has a
+    single campaign.
+    """
+    parts = path.relative_to(base).parts
+    if len(parts) >= 3 and parts[0] == ".autoluce" and parts[1] == "research":
+        return "research", parts[2], "/".join(parts[3:-1])
+    if parts and parts[0] == "benchmarks":
+        family = parts[1] if len(parts) > 1 else "benchmarks"
+        return "benchmarks", family, path.stem
+    family = parts[0] if parts else path.stem
+    return "research", family, "/".join(parts[1:-1])
+
+
+def _metric_series(campaign: dict[str, Any], evidence: list[dict[str, Any]]) -> list[float]:
+    metric = campaign.get("objective", {}).get("metric")
+    if not metric:
+        return []
+    series: list[float] = []
+    for item in evidence:
+        value = item.get("metrics", {}).get(metric)
+        if value is not None:
+            series.append(float(value))
+    return series
+
+
 def _campaign_view(path: Path, base: Path) -> dict[str, Any] | None:
     state = _load_state(path)
     if state is None:
         return None
     campaign = state["campaign"]
     campaign_id = state["campaign_id"]
+    root, family, variant = _lineage(path, base)
     return {
         "id": campaign_id,
         "campaign_id": campaign_id,
@@ -73,12 +104,16 @@ def _campaign_view(path: Path, base: Path) -> dict[str, Any] | None:
         "stage": campaign["lifecycle_stage"],
         "status": _status(state),
         "path": str(path.relative_to(base)),
+        "root": root,
+        "family": family,
+        "variant": variant,
         "system": campaign["system"],
         "objective": campaign["objective"],
         "evidence_count": len(state["evidence"]),
         "frontier_count": len(state["frontier"]),
         "reference_count": len(state.get("references", [])),
         "promotion": state.get("promotion"),
+        "sparkline": _metric_series(campaign, state["evidence"]),
     }
 
 
