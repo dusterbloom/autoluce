@@ -1,48 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AutoLuce WebUI</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f7f8">
+  <title>AutoLuce · inference benchmarks</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="page">
-    <header>
-      <div class="topbar">
-        <h1>AutoLuce</h1>
-        <span class="subtitle">campaign evidence &mdash; dFlash (Lucebox) experiments</span>
+  <div class="shell">
+    <header class="site-header">
+      <div class="brand">
+        <a class="wordmark" href="/" aria-label="AutoLuce dashboard">AutoLuce</a>
+        <p>Inference benchmark board</p>
       </div>
-      <nav class="filters">
-        <button class="filter active" data-filter="all">All</button>
-        <button class="filter" data-filter="planned">Planned</button>
-        <button class="filter" data-filter="measured">Measured</button>
-        <button class="filter" data-filter="promoted">Promoted</button>
-      </nav>
+      <div class="header-copy">
+        <strong>dFlash <span aria-hidden="true">vs</span> llama.cpp</strong>
+        <span>Same benchmark. The gap is the result.</span>
+      </div>
     </header>
 
     <main>
-      <section id="token-dialog" class="hidden">
-        <h2>AutoLuce WebUI</h2>
-        <p>This server requires a coordinator token.</p>
-        <input type="password" id="token-input" placeholder="Paste token here">
-        <button id="token-save">Open</button>
-        <p id="token-error" class="empty"></p>
+      <section class="toolbar" aria-label="Campaign filters">
+        <div class="filter-group" role="group" aria-label="Filter by campaign status">
+          <button class="filter is-active" type="button" data-filter="all" aria-pressed="true">All</button>
+          <button class="filter" type="button" data-filter="measured" aria-pressed="false">Measured</button>
+          <button class="filter" type="button" data-filter="promoted" aria-pressed="false">Promoted</button>
+          <button class="filter" type="button" data-filter="planned" aria-pressed="false">Planned</button>
+        </div>
+        <p id="board-summary" class="board-summary" aria-live="polite"></p>
       </section>
 
-      <section id="board"></section>
-
-      <section id="detail" class="hidden">
-        <button id="close-detail">&times;</button>
-        <h2 id="detail-title">Campaign</h2>
-        <div id="detail-body"></div>
+      <section id="token-dialog" class="token-dialog" role="dialog" aria-modal="true" aria-labelledby="token-title" hidden>
+        <div class="token-card">
+          <p class="eyebrow">Restricted board</p>
+          <h2 id="token-title">Enter coordinator token</h2>
+          <p>Use the token supplied with this AutoLuce server.</p>
+          <label for="token-input">Bearer token</label>
+          <input type="password" id="token-input" autocomplete="off" spellcheck="false">
+          <p id="token-error" class="form-error" aria-live="polite"></p>
+          <button id="token-save" class="primary-action" type="button">Open board</button>
+        </div>
       </section>
+
+      <section id="board" aria-live="polite" aria-busy="true"></section>
     </main>
 
-    <footer>
-      <span id="status">Loading campaigns...</span>
+    <footer class="site-footer">
+      <span id="status" role="status">Loading campaigns…</span>
+      <span>Updates while this tab is open.</span>
     </footer>
   </div>
+
+  <div id="detail-backdrop" class="detail-backdrop" hidden></div>
+  <aside id="detail" class="detail-panel" role="dialog" aria-modal="true" aria-labelledby="detail-title" tabindex="-1" hidden>
+    <div class="detail-panel__header">
+      <div>
+        <p id="detail-kicker" class="eyebrow">Campaign</p>
+        <h2 id="detail-title">Campaign details</h2>
+      </div>
+      <button id="close-detail" class="icon-button" type="button" aria-label="Close campaign details">×</button>
+    </div>
+    <div id="detail-body" class="detail-panel__body"></div>
+  </aside>
 
   <script src="/static/app.js"></script>
 </body>

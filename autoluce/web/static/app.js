@@ -1,10 +1,18 @@
-let allCampaigns = [];
-let currentFilter = 'all';
-
 const TOKEN_KEY = 'autoluce_web_token';
 const ROOT_ORDER = ['research', 'benchmarks'];
-const ROOT_LABEL = { research: 'Research', benchmarks: 'Benchmark archive' };
-const PALETTE = ['#5c7cfa', '#40c057', '#fab005', '#fa5252', '#7950f2', '#15aabf', '#fd7e14'];
+const ROOT_LABELS = { research: 'Research', benchmarks: 'Benchmark archive' };
+
+let allCampaigns = [];
+let currentFilter = 'all';
+let lastGeneration = null;
+let detailTrigger = null;
+
+const board = document.getElementById('board');
+const status = document.getElementById('status');
+const boardSummary = document.getElementById('board-summary');
+const tokenDialog = document.getElementById('token-dialog');
+const detail = document.getElementById('detail');
+const detailBackdrop = document.getElementById('detail-backdrop');
 
 function getToken() {
   return localStorage.getItem(TOKEN_KEY) || '';
@@ -16,360 +24,461 @@ function setToken(token) {
 
 function authHeaders() {
   const token = getToken();
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function apiFetch(path) {
-  const res = await fetch(path, { headers: authHeaders() });
-  if (res.status === 401) {
+  const response = await fetch(path, { headers: authHeaders() });
+  if (response.status === 401) {
     showTokenDialog('Authentication required.');
     throw new Error('Unauthorized');
   }
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `HTTP ${response.status}`);
   }
-  return res;
+  return response;
 }
 
 function showTokenDialog(message) {
-  const dialog = document.getElementById('token-dialog');
-  dialog.querySelector('#token-error').textContent = message || '';
-  dialog.classList.remove('hidden');
+  document.getElementById('token-error').textContent = message || '';
+  tokenDialog.hidden = false;
   document.getElementById('token-input').focus();
 }
 
 function hideTokenDialog() {
-  document.getElementById('token-dialog').classList.add('hidden');
+  tokenDialog.hidden = true;
 }
 
-async function loadCampaigns() {
-  const status = document.getElementById('status');
-  try {
-    const res = await apiFetch('/api/campaigns');
-    allCampaigns = await res.json();
-    status.textContent = `${allCampaigns.length} campaigns loaded`;
-    renderBoard();
-  } catch (err) {
-    if (err.message !== 'Unauthorized') {
-      status.textContent = 'Error loading campaigns: ' + err.message;
-    }
-  }
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[char]));
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function numberValue(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatNumber(value) {
+  const number = numberValue(value);
+  if (number === null) return '—';
+  const fractionDigits = Math.abs(number) >= 100 ? 0 : Math.abs(number) >= 10 ? 1 : 2;
+  return number.toLocaleString(undefined, { maximumFractionDigits: fractionDigits });
+}
+
+function formatPercent(value) {
+  const number = numberValue(value);
+  if (number === null) return '—';
+  return `${number >= 0 ? '+' : ''}${number.toFixed(1)}%`;
+}
+
+function formatContext(value) {
+  const number = numberValue(value);
+  if (number === null) return escapeHtml(value || 'context');
+  if (number >= 1024) return `${formatNumber(number / 1024)}K context`;
+  return `${formatNumber(number)} context`;
 }
 
 function metricUnit(metric) {
-  return metric && metric.endsWith('_tok_s') ? ' tok/s' : '';
+  return metric && metric.endsWith('_tok_s') ? 'tok/s' : '';
 }
 
-function engineLabel(c) {
-  const rt = (c.system && c.system.runtime) || '';
-  if (/dflash|lucebox/i.test(rt)) return 'dFlash';
-  if (/llama/i.test(rt)) return 'llama.cpp';
-  return rt.split(':')[0] || '?';
+function objectiveMetric(campaign) {
+  return campaign && campaign.objective && campaign.objective.metric || 'objective';
 }
 
-function objectiveMetric(c) {
-  return (c.objective && c.objective.metric) || 'score';
+function engineName(runtime) {
+  const value = String(runtime || 'unknown');
+  if (/dflash|lucebox/i.test(value)) return 'dFlash';
+  if (/llama/i.test(value)) return 'llama.cpp';
+  return value || 'unknown';
 }
 
-// --- board: grouped by source root -> family -------------------------------
+function campaignEngine(campaign) {
+  return engineName(campaign && campaign.system && campaign.system.runtime);
+}
 
-function groupByTree(campaigns) {
-  const roots = {};
-  for (const c of campaigns) {
-    const families = roots[c.root] || (roots[c.root] = {});
-    (families[c.family] || (families[c.family] = [])).push(c);
+function engineBadge(engine) {
+  if (engine === 'dFlash') return 'badge--dflash';
+  if (engine === 'llama.cpp') return 'badge--llama';
+  return '';
+}
+
+function statusBadge(statusValue) {
+  return ['planned', 'measured', 'promoted'].includes(statusValue) ? `badge--${statusValue}` : '';
+}
+
+function descriptionForCampaign(campaign) {
+  const system = campaign.system || {};
+  if (campaign.variant) return campaign.name || '';
+  return [system.model, system.backend].filter(Boolean).join(' · ') || campaign.path || '';
+}
+
+function comparisonValues(row) {
+  const candidate = engineName(row.engine_candidate);
+  const reference = engineName(row.engine_reference);
+  const candidateValue = numberValue(row.value_candidate);
+  const referenceValue = numberValue(row.value_reference);
+  const reportedDelta = numberValue(row.delta_pct);
+
+  if (candidate === 'dFlash') {
+    return {
+      context: formatContext(row.context),
+      dflash: candidateValue,
+      llama: referenceValue,
+      dflashLabel: candidate,
+      llamaLabel: reference,
+      delta: reportedDelta,
+    };
   }
-  return roots;
-}
-
-function renderBoard() {
-  const board = document.getElementById('board');
-  const filtered = currentFilter === 'all'
-    ? allCampaigns
-    : allCampaigns.filter(c => c.status === currentFilter);
-  const roots = groupByTree(filtered);
-
-  let html = '';
-  const comparisons = filtered.filter(c => c.head_to_head && c.head_to_head.length);
-  if (comparisons.length) {
-    html += `<section class="root-section comparisons-section">
-      <h2 class="root-title">Comparisons &mdash; dFlash vs llama.cpp</h2>
-      ${comparisons.map(renderComparisonRow).join('')}
-    </section>`;
+  if (reference === 'dFlash') {
+    const delta = candidateValue !== null && candidateValue !== 0 && referenceValue !== null
+      ? ((referenceValue - candidateValue) / candidateValue) * 100
+      : reportedDelta === null ? null : -reportedDelta;
+    return {
+      context: formatContext(row.context),
+      dflash: referenceValue,
+      llama: candidateValue,
+      dflashLabel: reference,
+      llamaLabel: candidate,
+      delta,
+    };
   }
-  for (const root of ROOT_ORDER) {
-    const families = roots[root];
-    if (!families) continue;
-    const names = Object.keys(families).sort();
-    if (!names.length) continue;
-    html += `<section class="root-section"><h2 class="root-title">${ROOT_LABEL[root] || root}</h2>`;
-    for (const family of names) {
-      const items = families[family].slice().sort((a, b) => (a.variant || a.name).localeCompare(b.variant || b.name));
-      const cls = items.length === 1 ? "family family--single" : "family";
-      html += `<div class="${cls}">
-        <div class="family-head"><span class="family-name">${escapeHtml(family)}</span><span class="family-count">${items.length}</span></div>
-        ${renderFamilyChart(items)}
-        <div class="cards">${items.map(renderCard).join('')}</div>
-      </div>`;
-    }
-    html += `</section>`;
-  }
-  board.innerHTML = html || '<p class="empty">No campaigns match this filter.</p>';
+  return {
+    context: formatContext(row.context),
+    dflash: candidateValue,
+    llama: referenceValue,
+    dflashLabel: candidate,
+    llamaLabel: reference,
+    delta: reportedDelta,
+  };
 }
 
-function renderCard(c) {
-  const title = c.variant || c.name;
-  const subtitle = c.variant ? c.name : `${c.system.model || '?'} · ${c.system.backend || '?'}`;
-  const metric = objectiveMetric(c);
-  const unit = metricUnit(metric).trim();
-  const sp = c.sparkline || [];
-  const latest = sp.length ? sp[sp.length - 1] : null;
-  const distinct = sp.length >= 2 && new Set(sp).size >= 2;   // a genuine trend, not 1pt or duplicates
-  const valueBlock = latest !== null
-    ? `<div class="metric"><span class="metric-value">${latest.toFixed(latest >= 100 ? 0 : 1)}</span>${unit ? `<span class="metric-unit">${escapeHtml(unit)}</span>` : ''}</div>`
-    : `<div class="metric metric-empty">no measurement</div>`;
-  const hasH2H = c.head_to_head && c.head_to_head.length;
-  const body = hasH2H ? renderHeadToHead(c.head_to_head) : `${valueBlock}${distinct ? renderSparkline(sp) : ''}`;
-  return `<div class="card" data-id="${escapeHtml(c.id)}">
-    <div class="card-title">${escapeHtml(title)}</div>
-    <div class="card-meta">${escapeHtml(subtitle)}</div>
-    <div class="card-badges">
-      <span class="badge engine">${escapeHtml(engineLabel(c))}</span>
-      <span class="badge ${c.status}">${escapeHtml(c.status)}</span>
-      <span class="badge stage">${escapeHtml(c.stage)}</span>
-    </div>
-    ${body}
-    <div class="stats"><span>ev ${c.evidence_count}</span><span>fr ${c.frontier_count}</span><span>ref ${c.reference_count}</span></div>
-  </div>`;
+function comparisonLead(rows) {
+  const values = rows.map(comparisonValues).filter(row => row.delta !== null);
+  if (!values.length) return { text: 'No reported gap', className: 'is-neutral' };
+  const best = values.reduce((winner, row) => Math.abs(row.delta) > Math.abs(winner.delta) ? row : winner);
+  if (best.delta > 0) return { text: `dFlash ${formatPercent(best.delta)} faster`, className: '' };
+  if (best.delta < 0) return { text: `dFlash ${formatPercent(Math.abs(best.delta))} behind`, className: 'is-loss' };
+  return { text: 'Even performance', className: 'is-neutral' };
 }
 
-// dFlash vs reference (llama.cpp) per context -- the head-to-head the board exists for.
-function renderHeadToHead(h2h) {
-  const ordered = h2h.slice().sort((a, b) => a.context - b.context);
-  const best = ordered.slice().sort((a, b) => Math.abs(b.delta_pct) - Math.abs(a.delta_pct))[0];
-  const rows = ordered.map(r => {
-    const ctx = r.context >= 1024 ? (r.context / 1024) + 'K' : r.context;
-    const sign = r.delta_pct >= 0 ? '+' : '';
-    const cls = r.delta_pct >= 0 ? 'up' : 'down';
-    return `<div class="h2h-row">
-      <span class="h2h-ctx">${ctx}</span>
-      <span class="h2h-pair"><b>${r.value_candidate.toFixed(0)}</b><span class="h2h-vs"> vs </span>${r.value_reference.toFixed(0)}</span>
-      <span class="h2h-delta ${cls}">${sign}${r.delta_pct.toFixed(2)}%</span>
+function comparisonMagnitude(rows) {
+  return asArray(rows).map(comparisonValues).reduce((largest, row) => {
+    return row.delta === null ? largest : Math.max(largest, Math.abs(row.delta));
+  }, -1);
+}
+
+function renderComparisonRows(rows) {
+  return asArray(rows).slice().sort((left, right) => Number(left.context) - Number(right.context)).map(row => {
+    const values = comparisonValues(row);
+    const deltaClass = values.delta === null || values.delta === 0 ? 'is-neutral' : values.delta < 0 ? 'is-loss' : '';
+    return `<div class="comparison-row">
+      <span class="comparison-context">${values.context}</span>
+      <span class="compare-value"><span class="compare-key">${escapeHtml(values.dflashLabel)}</span><strong>${formatNumber(values.dflash)}</strong></span>
+      <span class="compare-value"><span class="compare-key">${escapeHtml(values.llamaLabel)}</span><strong>${formatNumber(values.llama)}</strong></span>
+      <span class="compare-value compare-gap"><span class="compare-key">dFlash gap</span><strong class="delta ${deltaClass}">${formatPercent(values.delta)}</strong></span>
     </div>`;
   }).join('');
-  return `<div class="h2h">
-    <div class="h2h-head">${escapeHtml(best.engine_candidate)} vs ${escapeHtml(best.engine_reference)} <span class="h2h-unit">${escapeHtml(metricUnit(best.metric).trim())}</span></div>
-    ${rows}
-  </div>`;
 }
 
-// A real temporal trend only when there are >=2 distinct measurements. Otherwise
-// no chart -- an honest blank beats a flat line that pretends to be progression.
-// One-line summary for the top Comparisons section: dFlash vs llama.cpp across contexts.
-function renderComparisonRow(c) {
-  const cells = c.head_to_head.slice().sort((a, b) => a.context - b.context).map(r => {
-    const ctx = r.context >= 1024 ? (r.context / 1024) + 'K' : r.context;
-    const sign = r.delta_pct >= 0 ? '+' : '';
-    const cls = r.delta_pct >= 0 ? 'up' : 'down';
-    return `<span class="cmp-cell"><span class="cmp-ctx">${ctx}</span><b>${r.value_candidate.toFixed(0)}</b><span class="cmp-vs">vs</span>${r.value_reference.toFixed(0)}<span class="h2h-delta ${cls}">${sign}${r.delta_pct.toFixed(1)}%</span></span>`;
-  }).join('');
-  return `<div class="cmp-row card" data-id="${escapeHtml(c.id)}">
-    <span class="cmp-name">${escapeHtml(c.variant || c.name)}</span>
-    <span class="cmp-cells">${cells}</span>
-  </div>`;
+function renderComparisonCard(campaign) {
+  const rows = asArray(campaign.head_to_head);
+  const lead = comparisonLead(rows);
+  const title = campaign.variant || campaign.name || 'Untitled campaign';
+  const metric = rows[0] && rows[0].metric || objectiveMetric(campaign);
+  const unit = metricUnit(metric);
+  return `<article class="comparison-card">
+    <h2 class="visually-hidden">${escapeHtml(title)}</h2>
+    <button class="comparison-open open-detail" type="button" data-id="${escapeHtml(campaign.id)}" aria-label="Open ${escapeHtml(title)} details">
+      <span class="comparison-card__head">
+        <span>
+          <span class="campaign-title">${escapeHtml(title)}</span>
+          <span class="comparison-subtitle">${escapeHtml(descriptionForCampaign(campaign))} · ${escapeHtml(metric)}${unit ? ` · ${unit}` : ''}</span>
+        </span>
+        <span class="comparison-hero ${lead.className}">${escapeHtml(lead.text)}</span>
+      </span>
+      <span class="comparison-rows">${renderComparisonRows(rows)}</span>
+    </button>
+  </article>`;
+}
+
+function hasMeaningfulSparkline(values) {
+  const finite = asArray(values).map(numberValue).filter(value => value !== null);
+  return finite.length >= 2 && new Set(finite).size >= 2;
 }
 
 function renderSparkline(values) {
-  const w = 120, h = 30;
-  const min = Math.min(...values), max = Math.max(...values);
-  const range = Math.max(max - min, 1e-9);
-  const x = i => 1 + (i / (values.length - 1)) * (w - 2);
-  const y = v => h - 2 - ((v - min) / range) * (h - 4);
-  const d = values.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-  const area = `M ${x(0).toFixed(1)} ${h} ` + values.map((v, i) => `L ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ') + ` L ${x(values.length - 1).toFixed(1)} ${h} Z`;
-  return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-    <path d="${area}" fill="rgba(111,133,255,0.15)"/>
-    <path d="${d}" fill="none" stroke="#6f85ff" stroke-width="1.5"/>
+  const points = values.map(numberValue).filter(value => value !== null);
+  const width = 180;
+  const height = 32;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = Math.max(max - min, Number.EPSILON);
+  const x = index => 1 + index / (points.length - 1) * (width - 2);
+  const y = value => height - 2 - (value - min) / range * (height - 4);
+  const line = points.map((value, index) => `${index ? 'L' : 'M'} ${x(index).toFixed(1)} ${y(value).toFixed(1)}`).join(' ');
+  const area = `M ${x(0).toFixed(1)} ${height} ${points.map((value, index) => `L ${x(index).toFixed(1)} ${y(value).toFixed(1)}`).join(' ')} L ${x(points.length - 1).toFixed(1)} ${height} Z`;
+  return `<svg class="sparkline" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="Objective trend across ${points.length} evidence points">
+    <path d="${area}" fill="#eeeafd"></path>
+    <path d="${line}" fill="none" stroke="#5946b2" stroke-width="1.75" vector-effect="non-scaling-stroke"></path>
   </svg>`;
 }
 
-// Cross-sectional comparison: one row per variant, dot at its latest objective
-// value. This is the honest view for a family of variants each measured ~once
-// (e.g. a KV-cache quant sweep) -- never a fake time-series line.
-function renderFamilyChart(campaigns) {
-  const byMetric = {};
-  for (const c of campaigns) {
-    const sp = c.sparkline || [];
-    if (!sp.length) continue;
-    (byMetric[objectiveMetric(c)] = byMetric[objectiveMetric(c)] || []).push(c);
-  }
-  const metric = Object.keys(byMetric).find(m => byMetric[m].length >= 2);
-  if (!metric) return '';
-  return renderLollipop(metric, byMetric[metric]);
+function renderCampaignCard(campaign) {
+  const title = campaign.variant || campaign.name || 'Untitled campaign';
+  const metric = objectiveMetric(campaign);
+  const values = asArray(campaign.sparkline);
+  const latest = values.length ? numberValue(values[values.length - 1]) : null;
+  const unit = metricUnit(metric);
+  const trend = hasMeaningfulSparkline(values) ? renderSparkline(values) : '';
+  const statusValue = campaign.status || 'planned';
+  return `<article class="campaign-card">
+    <h4><button class="campaign-open open-detail" type="button" data-id="${escapeHtml(campaign.id)}" aria-label="Open ${escapeHtml(title)} details">
+      <span class="campaign-topline">
+        <span>
+          <span class="campaign-title">${escapeHtml(title)}</span>
+          <span class="campaign-model">${escapeHtml(descriptionForCampaign(campaign))}</span>
+        </span>
+        <span class="badge ${engineBadge(campaignEngine(campaign))}">${escapeHtml(campaignEngine(campaign))}</span>
+      </span>
+      <span class="metric-block">
+        <span class="metric-label">${escapeHtml(metric)}</span>
+        ${latest === null
+          ? '<span class="metric-empty">No measurement</span>'
+          : `<span class="metric-value">${formatNumber(latest)}${unit ? `<span>${unit}</span>` : ''}</span>`}
+      </span>
+      ${trend}
+      <span class="campaign-footer">
+        <span class="badges"><span class="badge ${statusBadge(statusValue)}">${escapeHtml(statusValue)}</span><span class="badge">${escapeHtml(campaign.stage || '—')}</span></span>
+        <span>${Number(campaign.evidence_count) || 0} evidence</span>
+      </span>
+    </button></h4>
+  </article>`;
 }
 
-function renderLollipop(metric, campaigns) {
-  const unit = metricUnit(metric).trim();
-  const rows = campaigns.map(c => ({
-    label: c.variant || c.name,
-    value: (c.sparkline[c.sparkline.length - 1]),
-    status: c.status,
-  }));
-  const vals = rows.map(r => r.value);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const range = Math.max(max - min, 1e-9);
-  rows.sort((a, b) => b.value - a.value);  // best (maximize) on top
-  const body = rows.map(r => {
-    const pct = ((r.value - min) / range) * 100;
-    return `<div class="lol-row">
-      <span class="lol-label">${escapeHtml(r.label)}</span>
-      <span class="lol-track"><span class="lol-dot ${r.status}" style="left:${pct.toFixed(1)}%"></span></span>
-      <span class="lol-value">${r.value.toFixed(r.value >= 100 ? 0 : 1)}</span>
-    </div>`;
+function groupCampaigns(campaigns) {
+  return campaigns.reduce((roots, campaign) => {
+    const root = campaign.root || 'research';
+    const family = campaign.family || 'Other';
+    if (!roots[root]) roots[root] = {};
+    if (!roots[root][family]) roots[root][family] = [];
+    roots[root][family].push(campaign);
+    return roots;
+  }, {});
+}
+
+function renderCampaignTree(campaigns) {
+  if (!campaigns.length) {
+    return '<p class="empty-state"><strong>No evidence campaigns match this filter.</strong><br>Head-to-head comparisons remain above when available.</p>';
+  }
+  const roots = groupCampaigns(campaigns);
+  const rootNames = [...ROOT_ORDER.filter(root => roots[root]), ...Object.keys(roots).filter(root => !ROOT_ORDER.includes(root)).sort()];
+  return rootNames.map(root => {
+    const families = roots[root];
+    const familyCards = Object.keys(families).sort().map(family => {
+      const items = families[family].slice().sort((left, right) => {
+        const leftName = left.variant || left.name || '';
+        const rightName = right.variant || right.name || '';
+        return leftName.localeCompare(rightName);
+      });
+      return `<section class="family" aria-labelledby="family-${escapeHtml(root)}-${escapeHtml(family)}">
+        <div class="family-header">
+          <h3 id="family-${escapeHtml(root)}-${escapeHtml(family)}">${escapeHtml(family)}</h3>
+          <span class="family-count">${items.length} campaign${items.length === 1 ? '' : 's'}</span>
+        </div>
+        <div class="campaign-grid">${items.map(renderCampaignCard).join('')}</div>
+      </section>`;
+    }).join('');
+    return `<section class="tree-section" aria-labelledby="root-${escapeHtml(root)}">
+      <h2 id="root-${escapeHtml(root)}" class="root-heading">${escapeHtml(ROOT_LABELS[root] || root)} <span>campaign evidence</span></h2>
+      <div class="family-grid">${familyCards}</div>
+    </section>`;
   }).join('');
-  return `<div class="lollipop">
-    <div class="lol-title">${escapeHtml(metric)}${unit ? ` <span class="lol-unit">${escapeHtml(unit)}</span>` : ''}<span class="lol-hint">higher is better</span></div>
-    ${body}
-  </div>`;
 }
 
-// --- detail drawer ----------------------------------------------------------
+function renderBoard() {
+  const filtered = currentFilter === 'all'
+    ? allCampaigns
+    : allCampaigns.filter(campaign => campaign.status === currentFilter);
+  const comparisons = filtered.filter(campaign => asArray(campaign.head_to_head).length);
+  const evidenceCampaigns = filtered.filter(campaign => !asArray(campaign.head_to_head).length);
+  comparisons.sort((left, right) => comparisonMagnitude(right.head_to_head) - comparisonMagnitude(left.head_to_head));
 
-async function showDetail(id) {
-  const detail = document.getElementById('detail');
-  const body = document.getElementById('detail-body');
-  body.innerHTML = '<p>Loading...</p>';
-  detail.classList.remove('hidden');
-  try {
-    const res = await apiFetch('/api/campaigns/' + encodeURIComponent(id));
-    const data = await res.json();
-    renderDetail(data);
-  } catch (err) {
-    body.innerHTML = '<p>Error: ' + escapeHtml(err.message) + '</p>';
-  }
-}
-
-function renderPlot(plot) {
-  if (!plot || !plot.points.length) {
-    return '<p class="empty">No numeric progression data.</p>';
-  }
-  const width = 560;
-  const height = 220;
-  const pad = { top: 20, right: 20, bottom: 40, left: 60 };
-  const innerW = width - pad.left - pad.right;
-  const innerH = height - pad.top - pad.bottom;
-
-  const points = plot.points;
-  const indexMin = points[0].index;
-  const indexMax = points[points.length - 1].index;
-  const indexRange = Math.max(indexMax - indexMin, 1);
-  const valueMin = plot.min;
-  const valueMax = plot.max;
-  const valueRange = Math.max(valueMax - valueMin, 1e-9);
-
-  const x = i => pad.left + ((i - indexMin) / indexRange) * innerW;
-  const y = v => pad.top + innerH - ((v - valueMin) / valueRange) * innerH;
-
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(p.index)} ${y(p.value)}`).join(' ');
-  const dots = points.map(p => `<circle cx="${x(p.index)}" cy="${y(p.value)}" r="3" title="#${p.index + 1}\n${p.value.toFixed(2)} ${plot.unit}\n${escapeHtml(p.evidence_id)}"></circle>`).join('');
-
-  const yTicks = 5;
-  let yAxis = '';
-  for (let i = 0; i <= yTicks; i++) {
-    const v = valueMin + (valueRange * i / yTicks);
-    const yp = y(v);
-    yAxis += `<line x1="${pad.left}" y1="${yp}" x2="${width - pad.right}" y2="${yp}" stroke="#2a2e36" stroke-dasharray="2"/>`;
-    yAxis += `<text x="${pad.left - 8}" y="${yp + 4}" text-anchor="end" fill="#9aa0a6" font-size="10">${v.toFixed(1)}</text>`;
-  }
-
-  const xAxis = `
-    <text x="${pad.left}" y="${height - 10}" fill="#9aa0a6" font-size="10">#${indexMin + 1}</text>
-    <text x="${width - pad.right}" y="${height - 10}" text-anchor="end" fill="#9aa0a6" font-size="10">#${indexMax + 1}</text>
-  `;
-
-  return `
-    <div class="plot">
-      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
-        ${yAxis}
-        <path d="${pathD}" fill="none" stroke="#5c7cfa" stroke-width="2"/>
-        ${dots}
-        ${xAxis}
-      </svg>
-      <div class="plot-caption">${escapeHtml(plot.metric)} progression${plot.unit ? ' (' + escapeHtml(plot.unit) + ')' : ''} · ${points.length} points</div>
+  const comparisonContent = comparisons.length
+    ? `<div class="comparison-grid">${comparisons.map(renderComparisonCard).join('')}</div>`
+    : '<p class="empty-state"><strong>No head-to-head comparison matches this filter.</strong><br>Campaigns without a paired dFlash and llama.cpp result are listed below.</p>';
+  board.innerHTML = `<section aria-labelledby="comparisons-heading">
+    <div class="section-heading">
+      <div><p class="eyebrow">First, the result</p><h1 id="comparisons-heading">dFlash vs llama.cpp</h1></div>
+      <p>Positive gaps mean dFlash is faster. Every row compares the same context and metric.</p>
     </div>
-  `;
+    ${comparisonContent}
+  </section>
+  <section aria-labelledby="campaigns-heading">
+    <div class="section-heading">
+      <div><p class="eyebrow">Then, the evidence</p><h2 id="campaigns-heading">Campaigns</h2></div>
+      <p>Unpaired campaigns, grouped by their research or benchmark directory.</p>
+    </div>
+    ${renderCampaignTree(evidenceCampaigns)}
+  </section>`;
+  boardSummary.textContent = `${filtered.length} campaign${filtered.length === 1 ? '' : 's'} shown · ${comparisons.length} comparison${comparisons.length === 1 ? '' : 's'}`;
+  board.setAttribute('aria-busy', 'false');
+}
+
+async function loadCampaigns() {
+  board.setAttribute('aria-busy', 'true');
+  try {
+    const response = await apiFetch('/api/campaigns');
+    const data = await response.json();
+    allCampaigns = asArray(data);
+    renderBoard();
+    status.textContent = `${allCampaigns.length} campaigns · refreshed ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    return true;
+  } catch (error) {
+    board.setAttribute('aria-busy', 'false');
+    if (error.message !== 'Unauthorized') status.textContent = `Unable to load campaigns: ${error.message}`;
+    return false;
+  }
+}
+
+function closeDetail() {
+  detail.hidden = true;
+  detailBackdrop.hidden = true;
+  document.body.classList.remove('drawer-open');
+  if (detailTrigger) detailTrigger.focus();
+  detailTrigger = null;
+}
+
+function jsonBlock(value) {
+  return escapeHtml(JSON.stringify(value || {}, null, 2));
+}
+
+function renderReference(reference) {
+  if (reference && typeof reference === 'object') {
+    const kind = reference.kind || 'reference';
+    const location = reference.locator || reference.path || reference.name || '';
+    return `<li><strong>${escapeHtml(kind)}</strong>${location ? ` <span class="reference-kind">· ${escapeHtml(location)}</span>` : ''}</li>`;
+  }
+  return `<li>${escapeHtml(reference)}</li>`;
+}
+
+function formatMap(values) {
+  const entries = Object.entries(values || {});
+  if (!entries.length) return '—';
+  return entries.map(([key, value]) => `${key}: ${typeof value === 'number' ? formatNumber(value) : String(value)}`).join(' · ');
+}
+
+function renderEvidence(evidence, frontier) {
+  if (!evidence.length) return '<p class="empty-state">No evidence has been recorded.</p>';
+  const rows = evidence.map((item, index) => {
+    const id = item.evidence_id || `evidence ${index + 1}`;
+    const isFrontier = frontier.has(id);
+    return `<tr>
+      <td data-label="Evidence"><span class="evidence-id">${escapeHtml(id)}</span>${isFrontier ? '<span class="frontier-mark">Frontier</span>' : ''}</td>
+      <td data-label="Metrics">${escapeHtml(formatMap(item.metrics))}</td>
+      <td data-label="Gates">${escapeHtml(formatMap(item.gates))}</td>
+    </tr>`;
+  }).join('');
+  return `<table class="evidence-table"><thead><tr><th>Evidence</th><th>Metrics</th><th>Gates</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function renderDetail(data) {
-  const campaign = data.campaign;
-  const state = data.state;
-  const evidence = (state && state.evidence) || [];
-  const frontier = new Set(state && state.frontier ? state.frontier : []);
-  document.getElementById('detail-title').textContent = campaign.name;
+  const campaign = data.campaign || {};
+  const state = data.state || {};
+  const objective = campaign.objective || {};
+  const evidence = asArray(state.evidence);
+  const references = asArray(state.references);
+  const comparisons = asArray(state.comparisons).filter(item => item && item.kind === 'head_to_head');
+  const frontier = new Set(asArray(state.frontier));
+  const system = campaign.system || {};
+  const title = campaign.name || data.campaign_id || 'Campaign details';
+  const promotion = state.promotion || data.promotion;
 
-  const evidenceRows = evidence.map((e, i) => {
-    const gates = Object.entries(e.gates || {}).map(([k, v]) => `${k}: ${v}`).join(', ');
-    const metrics = Object.entries(e.metrics || {}).map(([k, v]) => `${k}=${typeof v === 'number' ? v.toFixed(3) : v}`).join(', ');
-    const onFrontier = frontier.has(e.evidence_id) ? ' ⭐' : '';
-    return `<tr>
-      <td>${escapeHtml(e.evidence_id)}${onFrontier}</td>
-      <td>#${i + 1}</td>
-      <td>${escapeHtml(metrics)}</td>
-      <td>${escapeHtml(gates)}</td>
-    </tr>`;
-  }).join('');
-
-  const refs = state && state.references
-    ? state.references.map(r => `<li>${escapeHtml(r.kind)}${r.locator ? ' · ' + escapeHtml(r.locator) : ''}</li>`).join('')
-    : '';
-  const refCount = state && state.references ? state.references.length : (campaign.reference ? 1 : 0);
-
+  document.getElementById('detail-title').textContent = title;
+  document.getElementById('detail-kicker').textContent = `${data.status || 'campaign'} · ${data.stage || campaign.lifecycle_stage || '—'}`;
   document.getElementById('detail-body').innerHTML = `
-    <p><span class="badge ${data.status}">${escapeHtml(data.status)}</span> <span class="badge stage">${escapeHtml(campaign.lifecycle_stage)}</span></p>
-    <p class="empty">${escapeHtml(data.path)}</p>
-
-    <h3>Objective</h3>
-    <p>${escapeHtml(campaign.objective.metric)} — ${escapeHtml(campaign.objective.direction)}</p>
-
-    <h3>Progression</h3>
-    ${renderPlot(data.plot)}
-
-    <h3>System</h3>
-    <pre>${escapeHtml(JSON.stringify(campaign.system, null, 2))}</pre>
-
-    <h3>Constraints</h3>
-    <pre>${escapeHtml(JSON.stringify(campaign.constraints, null, 2))}</pre>
-
-    <h3>References (${refCount})</h3>
-    ${refs ? `<ul>${refs}</ul>` : '<p class="empty">No references attached.</p>'}
-
-    <h3>Evidence (${evidence.length})</h3>
-    ${evidenceRows ? `<table><thead><tr><th>ID</th><th>#</th><th>Metrics</th><th>Gates</th></tr></thead><tbody>${evidenceRows}</tbody></table>` : '<p class="empty">No evidence yet.</p>'}
-
-    <h3>Promotion</h3>
-    <p>${state && state.promotion ? escapeHtml(state.promotion) : '<span class="empty">No promoted evidence</span>'}</p>
-  `;
+    <div class="detail-summary">
+      <p class="detail-path">${escapeHtml(data.path || '')}</p>
+      <span class="badges"><span class="badge ${statusBadge(data.status)}">${escapeHtml(data.status || '—')}</span><span class="badge">${escapeHtml(data.stage || campaign.lifecycle_stage || '—')}</span></span>
+    </div>
+    <section class="detail-section">
+      <h3>Objective</h3>
+      <dl class="definition-list">
+        <dt>Metric</dt><dd>${escapeHtml(objective.metric || '—')} ${metricUnit(objective.metric) ? `(${metricUnit(objective.metric)})` : ''}</dd>
+        <dt>Direction</dt><dd>${escapeHtml(objective.direction || '—')}</dd>
+        <dt>Promoted evidence</dt><dd>${promotion ? escapeHtml(promotion) : '—'}</dd>
+      </dl>
+    </section>
+    <section class="detail-section">
+      <h3>System</h3>
+      <dl class="definition-list">
+        <dt>Engine</dt><dd>${escapeHtml(campaignEngine(campaign))}</dd>
+        <dt>Model</dt><dd>${escapeHtml(system.model || '—')}</dd>
+        <dt>Backend</dt><dd>${escapeHtml(system.backend || '—')}</dd>
+        <dt>Runtime</dt><dd>${escapeHtml(system.runtime || '—')}</dd>
+      </dl>
+    </section>
+    <section class="detail-section">
+      <h3>Constraints</h3>
+      <pre class="data-block">${jsonBlock(campaign.constraints)}</pre>
+    </section>
+    ${comparisons.length ? `<section class="detail-section"><h3>dFlash vs llama.cpp</h3><div class="detail-comparison">${renderComparisonRows(comparisons)}</div></section>` : ''}
+    <section class="detail-section">
+      <h3>Evidence (${evidence.length})</h3>
+      ${renderEvidence(evidence, frontier)}
+    </section>
+    <section class="detail-section">
+      <h3>References (${references.length})</h3>
+      ${references.length ? `<ul class="reference-list">${references.map(renderReference).join('')}</ul>` : '<p class="empty-state">No references attached.</p>'}
+    </section>
+    <section class="detail-section">
+      <details><summary>Full campaign and state record</summary><pre class="data-block">${jsonBlock({ campaign, state })}</pre></details>
+    </section>`;
 }
 
-document.getElementById('close-detail').addEventListener('click', () => {
-  document.getElementById('detail').classList.add('hidden');
+async function showDetail(id, trigger) {
+  detailTrigger = trigger || document.activeElement;
+  detailBackdrop.hidden = false;
+  detail.hidden = false;
+  document.body.classList.add('drawer-open');
+  document.getElementById('detail-title').textContent = 'Loading campaign…';
+  document.getElementById('detail-kicker').textContent = 'Campaign';
+  document.getElementById('detail-body').innerHTML = '<p class="empty-state">Loading campaign details…</p>';
+  document.getElementById('close-detail').focus();
+  try {
+    const response = await apiFetch(`/api/campaigns/${encodeURIComponent(id)}`);
+    renderDetail(await response.json());
+  } catch (error) {
+    document.getElementById('detail-body').innerHTML = `<p class="empty-state">Unable to load campaign details: ${escapeHtml(error.message)}</p>`;
+  }
+}
+
+document.getElementById('board').addEventListener('click', event => {
+  const trigger = event.target.closest('.open-detail');
+  if (trigger && trigger.dataset.id) showDetail(trigger.dataset.id, trigger);
 });
 
-document.getElementById('board').addEventListener('click', e => {
-  const card = e.target.closest('.card');
-  if (card && card.dataset.id) showDetail(card.dataset.id);
+document.getElementById('close-detail').addEventListener('click', closeDetail);
+detailBackdrop.addEventListener('click', closeDetail);
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !detail.hidden) closeDetail();
 });
 
-document.querySelectorAll('.filter').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentFilter = btn.dataset.filter;
+document.querySelectorAll('.filter').forEach(button => {
+  button.addEventListener('click', () => {
+    currentFilter = button.dataset.filter;
+    document.querySelectorAll('.filter').forEach(filter => {
+      const selected = filter === button;
+      filter.classList.toggle('is-active', selected);
+      filter.setAttribute('aria-pressed', String(selected));
+    });
     renderBoard();
   });
 });
@@ -377,30 +486,33 @@ document.querySelectorAll('.filter').forEach(btn => {
 document.getElementById('token-save').addEventListener('click', async () => {
   const input = document.getElementById('token-input');
   const token = input.value.trim();
-  if (!token) return;
+  if (!token) {
+    document.getElementById('token-error').textContent = 'Enter a token to continue.';
+    input.focus();
+    return;
+  }
   setToken(token);
   hideTokenDialog();
-  await loadCampaigns();
+  if (await loadCampaigns()) await checkVersion();
 });
 
-document.getElementById('token-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('token-save').click();
+document.getElementById('token-input').addEventListener('keydown', event => {
+  if (event.key === 'Enter') document.getElementById('token-save').click();
 });
-
-// --- realtime: poll a cheap generation, reload only when it moves -----------
-// (visibility-aware; uses the authenticated apiFetch, so it works through the
-// token-gated coordinator too. EventSource can't send the bearer header.)
-let lastGeneration = null;
 
 async function checkVersion() {
   if (document.visibilityState !== 'visible') return;
   try {
     const data = await (await apiFetch('/api/version')).json();
-    if (lastGeneration !== null && data.generation !== lastGeneration) {
-      loadCampaigns();
-    }
+    if (lastGeneration !== null && data.generation !== lastGeneration) await loadCampaigns();
     lastGeneration = data.generation;
-  } catch (_) { /* transient; the next tick retries */ }
+  } catch (_) {
+    // A later visible poll retries transient failures. A 401 has already opened the token dialog.
+  }
+}
+
+async function initialize() {
+  if (await loadCampaigns()) await checkVersion();
 }
 
 setInterval(checkVersion, 5000);
@@ -408,4 +520,4 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') checkVersion();
 });
 
-loadCampaigns();
+initialize();
