@@ -9,10 +9,13 @@ small stable API for callers.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
+import re
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -134,6 +137,20 @@ def _quality_gate_results(quality: Mapping[str, Any]) -> dict[str, bool]:
     return gates
 
 
+def _fsync_directory(path: Path) -> None:
+    """fsync a directory so newly linked/renamed entries survive power loss."""
+    try:
+        fd = os.open(str(path), os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    except OSError:
+        pass
+    finally:
+        os.close(fd)
+
+
 def _atomic_write(path: Path, value: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=path.stem + "-", suffix=".json", dir=path.parent)
@@ -141,10 +158,57 @@ def _atomic_write(path: Path, value: Mapping[str, Any]) -> None:
         with os.fdopen(fd, "w") as stream:
             json.dump(value, stream, indent=2, sort_keys=True)
             stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
         os.replace(temporary, path)
+        _fsync_directory(path.parent)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def _matches_record(path: Path, value: Mapping[str, Any]) -> bool:
+    try:
+        return json.loads(path.read_text()) == dict(value)
+    except Exception:
+        return False
+
+
+def _publish_immutable(path: Path, value: Mapping[str, Any]) -> None:
+    """Content-addressed, crash-safe, race-safe publication of an immutable record.
+
+    Publishes a fsynced temp via a no-clobber hardlink into the final name, then
+    fsyncs the directory. Idempotent: if the target already exists (a retry after
+    a crash between publish and index update, or a concurrent publisher that won
+    the race), it is accepted only if its content is semantically the same record
+    -- otherwise the name is corrupt and the write is rejected.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and _matches_record(path, value):
+        return
+    fd, temporary = tempfile.mkstemp(prefix=path.stem + "-", suffix=".json", dir=path.parent)
+    published = False
+    try:
+        with os.fdopen(fd, "w") as stream:
+            stream.write(json.dumps(value, indent=2, sort_keys=True) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(temporary, path)  # atomic no-clobber publish
+            published = True
+        except FileExistsError:
+            pass
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    if not published:
+        if not _matches_record(path, value):
+            raise ValueError(f"{path.name} already exists with differing content")
+        return
+    _fsync_directory(path.parent)
+
+
+_EVIDENCE_FILE = re.compile(r"^evidence-[0-9a-f]{64}\.json$")
 
 
 def _legacy_campaign(value: Mapping[str, Any]) -> Campaign:
@@ -182,6 +246,7 @@ class CampaignStore:
         self.campaign_path = campaign_path
         self.state_path = campaign_path.with_suffix(campaign_path.suffix + ".state.json")
         self.evidence_dir = campaign_path.parent / f".{campaign_path.stem}.evidence"
+        self.lock_path = self.state_path.with_suffix(self.state_path.suffix + ".lock")
 
     def load(self) -> dict[str, Any]:
         campaign = load_campaign(self.campaign_path)
@@ -205,6 +270,154 @@ class CampaignStore:
 
     def save(self, state: Mapping[str, Any]) -> None:
         _atomic_write(self.state_path, state)
+
+    @contextmanager
+    def _locked(self):
+        """Serialize a read-modify-write on this campaign's state.
+
+        Holding an exclusive flock around load -> mutate -> save closes the
+        lost-update window that plain atomic replacement leaves open. The state
+        is saved only on a clean return from the caller's block.
+        """
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.lock_path.open("a+") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            state = self.load()
+            yield state
+            self.save(state)
+
+    def ingest(self, raw: Mapping[str, Any]) -> CampaignEvidence:
+        """One locked transaction: publish the immutable evidence, then update the index.
+
+        Publication is idempotent and crash-safe, so a crash between publishing
+        the artifact and updating ``state.json`` recovers by re-ingesting the
+        same raw measurement. The lock serializes concurrent ingests so no
+        record is silently dropped from the index.
+        """
+        with self._locked() as state:
+            return self.record(state, raw)
+
+    def _evidence_dirs(self) -> list[Path]:
+        dirs = [self.evidence_dir]
+        # Stateless benchmark archives keep evidence at the suite level
+        # (benchmarks/<suite>/evidence/); live campaigns keep it beside the
+        # contract (.{stem}.evidence/).
+        if self.campaign_path.parent.name == "campaigns":
+            suite = self.campaign_path.parent.parent / "evidence"
+            if suite not in dirs:
+                dirs.append(suite)
+        return [d for d in dirs if d.exists()]
+
+    def _scan_evidence(self, campaign_id: str) -> tuple[dict[str, dict[str, Any]], list[str], list[str]]:
+        """Read verified evidence records for THIS campaign from disk.
+
+        Returns ``(valid_by_id, corrupt_ids, foreign_ids)``. Only canonical
+        evidence filenames (``evidence-<64hex>.json``) are considered, so raw
+        measurement bundles and leftover temp files are ignored. A canonical
+        file that fails to parse or whose content no longer matches its id is
+        reported corrupt rather than silently trusted. Records carrying a
+        different ``campaign_id`` are foreign -- a multi-lane suite must never
+        index another lane's evidence.
+        """
+        valid: dict[str, dict[str, Any]] = {}
+        corrupt: list[str] = []
+        foreign: list[str] = []
+        for directory in self._evidence_dirs():
+            for path in sorted(directory.glob("*.json")):
+                if not _EVIDENCE_FILE.match(path.name):
+                    continue
+                try:
+                    payload = json.loads(path.read_text())
+                    CampaignEvidence.from_dict(payload)  # validates id <-> content
+                except Exception:
+                    corrupt.append(path.stem)
+                    continue
+                if payload.get("campaign_id") != campaign_id:
+                    foreign.append(path.stem)
+                    continue
+                valid[payload["evidence_id"]] = payload
+        return valid, corrupt, foreign
+
+    def _load_index_or_recover(self) -> dict[str, Any]:
+        """Load the state index, rebuilding a minimal one if it is torn/missing."""
+        try:
+            return self.load()
+        except (json.JSONDecodeError, OSError):
+            campaign = load_campaign(self.campaign_path)
+            return {
+                "schema_version": 1,
+                "campaign_id": campaign.campaign_id,
+                "campaign": campaign.to_dict(include_evidence=False),
+                "stage": campaign.lifecycle_stage,
+                "stage_history": [campaign.lifecycle_stage],
+                "references": [],
+                "evidence": [],
+                "frontier": [],
+                "comparisons": [],
+                "promotion": None,
+            }
+
+    def verify(self) -> dict[str, Any]:
+        """Read-only health report: on-disk evidence vs. the index, under a shared lock."""
+        campaign_id = load_campaign(self.campaign_path).campaign_id
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.lock_path.open("a+") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_SH)
+            valid, corrupt, foreign = self._scan_evidence(campaign_id)
+            try:
+                indexed = {e["evidence_id"] for e in self.load().get("evidence", [])}
+                state_ok = True
+            except Exception:
+                indexed, state_ok = set(), False
+        on_disk = set(valid)
+        return {
+            "valid": sorted(on_disk),
+            "corrupt": corrupt,
+            "foreign": foreign,
+            "orphan": sorted(on_disk - indexed),
+            "missing": sorted(indexed - on_disk),
+            "state_ok": state_ok,
+        }
+
+    def rebuild_index(self) -> dict[str, Any]:
+        """Rebuild ``state.json`` from the verified on-disk evidence (the truth).
+
+        The directory is authoritative; the state file is a rebuildable index.
+        Recovers orphaned records, hydrates stateless archives from their suite
+        evidence directory, drops entries whose artifact is missing, and clears
+        ``promotion``/``comparisons`` left dangling by a prune. Tolerates a torn
+        state file by rebuilding from the campaign contract.
+        """
+        campaign_id = load_campaign(self.campaign_path).campaign_id
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.lock_path.open("a+") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            state = self._load_index_or_recover()
+            valid, corrupt, foreign = self._scan_evidence(campaign_id)
+            previous = {e["evidence_id"] for e in state["evidence"]}
+            recovered = [valid[eid] for eid in sorted(valid) if eid not in previous]
+            state["evidence"] = [valid[eid] for eid in sorted(valid)]
+            valid_ids = set(valid)
+            dangling_promotion = None
+            if state.get("promotion") and state["promotion"] not in valid_ids:
+                dangling_promotion = state["promotion"]
+                state["promotion"] = None
+            dangling_comparisons = [
+                c for c in state.get("comparisons", [])
+                if isinstance(c, dict)
+                and c.get("candidate_evidence_id")
+                and c["candidate_evidence_id"] not in valid_ids
+            ]
+            self._refresh_frontier(state)
+            self.save(state)
+            return {
+                "recovered": recovered,
+                "corrupt": corrupt,
+                "foreign": foreign,
+                "dangling_promotion": dangling_promotion,
+                "dangling_comparisons": dangling_comparisons,
+                "total": len(state["evidence"]),
+            }
 
     def record(self, state: dict[str, Any], raw: Mapping[str, Any]) -> CampaignEvidence:
         campaign = Campaign.from_dict(state["campaign"])
@@ -308,17 +521,8 @@ class CampaignStore:
             provenance=provenance,
         )
         self.evidence_dir.mkdir(parents=True, exist_ok=True)
-        measurement_path = self.evidence_dir / f"{measurement_bundle_id}.json"
-        if not measurement_path.exists():
-            with measurement_path.open("x") as stream:
-                json.dump(raw, stream, indent=2, sort_keys=True)
-                stream.write("\n")
-        evidence_path = self.evidence_dir / f"{evidence.evidence_id}.json"
-        if not evidence_path.exists():
-            # Content address plus exclusive creation makes evidence immutable.
-            with evidence_path.open("x") as stream:
-                json.dump(evidence.to_dict(), stream, indent=2, sort_keys=True)
-                stream.write("\n")
+        _publish_immutable(self.evidence_dir / f"{measurement_bundle_id}.json", raw)
+        _publish_immutable(self.evidence_dir / f"{evidence.evidence_id}.json", evidence.to_dict())
         if not any(item["evidence_id"] == evidence.evidence_id for item in state["evidence"]):
             state["evidence"].append(evidence.to_dict())
         self._refresh_frontier(state)
@@ -563,50 +767,50 @@ def main(argv: list[str] | None = None) -> int:
     try:
         goal_reference = parse_goal_reference(args.goal).to_dict() if args.goal else None
         against_reference = _load_named_reference(args.against) if args.against else None
-        state = store.load()
-        if args.record:
-            store.record(state, json.loads(args.record.read_text()))
-        if goal_reference:
-            _append_reference(state, goal_reference)
-        if against_reference:
-            _append_reference(state, against_reference)
-        if args.record or args.goal or args.against:
-            # Attachment and collection are valid independently of interpretation.
-            # Persist them even when a requested comparison subsequently fails closed.
-            store.save(state)
-        if args.compare:
-            if state["stage"] not in {"explore", "compare"}:
-                raise ValueError("compare requires the campaign to be at explore or compare")
-            compare_state(state)
-            if state["stage"] == "explore":
-                validate_lifecycle_transition("explore", "compare", has_reference=bool(state["references"]))
-                state["stage"] = state["campaign"]["lifecycle_stage"] = "compare"
-                if "compare" not in state["stage_history"]:
-                    state["stage_history"].append("compare")
-        if args.advance:
-            if args.advance == "promote":
-                raise ValueError("use --promote EVIDENCE_ID from the explain stage")
-            validate_lifecycle_transition(
-                state["stage"], args.advance, has_reference=bool(state["references"]),
-            )
-            state["stage"] = args.advance
-            state["campaign"]["lifecycle_stage"] = args.advance
-            if not state["stage_history"] or state["stage_history"][-1] != args.advance:
-                state["stage_history"].append(args.advance)
-        if args.promote:
-            if state["stage"] not in {"explain", "promote"}:
-                raise ValueError("promote requires the campaign to be at explain or promote")
-            if args.promote not in state["frontier"]:
-                raise ValueError("only quality-constrained frontier evidence can be promoted")
-            promotion_violations = _promotion_constraint_violations(state, args.promote)
-            if promotion_violations:
-                raise ValueError("promotion constraints failed: " + "; ".join(promotion_violations))
-            state["promotion"] = args.promote
-            state["stage"] = "promote"
-            state["campaign"]["lifecycle_stage"] = "promote"
-            if "promote" not in state["stage_history"]:
-                state["stage_history"].append("promote")
-        store.save(state)
+        with store._locked() as state:
+            if args.record:
+                store.record(state, json.loads(args.record.read_text()))
+            if goal_reference:
+                _append_reference(state, goal_reference)
+            if against_reference:
+                _append_reference(state, against_reference)
+            if args.record or args.goal or args.against:
+                # Attachment and collection are valid independently of interpretation.
+                # Persist them even when a requested comparison subsequently fails closed.
+                store.save(state)
+            if args.compare:
+                if state["stage"] not in {"explore", "compare"}:
+                    raise ValueError("compare requires the campaign to be at explore or compare")
+                compare_state(state)
+                if state["stage"] == "explore":
+                    validate_lifecycle_transition("explore", "compare", has_reference=bool(state["references"]))
+                    state["stage"] = state["campaign"]["lifecycle_stage"] = "compare"
+                    if "compare" not in state["stage_history"]:
+                        state["stage_history"].append("compare")
+            if args.advance:
+                if args.advance == "promote":
+                    raise ValueError("use --promote EVIDENCE_ID from the explain stage")
+                validate_lifecycle_transition(
+                    state["stage"], args.advance, has_reference=bool(state["references"]),
+                )
+                state["stage"] = args.advance
+                state["campaign"]["lifecycle_stage"] = args.advance
+                if not state["stage_history"] or state["stage_history"][-1] != args.advance:
+                    state["stage_history"].append(args.advance)
+            if args.promote:
+                if state["stage"] not in {"explain", "promote"}:
+                    raise ValueError("promote requires the campaign to be at explain or promote")
+                if args.promote not in state["frontier"]:
+                    raise ValueError("only quality-constrained frontier evidence can be promoted")
+                promotion_violations = _promotion_constraint_violations(state, args.promote)
+                if promotion_violations:
+                    raise ValueError("promotion constraints failed: " + "; ".join(promotion_violations))
+                state["promotion"] = args.promote
+                state["stage"] = "promote"
+                state["campaign"]["lifecycle_stage"] = "promote"
+                if "promote" not in state["stage_history"]:
+                    state["stage_history"].append("promote")
+            # _locked() persists the state on a clean exit.
     except (CompatibilityError, OSError, ValueError, KeyError, json.JSONDecodeError) as error:
         if args.json:
             print(json.dumps({"error": str(error)}, sort_keys=True))
