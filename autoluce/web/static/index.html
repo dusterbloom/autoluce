@@ -14,14 +14,20 @@
         <a class="wordmark" href="/" aria-label="AutoLuce dashboard">AutoLuce</a>
         <p>Inference benchmark board</p>
       </div>
-      <div class="header-copy">
-        <strong>dFlash <span aria-hidden="true">vs</span> llama.cpp</strong>
-        <span>Same benchmark. The gap is the result.</span>
+      <div class="header-actions">
+        <nav class="view-nav" aria-label="Dashboard view">
+          <button class="view-toggle is-active" type="button" data-view="board" aria-pressed="true">Board</button>
+          <button class="view-toggle" type="button" data-view="explore" aria-pressed="false">Explore</button>
+        </nav>
+        <div class="header-copy">
+          <strong>dFlash <span aria-hidden="true">vs</span> llama.cpp</strong>
+          <span>Same benchmark. The gap is the result.</span>
+        </div>
       </div>
     </header>
 
     <main>
-      <section class="toolbar" aria-label="Campaign filters">
+      <section id="board-toolbar" class="toolbar" aria-label="Campaign filters">
         <div class="filter-group" role="group" aria-label="Filter by campaign status">
           <button class="filter is-active" type="button" data-filter="all" aria-pressed="true">All</button>
           <button class="filter" type="button" data-filter="measured" aria-pressed="false">Measured</button>
@@ -44,6 +50,7 @@
       </section>
 
       <section id="board" aria-live="polite" aria-busy="true"></section>
+      <section id="explore" aria-live="polite" aria-busy="true" hidden></section>
     </main>
 
     <footer class="site-footer">
@@ -62,6 +69,18 @@
       <button id="close-detail" class="icon-button" type="button" aria-label="Close campaign details">×</button>
     </div>
     <div id="detail-body" class="detail-panel__body"></div>
+  </aside>
+
+  <div id="lineage-backdrop" class="detail-backdrop lineage-backdrop" hidden></div>
+  <aside id="lineage" class="detail-panel lineage-panel" role="dialog" aria-modal="true" aria-labelledby="lineage-title" tabindex="-1" hidden>
+    <div class="detail-panel__header">
+      <div>
+        <p id="lineage-kicker" class="eyebrow">Lineage</p>
+        <h2 id="lineage-title">Run lineage</h2>
+      </div>
+      <button id="close-lineage" class="icon-button" type="button" aria-label="Close lineage">×</button>
+    </div>
+    <div id="lineage-body" class="detail-panel__body"></div>
   </aside>
 
   <script src="/static/app.js"></script>
