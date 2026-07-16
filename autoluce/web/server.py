@@ -14,6 +14,7 @@ from dispatch errors.
 
 from __future__ import annotations
 
+import argparse
 import json
 import mimetypes
 from pathlib import Path
@@ -217,5 +218,16 @@ def run_standalone(host: str = "127.0.0.1", port: int = 8766) -> None:
         server.server_close()
 
 
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Browse AutoLuce campaigns in a browser (read-only, no auth)"
+    )
+    parser.add_argument("--listen", default="127.0.0.1", help="bind address (default localhost)")
+    parser.add_argument("--port", type=int, default=8766, help="bind port")
+    args = parser.parse_args(argv)
+    run_standalone(host=args.listen, port=args.port)
+    return 0
+
+
 if __name__ == "__main__":
-    run_standalone()
+    raise SystemExit(main())

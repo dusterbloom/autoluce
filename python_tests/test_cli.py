@@ -38,6 +38,12 @@ def test_resolve_setup_maps_to_prepare():
     assert module == "autoluce.prepare"
 
 
+def test_resolve_web_maps_to_web_server():
+    module, args = resolve(["web", "--listen", "0.0.0.0", "--port", "8000"])
+    assert module == "autoluce.web.server"
+    assert args == ["--listen", "0.0.0.0", "--port", "8000"]
+
+
 @pytest.mark.parametrize("cmd", sorted(COMMANDS))
 def test_every_advertised_command_resolves_to_package_module(cmd):
     module, _ = resolve([cmd])

@@ -42,14 +42,6 @@ function hideTokenDialog() {
   document.getElementById('token-dialog').classList.add('hidden');
 }
 
-async function tryLoadCampaigns() {
-  if (!getToken()) {
-    showTokenDialog('Enter your coordinator token to view campaigns.');
-    return;
-  }
-  await loadCampaigns();
-}
-
 async function loadCampaigns() {
   const status = document.getElementById('status');
   try {
@@ -253,4 +245,4 @@ document.getElementById('token-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('token-save').click();
 });
 
-tryLoadCampaigns();
+loadCampaigns();
