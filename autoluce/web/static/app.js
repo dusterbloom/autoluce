@@ -96,7 +96,8 @@ function renderBoard() {
     html += `<section class="root-section"><h2 class="root-title">${ROOT_LABEL[root] || root}</h2>`;
     for (const family of names) {
       const items = families[family].slice().sort((a, b) => (a.variant || a.name).localeCompare(b.variant || b.name));
-      html += `<div class="family">
+      const cls = items.length === 1 ? "family family--single" : "family";
+      html += `<div class="${cls}">
         <div class="family-head"><span class="family-name">${escapeHtml(family)}</span><span class="family-count">${items.length}</span></div>
         ${renderFamilyChart(items)}
         <div class="cards">${items.map(renderCard).join('')}</div>
@@ -111,87 +112,79 @@ function renderCard(c) {
   const title = c.variant || c.name;
   const subtitle = c.variant ? c.name : `${c.system.model || '?'} · ${c.system.backend || '?'}`;
   const metric = objectiveMetric(c);
+  const unit = metricUnit(metric).trim();
+  const sp = c.sparkline || [];
+  const latest = sp.length ? sp[sp.length - 1] : null;
+  const distinct = sp.length >= 2 && new Set(sp).size >= 2;   // a genuine trend, not 1pt or duplicates
+  const valueBlock = latest !== null
+    ? `<div class="metric"><span class="metric-value">${latest.toFixed(latest >= 100 ? 0 : 1)}</span>${unit ? `<span class="metric-unit">${escapeHtml(unit)}</span>` : ''}</div>`
+    : `<div class="metric metric-empty">no measurement</div>`;
   return `<div class="card" data-id="${escapeHtml(c.id)}">
     <div class="card-title">${escapeHtml(title)}</div>
     <div class="card-meta">${escapeHtml(subtitle)}</div>
-    <div class="badges">
-      <span class="badge stage">${escapeHtml(c.stage)}</span>
+    <div class="card-badges">
       <span class="badge ${c.status}">${escapeHtml(c.status)}</span>
-      <span class="badge metric">${escapeHtml(metric)}</span>
+      <span class="badge stage">${escapeHtml(c.stage)}</span>
     </div>
-    ${renderSparkline(c.sparkline)}
-    <div class="stats">
-      <span title="evidence">ev ${c.evidence_count}</span>
-      <span title="frontier">fr ${c.frontier_count}</span>
-      <span title="references">ref ${c.reference_count}</span>
-    </div>
+    ${valueBlock}
+    ${distinct ? renderSparkline(sp) : ''}
+    <div class="stats"><span>ev ${c.evidence_count}</span><span>fr ${c.frontier_count}</span><span>ref ${c.reference_count}</span></div>
   </div>`;
 }
 
+// A real temporal trend only when there are >=2 distinct measurements. Otherwise
+// no chart -- an honest blank beats a flat line that pretends to be progression.
 function renderSparkline(values) {
-  if (!values || values.length < 2) return '';
-  const w = 120, h = 26;
+  const w = 120, h = 30;
   const min = Math.min(...values), max = Math.max(...values);
   const range = Math.max(max - min, 1e-9);
   const x = i => 1 + (i / (values.length - 1)) * (w - 2);
-  const y = v => h - 1 - ((v - min) / range) * (h - 2);
+  const y = v => h - 2 - ((v - min) / range) * (h - 4);
   const d = values.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const area = `M ${x(0).toFixed(1)} ${h} ` + values.map((v, i) => `L ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ') + ` L ${x(values.length - 1).toFixed(1)} ${h} Z`;
   return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-    <path d="${d}" fill="none" stroke="#5c7cfa" stroke-width="1.5"/>
-    <circle cx="${x(values.length - 1).toFixed(1)}" cy="${y(values[values.length - 1]).toFixed(1)}" r="2" fill="#5c7cfa"/>
+    <path d="${area}" fill="rgba(111,133,255,0.15)"/>
+    <path d="${d}" fill="none" stroke="#6f85ff" stroke-width="1.5"/>
   </svg>`;
 }
 
-// Overlay one metric across the campaigns of a family that share it. This is
-// where a family's variants (e.g. the normal-kv-prefill KV-cache sweep) become
-// comparable on one axis -- the W&B-style moment, honest because variants in a
-// family share metric and direction.
+// Cross-sectional comparison: one row per variant, dot at its latest objective
+// value. This is the honest view for a family of variants each measured ~once
+// (e.g. a KV-cache quant sweep) -- never a fake time-series line.
 function renderFamilyChart(campaigns) {
   const byMetric = {};
   for (const c of campaigns) {
-    if (!c.sparkline || c.sparkline.length === 0) continue;
-    const m = objectiveMetric(c);
-    (byMetric[m] = byMetric[m] || []).push(c);
+    const sp = c.sparkline || [];
+    if (!sp.length) continue;
+    (byMetric[objectiveMetric(c)] = byMetric[objectiveMetric(c)] || []).push(c);
   }
   const metric = Object.keys(byMetric).find(m => byMetric[m].length >= 2);
   if (!metric) return '';
-  return renderOverlay(metric, byMetric[metric]);
+  return renderLollipop(metric, byMetric[metric]);
 }
 
-function renderOverlay(metric, campaigns) {
-  const unit = metricUnit(metric);
-  const w = 540, h = 168;
-  const pad = { top: 12, right: 14, bottom: 26, left: 54 };
-  const iw = w - pad.left - pad.right, ih = h - pad.top - pad.bottom;
-  const all = campaigns.flatMap(c => c.sparkline);
-  const min = Math.min(...all), max = Math.max(...all);
-  const vrange = Math.max(max - min, 1e-9);
-  const maxLen = Math.max(...campaigns.map(c => c.sparkline.length));
-  const xSpan = Math.max(maxLen - 1, 1);
-  const x = i => pad.left + (i / xSpan) * iw;
-  const y = v => pad.top + ih - ((v - min) / vrange) * ih;
-
-  let yAxis = '';
-  const yTicks = 4;
-  for (let i = 0; i <= yTicks; i++) {
-    const v = min + (vrange * i / yTicks);
-    yAxis += `<line x1="${pad.left}" y1="${y(v).toFixed(1)}" x2="${w - pad.right}" y2="${y(v).toFixed(1)}" stroke="#2a2e36" stroke-dasharray="2"/>`;
-    yAxis += `<text x="${pad.left - 6}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end" fill="#9aa0a6" font-size="9">${v.toFixed(0)}</text>`;
-  }
-
-  let lines = '';
-  let legend = '';
-  campaigns.forEach((c, idx) => {
-    const col = PALETTE[idx % PALETTE.length];
-    const vals = c.sparkline;
-    const d = vals.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-    lines += `<path d="${d}" fill="none" stroke="${col}" stroke-width="2"/>`;
-    legend += `<span class="legend-item"><span class="legend-swatch" style="background:${col}"></span>${escapeHtml(c.variant || c.name)}</span>`;
-  });
-
-  return `<div class="family-chart">
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">${yAxis}${lines}</svg>
-    <div class="legend">${legend}</div>
+function renderLollipop(metric, campaigns) {
+  const unit = metricUnit(metric).trim();
+  const rows = campaigns.map(c => ({
+    label: c.variant || c.name,
+    value: (c.sparkline[c.sparkline.length - 1]),
+    status: c.status,
+  }));
+  const vals = rows.map(r => r.value);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = Math.max(max - min, 1e-9);
+  rows.sort((a, b) => b.value - a.value);  // best (maximize) on top
+  const body = rows.map(r => {
+    const pct = ((r.value - min) / range) * 100;
+    return `<div class="lol-row">
+      <span class="lol-label">${escapeHtml(r.label)}</span>
+      <span class="lol-track"><span class="lol-dot ${r.status}" style="left:${pct.toFixed(1)}%"></span></span>
+      <span class="lol-value">${r.value.toFixed(r.value >= 100 ? 0 : 1)}</span>
+    </div>`;
+  }).join('');
+  return `<div class="lollipop">
+    <div class="lol-title">${escapeHtml(metric)}${unit ? ` <span class="lol-unit">${escapeHtml(unit)}</span>` : ''}<span class="lol-hint">higher is better</span></div>
+    ${body}
   </div>`;
 }
 
