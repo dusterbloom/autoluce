@@ -38,6 +38,12 @@ def test_resolve_setup_maps_to_prepare():
     assert module == "autoluce.prepare"
 
 
+def test_resolve_workspace_maps_to_workspace_cli():
+    module, args = resolve(["workspace", "status", "--json"])
+    assert module == "autoluce.workspace_cli"
+    assert args == ["status", "--json"]
+
+
 @pytest.mark.parametrize("cmd", sorted(COMMANDS))
 def test_every_advertised_command_resolves_to_package_module(cmd):
     module, _ = resolve([cmd])

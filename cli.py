@@ -19,6 +19,7 @@ import sys
 # command -> (dotted module path, default_args, one-line help)
 COMMANDS: dict[str, tuple[str, list[str], str]] = {
     "source":    ("autoluce.source_cli",       [], "inspect Lucebox ownership, vendor provenance, and drift"),
+    "workspace": ("autoluce.workspace_cli",    [], "inventory workspaces and enforce safe lifecycle rules"),
     "agent":     ("autoluce.agent_cli",        [], "choose, build, review, and combine research tasks"),
     "join":      ("autoluce.fleet_cli",        ["join"], "join this machine to the team"),
     "submit":    ("autoluce.fleet_cli",        ["submit"], "submit a candidate to an available machine"),
