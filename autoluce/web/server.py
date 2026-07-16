@@ -204,6 +204,123 @@ def get_campaign(locator: str, root: Path | str | None = None) -> dict[str, Any]
     return None
 
 
+def _engine_rev(runtime: str) -> str | None:
+    # "lucebox:dflash-server-http@<gitrev>+..." -> "<gitrev>"
+    if "@" in runtime:
+        return runtime.split("@", 1)[1].split("+", 1)[0]
+    return None
+
+
+def _unit_of(metric: str) -> str:
+    return "tok/s" if str(metric).endswith("_tok_s") else ""
+
+
+def _outcome(delta_pct: Any, direction: str) -> str:
+    if delta_pct is None:
+        return "parity"
+    if abs(float(delta_pct)) < 1.0:
+        return "parity"
+    won = float(delta_pct) > 0 if direction != "minimize" else float(delta_pct) < 0
+    return "win" if won else "loss"
+
+
+def build_catalog(root: Path | str | None = None) -> dict[str, Any]:
+    """Composable read-only projection of every campaign into plot-able series.
+
+    Each ``RunSeries`` is one (campaign x engine x metric) with ordered points
+    plus lineage back to the campaign/evidence/code. Head-to-head rows also
+    yield a reference-engine series (llama.cpp/Prism) so dFlash vs baseline can
+    be overlaid, and a flat ``comparisons`` list with ``outcome`` for win/loss
+    filtering. ``facets`` enumerates the filterable dimensions.
+    """
+    base = _resolve_root(root)
+    series: list[dict[str, Any]] = []
+    comparisons: list[dict[str, Any]] = []
+    for path in _discover_campaign_paths(base):
+        state = _load_state(path)
+        if state is None:
+            continue
+        locator = _locator(path, base)
+        campaign = state["campaign"]
+        system = campaign.get("system", {})
+        runtime = system.get("runtime", "")
+        git_rev = _engine_rev(runtime)
+        _, family, _variant = _lineage(path, base)
+        name = campaign.get("name", "")
+        objective = campaign.get("objective", {})
+        metric = objective.get("metric")
+        direction = objective.get("direction", "maximize")
+
+        if metric:
+            points: list[dict[str, Any]] = []
+            evidence_ids: list[str] = []
+            binary_sha: str | None = None
+            for ev in state["evidence"]:
+                value = ev.get("metrics", {}).get(metric)
+                if value is None:
+                    continue
+                prov = ev.get("provenance", {})
+                x = ev.get("metrics", {}).get("context_tokens") or prov.get("context_tokens") or prov.get("label")
+                if x is None:
+                    x = len(points)
+                points.append({"x": x, "y": float(value), "evidence_id": ev.get("evidence_id")})
+                evidence_ids.append(ev.get("evidence_id"))
+                binary_sha = binary_sha or prov.get("binary_sha256") or prov.get("product_digest")
+            if points:
+                series.append({
+                    "series_id": f"{locator}:dFlash:{metric}",
+                    "label": f"{name} · dFlash",
+                    "campaign_locator": locator, "campaign_name": name, "family": family,
+                    "engine": "dFlash", "metric": metric, "unit": _unit_of(metric),
+                    "model": system.get("model"), "backend": system.get("backend"),
+                    "points": points,
+                    "lineage": {"campaign_locator": locator, "evidence_ids": evidence_ids,
+                                "git_rev": git_rev, "binary_sha256": binary_sha},
+                })
+
+        head_to_head = [c for c in state.get("comparisons", [])
+                        if isinstance(c, dict) and c.get("kind") == "head_to_head"]
+        reference_points: dict[str, list[dict[str, Any]]] = {}
+        for c in head_to_head:
+            c_metric = c.get("metric", metric)
+            c_direction = c.get("direction", direction)
+            x = c.get("label") if c.get("label") else c.get("context")
+            comparisons.append({
+                "campaign_locator": locator, "campaign_name": name, "family": family,
+                "label": c.get("label"), "context": c.get("context"), "metric": c_metric,
+                "engine_candidate": c.get("engine_candidate"), "value_candidate": c.get("value_candidate"),
+                "engine_reference": c.get("engine_reference"), "value_reference": c.get("value_reference"),
+                "delta_pct": c.get("delta_pct"),
+                "outcome": _outcome(c.get("delta_pct"), c_direction),
+                "candidate_evidence_id": c.get("candidate_evidence_id"),
+                "git_rev": git_rev,
+            })
+            reference_points.setdefault(c.get("engine_reference"), []).append(
+                {"x": x, "y": float(c["value_reference"])}
+            )
+        for engine, pts in reference_points.items():
+            series.append({
+                "series_id": f"{locator}:{engine}:{metric}",
+                "label": f"{name} · {engine}",
+                "campaign_locator": locator, "campaign_name": name, "family": family,
+                "engine": engine, "metric": metric, "unit": _unit_of(metric),
+                "model": system.get("model"), "backend": system.get("backend"),
+                "points": pts,
+                "lineage": {"campaign_locator": locator, "evidence_ids": [], "git_rev": None, "binary_sha256": None},
+            })
+
+    facets = {
+        "engines": sorted({s["engine"] for s in series}),
+        "metrics": sorted({s["metric"] for s in series}),
+        "models": sorted({s["model"] for s in series if s["model"]}),
+        "backends": sorted({s["backend"] for s in series if s["backend"]}),
+        "families": sorted({s["family"] for s in series}),
+        "contexts": sorted({p["x"] for s in series for p in s["points"] if isinstance(p["x"], int)}),
+        "outcomes": sorted({c["outcome"] for c in comparisons}),
+    }
+    return {"series": series, "comparisons": comparisons, "facets": facets, "generation": generation(root)}
+
+
 def is_webui_request(path: str) -> bool:
     parsed = urlparse(path).path
     return (
@@ -211,6 +328,7 @@ def is_webui_request(path: str) -> bool:
         or parsed.startswith("/static/")
         or parsed.startswith("/api/campaigns")
         or parsed == "/api/version"
+        or parsed == "/api/catalog"
     )
 
 
@@ -263,6 +381,9 @@ def web_dispatch(handler: Any) -> None:
 
     if path == "/api/version":
         return _json_response(handler, 200, {"generation": generation()})
+
+    if path == "/api/catalog":
+        return _json_response(handler, 200, build_catalog())
 
     if path.startswith("/api/campaigns/"):
         campaign_id = path[len("/api/campaigns/"):]
