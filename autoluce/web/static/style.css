@@ -121,6 +121,28 @@ body {
 
 .sparkline { width: 100%; height: 30px; display: block; }
 
+/* head-to-head: dFlash vs reference, per context */
+.h2h { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
+
+/* top Comparisons section: one row per head-to-head campaign */
+.comparisons-section { display: flex; flex-direction: column; gap: 8px; }
+.cmp-row { display: flex; align-items: center; gap: 14px; padding: 11px 14px; flex-wrap: wrap; }
+.cmp-name { font-weight: 650; font-size: .9rem; min-width: 150px; overflow-wrap: anywhere; }
+.cmp-cells { display: flex; gap: 14px; flex-wrap: wrap; }
+.cmp-cell { display: inline-flex; align-items: baseline; gap: 5px; font-size: .82rem; font-variant-numeric: tabular-nums; }
+.cmp-ctx { color: var(--muted); font-size: .72rem; }
+.cmp-vs { color: var(--muted); font-size: .72rem; }
+.h2h-head { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+.h2h-head .h2h-unit { color: var(--accent); text-transform: none; }
+.h2h-row { display: grid; grid-template-columns: 34px 1fr 60px; align-items: baseline; gap: 8px; font-size: .8rem; }
+.h2h-ctx { color: var(--muted); font-size: .72rem; font-variant-numeric: tabular-nums; }
+.h2h-pair { font-variant-numeric: tabular-nums; }
+.h2h-pair b { color: var(--text); }
+.h2h-vs { color: var(--muted); font-size: .72rem; }
+.h2h-delta { text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+.h2h-delta.up { color: var(--good); }
+.h2h-delta.down { color: var(--bad); }
+
 .stats { display: flex; gap: 10px; font-size: .7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* --- detail drawer ------------------------------------------------------- */

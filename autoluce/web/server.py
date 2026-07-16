@@ -97,6 +97,12 @@ def _campaign_view(path: Path, base: Path) -> dict[str, Any] | None:
     campaign = state["campaign"]
     campaign_id = state["campaign_id"]
     root, family, variant = _lineage(path, base)
+    head_to_head = [
+        {k: c[k] for k in ("context", "metric", "engine_candidate", "value_candidate",
+                           "engine_reference", "value_reference", "delta_pct") if k in c}
+        for c in state.get("comparisons", [])
+        if isinstance(c, dict) and c.get("kind") == "head_to_head"
+    ]
     return {
         "id": campaign_id,
         "campaign_id": campaign_id,
@@ -114,6 +120,7 @@ def _campaign_view(path: Path, base: Path) -> dict[str, Any] | None:
         "reference_count": len(state.get("references", [])),
         "promotion": state.get("promotion"),
         "sparkline": _metric_series(campaign, state["evidence"]),
+        "head_to_head": head_to_head,
     }
 
 

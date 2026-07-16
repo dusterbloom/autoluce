@@ -95,6 +95,13 @@ function renderBoard() {
   const roots = groupByTree(filtered);
 
   let html = '';
+  const comparisons = filtered.filter(c => c.head_to_head && c.head_to_head.length);
+  if (comparisons.length) {
+    html += `<section class="root-section comparisons-section">
+      <h2 class="root-title">Comparisons &mdash; dFlash vs llama.cpp</h2>
+      ${comparisons.map(renderComparisonRow).join('')}
+    </section>`;
+  }
   for (const root of ROOT_ORDER) {
     const families = roots[root];
     if (!families) continue;
@@ -126,6 +133,8 @@ function renderCard(c) {
   const valueBlock = latest !== null
     ? `<div class="metric"><span class="metric-value">${latest.toFixed(latest >= 100 ? 0 : 1)}</span>${unit ? `<span class="metric-unit">${escapeHtml(unit)}</span>` : ''}</div>`
     : `<div class="metric metric-empty">no measurement</div>`;
+  const hasH2H = c.head_to_head && c.head_to_head.length;
+  const body = hasH2H ? renderHeadToHead(c.head_to_head) : `${valueBlock}${distinct ? renderSparkline(sp) : ''}`;
   return `<div class="card" data-id="${escapeHtml(c.id)}">
     <div class="card-title">${escapeHtml(title)}</div>
     <div class="card-meta">${escapeHtml(subtitle)}</div>
@@ -134,14 +143,47 @@ function renderCard(c) {
       <span class="badge ${c.status}">${escapeHtml(c.status)}</span>
       <span class="badge stage">${escapeHtml(c.stage)}</span>
     </div>
-    ${valueBlock}
-    ${distinct ? renderSparkline(sp) : ''}
+    ${body}
     <div class="stats"><span>ev ${c.evidence_count}</span><span>fr ${c.frontier_count}</span><span>ref ${c.reference_count}</span></div>
+  </div>`;
+}
+
+// dFlash vs reference (llama.cpp) per context -- the head-to-head the board exists for.
+function renderHeadToHead(h2h) {
+  const ordered = h2h.slice().sort((a, b) => a.context - b.context);
+  const best = ordered.slice().sort((a, b) => Math.abs(b.delta_pct) - Math.abs(a.delta_pct))[0];
+  const rows = ordered.map(r => {
+    const ctx = r.context >= 1024 ? (r.context / 1024) + 'K' : r.context;
+    const sign = r.delta_pct >= 0 ? '+' : '';
+    const cls = r.delta_pct >= 0 ? 'up' : 'down';
+    return `<div class="h2h-row">
+      <span class="h2h-ctx">${ctx}</span>
+      <span class="h2h-pair"><b>${r.value_candidate.toFixed(0)}</b><span class="h2h-vs"> vs </span>${r.value_reference.toFixed(0)}</span>
+      <span class="h2h-delta ${cls}">${sign}${r.delta_pct.toFixed(2)}%</span>
+    </div>`;
+  }).join('');
+  return `<div class="h2h">
+    <div class="h2h-head">${escapeHtml(best.engine_candidate)} vs ${escapeHtml(best.engine_reference)} <span class="h2h-unit">${escapeHtml(metricUnit(best.metric).trim())}</span></div>
+    ${rows}
   </div>`;
 }
 
 // A real temporal trend only when there are >=2 distinct measurements. Otherwise
 // no chart -- an honest blank beats a flat line that pretends to be progression.
+// One-line summary for the top Comparisons section: dFlash vs llama.cpp across contexts.
+function renderComparisonRow(c) {
+  const cells = c.head_to_head.slice().sort((a, b) => a.context - b.context).map(r => {
+    const ctx = r.context >= 1024 ? (r.context / 1024) + 'K' : r.context;
+    const sign = r.delta_pct >= 0 ? '+' : '';
+    const cls = r.delta_pct >= 0 ? 'up' : 'down';
+    return `<span class="cmp-cell"><span class="cmp-ctx">${ctx}</span><b>${r.value_candidate.toFixed(0)}</b><span class="cmp-vs">vs</span>${r.value_reference.toFixed(0)}<span class="h2h-delta ${cls}">${sign}${r.delta_pct.toFixed(1)}%</span></span>`;
+  }).join('');
+  return `<div class="cmp-row card" data-id="${escapeHtml(c.id)}">
+    <span class="cmp-name">${escapeHtml(c.variant || c.name)}</span>
+    <span class="cmp-cells">${cells}</span>
+  </div>`;
+}
+
 function renderSparkline(values) {
   const w = 120, h = 30;
   const min = Math.min(...values), max = Math.max(...values);

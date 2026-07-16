@@ -1,0 +1,17 @@
+{
+  "artifact_hash": "dflash:8192",
+  "metrics": {
+    "context_tokens": 8192,
+    "prefill_tok_s": 1393.73
+  },
+  "provenance": {
+    "context_tokens": 8192,
+    "engine": "dFlash"
+  },
+  "quality": {
+    "correctness": {
+      "kind": "numeric-kernel-parity",
+      "passed": true
+    }
+  }
+}
