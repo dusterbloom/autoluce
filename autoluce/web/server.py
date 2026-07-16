@@ -146,6 +146,24 @@ def _plot_data(campaign: dict[str, Any], evidence: list[dict[str, Any]]) -> dict
     }
 
 
+def generation(root: Path | str | None = None) -> int:
+    """A cheap change-generation for the discovered campaign tree.
+
+    Millisecond max-mtime over each campaign contract and its state file. Every
+    ingest/advance/promote rewrites ``state.json`` atomically, so this moves on
+    any durable change; clients poll it to decide whether to re-fetch the board.
+    """
+    base = _resolve_root(root)
+    mtimes: list[float] = []
+    for path in _discover_campaign_paths(base):
+        for candidate in (path, path.with_suffix(path.suffix + ".state.json")):
+            try:
+                mtimes.append(candidate.stat().st_mtime)
+            except OSError:
+                pass
+    return int(max(mtimes) * 1000) if mtimes else 0
+
+
 def get_campaign(campaign_id: str, root: Path | str | None = None) -> dict[str, Any] | None:
     base = _resolve_root(root)
     for path in _discover_campaign_paths(base):
@@ -167,7 +185,12 @@ def get_campaign(campaign_id: str, root: Path | str | None = None) -> dict[str, 
 
 def is_webui_request(path: str) -> bool:
     parsed = urlparse(path).path
-    return parsed == "/" or parsed.startswith("/static/") or parsed.startswith("/api/campaigns")
+    return (
+        parsed == "/"
+        or parsed.startswith("/static/")
+        or parsed.startswith("/api/campaigns")
+        or parsed == "/api/version"
+    )
 
 
 def is_public_webui(path: str) -> bool:
@@ -216,6 +239,9 @@ def web_dispatch(handler: Any) -> None:
 
     if path == "/api/campaigns":
         return _json_response(handler, 200, list_campaigns())
+
+    if path == "/api/version":
+        return _json_response(handler, 200, {"generation": generation()})
 
     if path.startswith("/api/campaigns/"):
         campaign_id = path[len("/api/campaigns/"):]

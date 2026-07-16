@@ -177,6 +177,42 @@ def test_summary_carries_tree_lineage(tmp_path):
     assert benchmark["variant"] == "run-a"
 
 
+def test_generation_bumps_when_campaign_state_changes(tmp_path):
+    import os
+    import time
+
+    rel = ".autoluce/research/demo/campaign.json"
+    _write_contract(tmp_path, rel)
+    before = web.generation(root=tmp_path)
+
+    # An ingest writes the campaign's state file -> the generation must move.
+    state_path = tmp_path / rel.replace("campaign.json", "campaign.json.state.json")
+    state_path.write_text('{"stage":"explore"}')
+    forced = time.time() + 5  # deterministic later mtime (production writes are seconds apart)
+    os.utime(state_path, (forced, forced))
+    after = web.generation(root=tmp_path)
+
+    assert isinstance(before, int)
+    assert after > before
+
+
+def test_dispatch_version_returns_generation(monkeypatch, tmp_path):
+    _write_contract(tmp_path, ".autoluce/research/demo/campaign.json", name="demo")
+    monkeypatch.setattr(web, "ROOT", tmp_path)
+
+    handler = _fake_handler(path="/api/version")
+    web.web_dispatch(handler)
+
+    assert handler.status == 200
+    payload = json.loads(handler.wfile.getvalue())
+    assert isinstance(payload["generation"], int)
+
+
+def test_version_route_is_a_webui_request():
+    assert web.is_webui_request("/api/version")
+    assert not web.is_public_webui("/api/version")
+
+
 def test_summary_sparkline_is_ordered_objective_series(tmp_path):
     path, campaign_id = _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
     _write_state(path, campaign_id, evidence=3, frontier=1)

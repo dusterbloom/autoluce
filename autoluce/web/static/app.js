@@ -344,4 +344,25 @@ document.getElementById('token-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('token-save').click();
 });
 
+// --- realtime: poll a cheap generation, reload only when it moves -----------
+// (visibility-aware; uses the authenticated apiFetch, so it works through the
+// token-gated coordinator too. EventSource can't send the bearer header.)
+let lastGeneration = null;
+
+async function checkVersion() {
+  if (document.visibilityState !== 'visible') return;
+  try {
+    const data = await (await apiFetch('/api/version')).json();
+    if (lastGeneration !== null && data.generation !== lastGeneration) {
+      loadCampaigns();
+    }
+    lastGeneration = data.generation;
+  } catch (_) { /* transient; the next tick retries */ }
+}
+
+setInterval(checkVersion, 5000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkVersion();
+});
+
 loadCampaigns();
