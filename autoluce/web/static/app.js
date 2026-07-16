@@ -65,6 +65,13 @@ function metricUnit(metric) {
   return metric && metric.endsWith('_tok_s') ? ' tok/s' : '';
 }
 
+function engineLabel(c) {
+  const rt = (c.system && c.system.runtime) || '';
+  if (/dflash|lucebox/i.test(rt)) return 'dFlash';
+  if (/llama/i.test(rt)) return 'llama.cpp';
+  return rt.split(':')[0] || '?';
+}
+
 function objectiveMetric(c) {
   return (c.objective && c.objective.metric) || 'score';
 }
@@ -123,6 +130,7 @@ function renderCard(c) {
     <div class="card-title">${escapeHtml(title)}</div>
     <div class="card-meta">${escapeHtml(subtitle)}</div>
     <div class="card-badges">
+      <span class="badge engine">${escapeHtml(engineLabel(c))}</span>
       <span class="badge ${c.status}">${escapeHtml(c.status)}</span>
       <span class="badge stage">${escapeHtml(c.stage)}</span>
     </div>

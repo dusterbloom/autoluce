@@ -109,6 +109,7 @@ body {
   padding: 2px 7px; border-radius: 999px; background: #1c2531; color: var(--muted);
 }
 .badge.stage { background: #1c2531; color: var(--muted); }
+.badge.engine { background: rgba(210,153,34,.14); color: var(--warn); }
 .badge.planned { background: rgba(139,151,167,.15); color: var(--muted); }
 .badge.measured { background: rgba(111,133,255,.16); color: var(--accent); }
 .badge.promoted { background: rgba(63,185,80,.16); color: var(--good); }
