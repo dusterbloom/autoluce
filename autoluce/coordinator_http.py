@@ -40,6 +40,7 @@ from autoluce.coordination import (
     JoinRequest,
     Worker,
 )
+from autoluce.web.server import is_public_webui, is_webui_request, web_dispatch
 
 
 MAX_PATCH_BYTES = 32 * 1024 * 1024
@@ -323,6 +324,21 @@ def create_server(
             raise ValueError("unsupported coordinator operation")
 
         def _handle(self) -> None:
+            # The WebUI owns the browser surface ("/", "/static/*", and
+            # "/api/campaigns/*"); the coordinator owns "/v1/*". Static assets
+            # are public so a browser can load the login prompt; every other
+            # path, WebUI API included, is token-protected.
+            if is_webui_request(self.path):
+                if not is_public_webui(self.path) and not self._authorized():
+                    self._send(401, {"error": "coordinator authentication failed"})
+                    return
+                try:
+                    web_dispatch(self)
+                except ValueError as error:
+                    self._send(404, {"error": str(error)})
+                except Exception as error:
+                    self._send(500, {"error": str(error)})
+                return
             if not self._authorized():
                 self._send(401, {"error": "coordinator authentication failed"})
                 return

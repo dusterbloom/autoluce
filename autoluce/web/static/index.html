@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoLuce WebUI</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>AutoLuce</h1>
+    <nav>
+      <button class="filter active" data-filter="all">All</button>
+      <button class="filter" data-filter="planned">Planned</button>
+      <button class="filter" data-filter="measured">Measured</button>
+      <button class="filter" data-filter="promoted">Promoted</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="token-dialog" class="hidden">
+      <h2>AutoLuce WebUI</h2>
+      <p>This server requires a coordinator token.</p>
+      <input type="password" id="token-input" placeholder="Paste token here">
+      <button id="token-save">Open</button>
+      <p id="token-error" class="empty"></p>
+    </section>
+
+    <section id="board">
+      <div class="column" data-stage="observe"><h2>Observe</h2></div>
+      <div class="column" data-stage="discover"><h2>Discover</h2></div>
+      <div class="column" data-stage="explore"><h2>Explore</h2></div>
+      <div class="column" data-stage="compare"><h2>Compare</h2></div>
+      <div class="column" data-stage="explain"><h2>Explain</h2></div>
+      <div class="column" data-stage="promote"><h2>Promote</h2></div>
+    </section>
+
+    <section id="detail" class="hidden">
+      <button id="close-detail">&times;</button>
+      <h2 id="detail-title">Campaign</h2>
+      <div id="detail-body"></div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="status">Loading campaigns...</span>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
