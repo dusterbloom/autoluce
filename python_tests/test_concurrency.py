@@ -136,3 +136,48 @@ def test_log_result_appends_without_changing_best(tmp_path):
     f.log_result("crash1", _summary(0.0, 0.0), "crash", "boom")
     assert _best_score(tmp_path) == 100.0  # frontier untouched
     assert "crash" in _data_rows(tmp_path)[-1]
+
+
+# --- sample-backed claims (Welch gate) ------------------------------------------
+
+
+def _sampled_summary(score: float, samples: list[float], sigma: float = 0.01) -> dict:
+    summary = _summary(score, sigma)
+    summary["score_samples"] = samples
+    return summary
+
+
+def test_sample_backed_clear_win_claims_and_persists_samples(tmp_path):
+    f = LockedFrontier(tmp_path)
+    f.claim_best_if_significant("c1", _sampled_summary(100.0, [99.0, 100.0, 101.0]), "first")
+    result = f.claim_best_if_significant("c2", _sampled_summary(110.0, [109.0, 110.0, 111.0]), "better")
+    assert result.claimed is True
+    best = json.loads((tmp_path / ".best_score.json").read_text())
+    assert best["score_samples"] == [109.0, 110.0, 111.0]
+
+
+def test_sample_backed_overlapping_claim_is_rejected(tmp_path):
+    f = LockedFrontier(tmp_path)
+    f.claim_best_if_significant("c1", _sampled_summary(100.0, [99.0, 100.0, 101.0]), "first")
+    # Mean 100.23 with overlapping spread: a point-estimate bump inside the noise.
+    noisy = _sampled_summary(100.23, [100.2, 101.0, 99.5], sigma=0.76)
+    result = f.claim_best_if_significant("c2", noisy, "within noise")
+    assert result.claimed is False
+    assert _best_score(tmp_path) == 100.0
+
+
+def test_mixed_sigma_candidate_against_sampled_best_uses_legacy_gate(tmp_path):
+    f = LockedFrontier(tmp_path)
+    f.claim_best_if_significant("c1", _sampled_summary(100.0, [99.0, 100.0, 101.0]), "first")
+    # Sigma-only candidate: no samples on one side -> legacy k*sigma comparison.
+    result = f.claim_best_if_significant("c2", _summary(150.0, 1.0), "big win")
+    assert result.claimed is True
+
+
+def test_set_best_persists_samples_for_later_welch_claims(tmp_path):
+    f = LockedFrontier(tmp_path)
+    f.set_best("base", _sampled_summary(100.0, [99.0, 100.0, 101.0]), "baseline")
+    best = json.loads((tmp_path / ".best_score.json").read_text())
+    assert best["score_samples"] == [99.0, 100.0, 101.0]
+    result = f.claim_best_if_significant("c2", _sampled_summary(110.0, [109.0, 110.0, 111.0]), "better")
+    assert result.claimed is True

@@ -8,6 +8,21 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Statistical core (`autoluce/bench/statistics.py`)**: pure, dependency-free
+  primitives for research decisions — Welch's two-sample t-test, one-sample
+  t-test on paired ABBA block deltas (interleaved designs cancel slow machine
+  drift), Holm and Benjamini-Hochberg multiple-comparison corrections, standard
+  error, and log-scale uncertainty propagation for geometric-mean aggregation.
+  Student's t p-values are computed through the regularized incomplete beta
+  function (Lentz continued fraction) and verified against published t-table
+  quantiles. The frontier gate now prefers a sample-aware Welch comparison
+  (`is_significant_improvement_samples`, alpha 0.05) whenever both sides carry
+  real per-repetition `score_samples`, falling back to the legacy k-sigma
+  margin otherwise. `LockedFrontier` persists `score_samples` in
+  `.best_score.json`, and the harness forwards them for single-benchmark runs
+  (pooling raw samples across benchmarks or context cells is not iid and is
+  deliberately not fabricated). Context-cell aggregation now propagates
+  uncertainty on the log scale, matching the geometric-mean score it describes.
 - **Bonsai-27B Q1 native DSpark matched diagnostic and frontier probes** (RTX 3090,
   WSL2, CUDA 12.6, Lucebox `b19b95e`, Prism `b9591-62061f9`): archived raw AR and
   DSpark requests, responses, logs, runtime properties, hashes, and GPU snapshots for

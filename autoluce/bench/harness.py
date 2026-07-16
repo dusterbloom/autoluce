@@ -30,6 +30,7 @@ from pathlib import Path
 from experiment import apply_experiment, get_cmake_flags, get_runtime_flags, reset_lucebox
 from autoluce.bench.objective import check_constraints, context_regression_metrics, objective_metric
 from autoluce.bench.profiling import detect_backend, profile_command
+from autoluce.bench.statistics import geometric_mean_with_stddev
 from autoluce.bench.telemetry import TelemetryCollector
 from autoluce.bench.uncertainty import propagate_score_stddev
 from autoluce.runtime.dflash_http import (
@@ -317,20 +318,22 @@ def benchmark_with_llama_bench(
     return metrics
 
 
-def _geometric_mean(values: list[float]) -> float:
-    if not values or any(value <= 0 for value in values):
-        return 0.0
-    return math.exp(sum(math.log(value) for value in values) / len(values))
-
-
 def aggregate_context_metrics(cells: list[dict], primary_count: int = 2) -> dict:
     """Aggregate depth cells while keeping each cell available for constraints."""
     primary = cells[:primary_count]
+    decode_mean, decode_sigma = geometric_mean_with_stddev(
+        [cell["decode_tok_s"] for cell in primary],
+        [cell.get("decode_tok_s_stddev", 0.0) for cell in primary],
+    )
+    prefill_mean, prefill_sigma = geometric_mean_with_stddev(
+        [cell["prefill_tok_s"] for cell in primary],
+        [cell.get("prefill_tok_s_stddev", 0.0) for cell in primary],
+    )
     result = {
-        "decode_tok_s": _geometric_mean([cell["decode_tok_s"] for cell in primary]),
-        "decode_tok_s_stddev": math.sqrt(sum(cell.get("decode_tok_s_stddev", 0.0) ** 2 for cell in primary)) / max(1, len(primary)),
-        "prefill_tok_s": _geometric_mean([cell["prefill_tok_s"] for cell in primary]),
-        "prefill_tok_s_stddev": math.sqrt(sum(cell.get("prefill_tok_s_stddev", 0.0) ** 2 for cell in primary)) / max(1, len(primary)),
+        "decode_tok_s": decode_mean,
+        "decode_tok_s_stddev": decode_sigma,
+        "prefill_tok_s": prefill_mean,
+        "prefill_tok_s_stddev": prefill_sigma,
         "peak_mem_GiB": max(cell["peak_mem_GiB"] for cell in cells),
         "context_metrics": cells,
     }
@@ -731,7 +734,7 @@ def run_single_benchmark(
     score_metric = objective_metric(benchmark)
     score = 0.0 if violations else compute_score(metrics, correct, benchmark)
 
-    return {
+    result = {
         "benchmark": benchmark_name,
         "score": score,
         "score_stddev": propagate_score_stddev(metrics, score_metric) if score else 0.0,
@@ -739,6 +742,13 @@ def run_single_benchmark(
         **metrics,
         "correctness_details": details,
     }
+    score_samples = metrics.get(f"{score_metric}_samples")
+    if score and score_samples:
+        # Real per-repetition samples of the score metric: let the frontier gate
+        # use a Welch t-test instead of the sigma margin. Absent for aggregated
+        # context cells (not iid) and simulated metrics (no samples by design).
+        result["score_samples"] = [float(sample) for sample in score_samples]
+    return result
 
 
 def aggregate_scores(results: list[dict]) -> dict[str, float]:
@@ -756,6 +766,10 @@ def aggregate_scores(results: list[dict]) -> dict[str, float]:
     rates = [r["acceptance_rate"] for r in results if "acceptance_rate" in r]
     if rates:  # diagnostic only; absent when no benchmark used a draft model
         agg["acceptance_rate"] = sum(rates) / len(rates)
+    if len(results) == 1 and results[0].get("score_samples"):
+        # Only a single benchmark's samples are iid repetitions of one workload;
+        # pooling raw samples across benchmarks would fabricate a variance.
+        agg["score_samples"] = list(results[0]["score_samples"])
     return agg
 
 

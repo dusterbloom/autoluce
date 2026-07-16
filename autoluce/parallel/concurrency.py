@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
-from autoluce.bench.uncertainty import is_significant_improvement
+from autoluce.bench.uncertainty import is_significant_improvement, is_significant_improvement_samples
 
 RESULTS_HEADER = (
     "commit\tscore\tscore_stddev\tdecode_tok_s\t"
@@ -52,12 +52,13 @@ class ClaimResult:
 class LockedFrontier:
     """Serialized read/claim access to the shared frontier + results log."""
 
-    def __init__(self, root: Path, k: float = 1.0) -> None:
+    def __init__(self, root: Path, k: float = 1.0, alpha: float = 0.05) -> None:
         self.root = root
         self.best_path = root / ".best_score.json"
         self.results_path = root / "results.tsv"
         self.lock_path = root / ".autoluce.lock"
         self.k = k
+        self.alpha = alpha
 
     def read_best(self) -> dict:
         with file_lock(self.lock_path):
@@ -73,6 +74,7 @@ class LockedFrontier:
                 float(summary.get("score", 0.0)),
                 float(summary.get("score_stddev", 0.0)),
                 commit,
+                summary.get("score_samples"),
             )
 
     def log_result(self, commit: str, summary: dict, status: str, description: str) -> None:
@@ -94,10 +96,16 @@ class LockedFrontier:
             best_sigma = float(best.get("score_stddev", 0.0))
             score = float(summary.get("score", 0.0))
             sigma = float(summary.get("score_stddev", 0.0))
-            claimed = is_significant_improvement(score, sigma, best_score, best_sigma, self.k)
+            new_samples = summary.get("score_samples")
+            best_samples = best.get("score_samples")
+            if new_samples and best_samples:
+                # Both sides carry per-repetition samples: real Welch t-test.
+                claimed = is_significant_improvement_samples(new_samples, best_samples, self.alpha)
+            else:
+                claimed = is_significant_improvement(score, sigma, best_score, best_sigma, self.k)
             self._append_result_unlocked(commit, summary, "keep" if claimed else "discard", description)
             if claimed:
-                self._write_best_unlocked(score, sigma, commit)
+                self._write_best_unlocked(score, sigma, commit, new_samples)
             return ClaimResult(claimed=claimed, best_commit=commit if claimed else best.get("commit", ""))
 
     def _read_best_unlocked(self) -> dict:
@@ -105,13 +113,16 @@ class LockedFrontier:
             return {}
         return json.loads(self.best_path.read_text())
 
-    def _write_best_unlocked(self, score: float, score_stddev: float, commit: str) -> None:
-        self.best_path.write_text(json.dumps({
+    def _write_best_unlocked(self, score: float, score_stddev: float, commit: str, score_samples=None) -> None:
+        record = {
             "score": score,
             "score_stddev": score_stddev,
             "commit": commit,
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, indent=2))
+        }
+        if score_samples:
+            record["score_samples"] = [float(sample) for sample in score_samples]
+        self.best_path.write_text(json.dumps(record, indent=2))
 
     def _append_result_unlocked(self, commit: str, summary: dict, status: str, description: str) -> None:
         is_new = not self.results_path.exists()
