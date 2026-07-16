@@ -1,0 +1,24 @@
+{
+  "status": "rejected",
+  "prompt": "Implement quicksort in Python.",
+  "max_tokens": 400,
+  "target": "Bonsai-27B-Q1_0.gguf",
+  "draft": "dflash-draft-3.6-q4_k_m.gguf",
+  "reason": "The shape-compatible Qwen3.6 drafter was trained for a different target and has unusably low acceptance against Bonsai.",
+  "probes": [
+    {
+      "mode": "width-16 chain",
+      "decode_tok_s": 63.2,
+      "accept_rate": 0.1875,
+      "warmups": 1,
+      "measured_repetitions": 1
+    },
+    {
+      "mode": "DDTree budget 22",
+      "decode_tok_s": 62.1,
+      "accept_rate": 0.16508151590824127,
+      "warmups": 1,
+      "measured_repetitions": 1
+    }
+  ]
+}

@@ -1,0 +1,1870 @@
+{
+  "schema_version": 1,
+  "kind": "autoluce.performance.abba",
+  "provenance": {
+    "started_at": "2026-07-13T11:31:29+0200",
+    "finished_at": "2026-07-13T11:37:49+0200",
+    "source_commit": "0e0023649131a23f45d58be71f2bfc60d6cd25a0",
+    "upstream_patch_commit": "9725a313be0528214c4a02fed906ddaf7b3f712e",
+    "machine": {
+      "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+      "gpu": "NVIDIA GeForce RTX 3090, GPU-3307b546-fd93-b443-8e4d-27a437ad0082, 610.62, 24576, 8.6, 301.00"
+    },
+    "artifacts": {
+      "clean": {
+        "checkout": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-control",
+        "git_commit": "0e0023649131a23f45d58be71f2bfc60d6cd25a0",
+        "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "mmq_git_blob": "d8df400fbc3a1eee2049a810089f395e5ba2d7a2",
+        "mmq_sha256": "e21c6eadae9471de24924076da084b1fa3e36e8ef2bb5dfc63ed5d3be3b239c4",
+        "binary_sha256": "8ad8a9fa53e54ef640f1503527c1990455811fa19bae8b8f0fc736004d693ad0",
+        "binary_size": 14452912,
+        "toolchain": {
+          "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2024 NVIDIA Corporation\nBuilt on Tue_Oct_29_23:50:19_PDT_2024\nCuda compilation tools, release 12.6, V12.6.85\nBuild cuda_12.6.r12.6/compiler.35059454_0",
+          "cxx": "g++-11 (Ubuntu 11.5.0-1ubuntu1~24.04.1) 11.5.0",
+          "build_type": "Release",
+          "cuda_architectures": "86",
+          "parallelism": 4
+        }
+      },
+      "candidate": {
+        "checkout": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr",
+        "git_commit": "0e0023649131a23f45d58be71f2bfc60d6cd25a0",
+        "tracked_diff_sha256": "9daf8c100aba12868e9fb62bfb17f174748d620b08afecd0d7cf6ac1d13e9f08",
+        "mmq_git_blob": "b867d39653c19cf4efd3bb7809e8b43572a79a6e",
+        "mmq_sha256": "2d48a8fb6c18113aee4128700fa46b3bc5465f9c100b039ca48dd572378eae9f",
+        "binary_sha256": "dddb7db95cd7c54d0a2d0c84b8ab0f3dc30cd5daf7f5153217d5b42c1669b232",
+        "binary_size": 14452912,
+        "toolchain": {
+          "nvcc": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2024 NVIDIA Corporation\nBuilt on Tue_Oct_29_23:50:19_PDT_2024\nCuda compilation tools, release 12.6, V12.6.85\nBuild cuda_12.6.r12.6/compiler.35059454_0",
+          "cxx": "g++-11 (Ubuntu 11.5.0-1ubuntu1~24.04.1) 11.5.0",
+          "build_type": "Release",
+          "cuda_architectures": "86",
+          "parallelism": 4
+        }
+      }
+    },
+    "model_path": "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+    "model_sha256": "8a3365759dc1b33b52c4e7d91d5a67d5ee1418e8408aa54196f04a98da53e5dc"
+  },
+  "workload": {
+    "contexts": [
+      1024,
+      8192
+    ],
+    "batch_shape": {
+      "batch": 1,
+      "ubatch": "runtime-default"
+    },
+    "mode": "prefill",
+    "prompts": "salted synthetic prompts from parity_iq4xs/driver.py",
+    "server_ctx": 8448,
+    "cache_type_k": "f16",
+    "cache_type_v": "f16",
+    "sampling": {
+      "temperature": 0,
+      "top_k": 1,
+      "seed": 42,
+      "n_predict": 128
+    },
+    "repetitions": {
+      "order": "A-B-B-A",
+      "warmup_per_cell": 1,
+      "measured_per_phase_cell": 5
+    },
+    "prefix_cache": "disabled at server and request levels"
+  },
+  "objective": {
+    "metric": "prefill_tok_s",
+    "direction": "maximize"
+  },
+  "constraints": {
+    "same_machine": true,
+    "same_model": true,
+    "same_workload": true,
+    "candidate_operator_oracle": "5/5 IQ4_XS CPU-vs-CUDA cases passed"
+  },
+  "phases": {
+    "clean_a": {
+      "result": {
+        "arm": "dflash",
+        "binary": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-control/build-cuda-sm86/dflash_server",
+        "binary_md5": "f8599143eb4327e66fbecd75635e7fc8",
+        "lucebox_git_rev": "0e0023649131a23f45d58be71f2bfc60d6cd25a0",
+        "lucebox_checkout_dirty": true,
+        "lucebox_dirty_files": [
+          "?? build-cuda-sm86/"
+        ],
+        "command": [
+          "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-control/build-cuda-sm86/dflash_server",
+          "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "52987",
+          "--max-ctx",
+          "8448",
+          "--prefix-cache-slots",
+          "0",
+          "--prefill-cache-slots",
+          "0",
+          "--cache-type-k",
+          "f16",
+          "--cache-type-v",
+          "f16"
+        ],
+        "cache_type_k": "f16",
+        "cache_type_v": "f16",
+        "server_ctx": 8448,
+        "flash_attention": "always-on (no CLI toggle in dflash_server; fa-window=0 means full FA)",
+        "cells": {
+          "1024": {
+            "raw_reps": [
+              {
+                "text": "It appears you have provided a log line or configuration string from a cryptographic or hardware security context, specifically mentioning **AutoLuce**, **parity**, **salt**, and a large block of `x` characters.\n\nHere\u2019s a breakdown of what this likely represents:\n\n### 1. **AutoLuce**\n- This is likely a proprietary or internal name for a cryptographic module, hardware security module (HSM), secure element, or a specific algorithm implementation. It is not a widely recognized public cryptographic standard (like AES, SHA-256, etc.), so it may be from a specific vendor or research project.\n\n",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1300.8558262014485,
+                "decode_tok_s": 43.4,
+                "prefill_ms": 759.5,
+                "decode_ms": 2946.3,
+                "wall_s": 3.7100931520108134
+              },
+              {
+                "text": "The input provided appears to be a log or output string from a cryptographic or hardware security test, specifically referencing **AutoLuce** (likely a typo or variant of **AutoLFSR**, **AutoLFSR parity**, or a specific hardware security module/test suite) with parameters:\n\n- **parity**: Indicates a parity check is being performed.\n- **salt depth=1024**: Suggests a 1024-bit salt or state space.\n- **rep=1**: One repetition of the test.\n- The long sequence of `x` characters likely represents:\n  - A placeholder",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1303.4300791556727,
+                "decode_tok_s": 43.6,
+                "prefill_ms": 758.0,
+                "decode_ms": 2937.7,
+                "wall_s": 3.7005131889600307
+              },
+              {
+                "text": "It appears that the input provided consists of a header line (`AutoLuce parity salt depth=1024 rep=2.`) followed by a large block of repeated `x` characters.\n\n**Analysis:**\n1.  **\"AutoLuce\"**: This term does not correspond to any widely recognized standard cryptographic algorithm, hashing function, or data format in public literature. It may be a proprietary tool, a specific project name, or a typo.\n2.  **\"parity salt depth=1024 rep=2\"**: These parameters suggest a cryptographic or data-processing context:\n    *   **Salt**:",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1300.513360537054,
+                "decode_tok_s": 43.5,
+                "prefill_ms": 759.7,
+                "decode_ms": 2944.3,
+                "wall_s": 3.7084399570012465
+              },
+              {
+                "text": "It appears that the input provided consists of a header line (`AutoLuce parity salt depth=1024 rep=3.`) followed by a large block of repeated characters (`x`).\n\nThis format does not contain a specific question, problem statement, or data payload that can be processed in a meaningful way. Here are a few possibilities for what you might have intended:\n\n1. **Placeholder Data**: If this is a test or placeholder, please provide the actual data or question you would like me to address.\n2. **Encoding Error**: If you intended to paste a file, code, or encrypted text, it may",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1307.224133368616,
+                "decode_tok_s": 44.9,
+                "prefill_ms": 755.8,
+                "decode_ms": 2849.8,
+                "wall_s": 3.6109023119788617
+              },
+              {
+                "text": "It appears that the input provided consists of a header line (`AutoLuce parity salt depth=1024 rep=4.`) followed by a large block of repeated `x` characters.\n\nThis format does not correspond to a standard computational problem, cryptographic challenge, or data format that I can directly process or solve without additional context. Specifically:\n\n1. **\"AutoLuce\"**: This is not a widely recognized standard algorithm, library, or protocol in computer science or cryptography. It may be a proprietary tool, a specific research project, or a typo.\n2. **\"parity salt depth=1024 rep",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1335.3155831869171,
+                "decode_tok_s": 44.6,
+                "prefill_ms": 739.9,
+                "decode_ms": 2868.9,
+                "wall_s": 3.613734106067568
+              }
+            ],
+            "prefix_cache_evidence": [
+              {
+                "rep": 0,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 1,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 2,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 3,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 4,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              }
+            ],
+            "warmup_prompt_tokens": 989
+          },
+          "8192": {
+            "raw_reps": [
+              {
+                "text": "Based on the input provided, it appears you are referencing a specific technical configuration or test case related to **AutoLuce** (likely a software library, hardware controller, or cryptographic module) with the following parameters:\n\n- **Parity**: Enabled or being tested.\n- **Salt Depth**: 8192 (possibly referring to a buffer size, iteration count, or memory depth).\n- **Rep**: 0 (likely indicating the first repetition or a specific test iteration).\n- **Data**: A long sequence of `x` characters, which typically represents placeholder data, a mask, or a specific input pattern in",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1295.5697107365813,
+                "decode_tok_s": 40.5,
+                "prefill_ms": 6295.3,
+                "decode_ms": 3157.1,
+                "wall_s": 9.457217501010746
+              },
+              {
+                "text": "Based on the output provided, here is the analysis:\n\n### **Result: PASS**\n\nThe output shows a sequence of `x` characters. In the context of **AutoLuce** (a hardware verification and testing tool often used for FPGA/ASIC validation), this specific pattern typically indicates that the **parity check passed** for all tested addresses or data words.\n\n*   **`parity salt depth=8192`**: The test checked 8192 locations/words.\n*   **`rep=1`**: The test was repeated once.\n*   **`x x x ...`**:",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1318.8661244158407,
+                "decode_tok_s": 41.7,
+                "prefill_ms": 6184.1,
+                "decode_ms": 3068.7,
+                "wall_s": 9.258096664911136
+              },
+              {
+                "text": "Based on the input provided, it appears you are referencing a specific cryptographic or computational benchmark configuration, likely related to **AutoLuce** (a library or tool for cryptographic operations, possibly involving lattice-based cryptography or hash functions) and a **parity check** or **salted hash** operation.\n\nHere\u2019s a breakdown of the parameters:\n\n- **`AutoLuce`**: Likely refers to a specific cryptographic library or benchmarking suite.\n- **`parity`**: Suggests a parity check operation, often used in error detection or as part of a hash function.\n- **`salt depth=8192",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1328.988104937266,
+                "decode_tok_s": 41.5,
+                "prefill_ms": 6137.0,
+                "decode_ms": 3086.6,
+                "wall_s": 9.228456784039736
+              },
+              {
+                "text": "Based on the input provided, it appears you are referencing a specific configuration or test case for **AutoLuce**, likely related to cryptographic hashing, error correction codes, or a specific benchmarking tool.\n\nHowever, the input consists of:\n1.  **Parameters:** `parity salt depth=8192 rep=3`\n2.  **Data:** A very long string of repeated `x` characters.\n\n### Interpretation & Analysis\n\n#### 1. **AutoLuce Context**\n\"AutoLuce\" is not a widely recognized standard cryptographic algorithm or library in public domains (like SHA-25",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1317.779357590642,
+                "decode_tok_s": 41.0,
+                "prefill_ms": 6189.2,
+                "decode_ms": 3121.8,
+                "wall_s": 9.316882857005112
+              },
+              {
+                "text": "Based on the input provided, it appears you are referencing a specific configuration or test case for **AutoLuce**, likely related to cryptographic hashing, error correction codes, or a specific benchmarking tool.\n\nHowever, the input consists of:\n1.  **Parameters**: `parity salt depth=8192 rep=4`\n2.  **Data**: A very long string of repeated `x` characters.\n\n### Analysis\n\n*   **AutoLuce**: This is not a widely recognized standard cryptographic algorithm or library in public documentation (as of 2024). It may be:\n    *  ",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1309.170291657972,
+                "decode_tok_s": 41.2,
+                "prefill_ms": 6229.9,
+                "decode_ms": 3107.9,
+                "wall_s": 9.343427718034945
+              }
+            ],
+            "prefix_cache_evidence": [
+              {
+                "rep": 0,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 1,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 2,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 3,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 4,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              }
+            ],
+            "warmup_prompt_tokens": 8157
+          }
+        }
+      },
+      "summary": {
+        "1024": {
+          "prefill_tok_s": {
+            "median": 1303.4300791556727,
+            "mean": 1309.4677964899415,
+            "best": 1335.3155831869171,
+            "min": 1300.513360537054,
+            "raw": [
+              1300.8558262014485,
+              1303.4300791556727,
+              1300.513360537054,
+              1307.224133368616,
+              1335.3155831869171
+            ]
+          },
+          "decode_tok_s": {
+            "median": 43.6,
+            "mean": 44.0,
+            "best": 44.9,
+            "min": 43.4,
+            "raw": [
+              43.4,
+              43.6,
+              43.5,
+              44.9,
+              44.6
+            ]
+          },
+          "wall_s": {
+            "median": 3.7005131889600307,
+            "mean": 3.6687365432037042,
+            "best": 3.6109023119788617,
+            "min": 3.6109023119788617,
+            "raw": [
+              3.7100931520108134,
+              3.7005131889600307,
+              3.7084399570012465,
+              3.6109023119788617,
+              3.613734106067568
+            ]
+          },
+          "prompt_tokens": {
+            "median": 988.0,
+            "mean": 988.0,
+            "best": 988.0,
+            "min": 988.0,
+            "raw": [
+              988.0,
+              988.0,
+              988.0,
+              988.0,
+              988.0
+            ]
+          }
+        },
+        "8192": {
+          "prefill_tok_s": {
+            "median": 1317.779357590642,
+            "mean": 1314.0747178676604,
+            "best": 1328.988104937266,
+            "min": 1295.5697107365813,
+            "raw": [
+              1295.5697107365813,
+              1318.8661244158407,
+              1328.988104937266,
+              1317.779357590642,
+              1309.170291657972
+            ]
+          },
+          "decode_tok_s": {
+            "median": 41.2,
+            "mean": 41.18,
+            "best": 41.7,
+            "min": 40.5,
+            "raw": [
+              40.5,
+              41.7,
+              41.5,
+              41.0,
+              41.2
+            ]
+          },
+          "wall_s": {
+            "median": 9.316882857005112,
+            "mean": 9.320816305000335,
+            "best": 9.228456784039736,
+            "min": 9.228456784039736,
+            "raw": [
+              9.457217501010746,
+              9.258096664911136,
+              9.228456784039736,
+              9.316882857005112,
+              9.343427718034945
+            ]
+          },
+          "prompt_tokens": {
+            "median": 8156.0,
+            "mean": 8156.0,
+            "best": 8156.0,
+            "min": 8156.0,
+            "raw": [
+              8156.0,
+              8156.0,
+              8156.0,
+              8156.0,
+              8156.0
+            ]
+          }
+        }
+      }
+    },
+    "candidate_b": {
+      "result": {
+        "arm": "dflash",
+        "binary": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/dflash_server",
+        "binary_md5": "830eeb86dabe9220ac2096807dcacf42",
+        "lucebox_git_rev": "0e0023649131a23f45d58be71f2bfc60d6cd25a0",
+        "lucebox_checkout_dirty": true,
+        "lucebox_dirty_files": [
+          "M server/CMakeLists.txt",
+          " M server/deps/llama.cpp/VENDOR.md",
+          " M server/deps/llama.cpp/ggml/src/ggml-cuda/mmq.cuh",
+          "?? build-cuda-sm86/",
+          "?? server/test/test_mmq_streamk_iq4_xs.cpp"
+        ],
+        "command": [
+          "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/dflash_server",
+          "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "35783",
+          "--max-ctx",
+          "8448",
+          "--prefix-cache-slots",
+          "0",
+          "--prefill-cache-slots",
+          "0",
+          "--cache-type-k",
+          "f16",
+          "--cache-type-v",
+          "f16"
+        ],
+        "cache_type_k": "f16",
+        "cache_type_v": "f16",
+        "server_ctx": 8448,
+        "flash_attention": "always-on (no CLI toggle in dflash_server; fa-window=0 means full FA)",
+        "cells": {
+          "1024": {
+            "raw_reps": [
+              {
+                "text": "The input provided appears to be a log line or configuration string from a cryptographic or hardware security context, specifically referencing **AutoLuce** (likely a typo or variant of **AutoLUC** or a specific proprietary system), **parity**, **salt**, and **depth=1024**.\n\nHowever, the string is followed by a very long sequence of `x` characters. This is unusual and likely indicates one of the following:\n\n1. **Truncated or Masked Data**: The `x`s may represent redacted or placeholder data (e.g., a hash, key, or encrypted payload) that was not fully",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1379.3103448275863,
+                "decode_tok_s": 43.9,
+                "prefill_ms": 716.3,
+                "decode_ms": 2914.5,
+                "wall_s": 3.635190804954618
+              },
+              {
+                "text": "The input provided appears to be a log line or configuration string from a cryptographic or hardware security context, specifically referencing **AutoLuce** (likely a typo or variant of **AutoLUC** or a specific proprietary tool/library), **parity**, **salt**, and **depth**.\n\nHowever, the string is followed by a very long sequence of `x` characters, which seems to be either:\n1. **Placeholder data** (e.g., representing a large block of memory, a hash, or a key).\n2. **Truncated or corrupted output**.\n3. **Intentional obfuscation**.\n\n###",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1363.8873550524572,
+                "decode_tok_s": 43.7,
+                "prefill_ms": 724.4,
+                "decode_ms": 2925.9,
+                "wall_s": 3.6546893009217456
+              },
+              {
+                "text": "It appears that the input provided consists of a header line (`AutoLuce parity salt depth=1024 rep=2.`) followed by a large block of repeated characters (`x`).\n\nThis format resembles a **benchmarking or stress-test output** for a cryptographic or hashing algorithm (possibly related to password hashing, such as Argon2, scrypt, or a custom implementation named \"AutoLuce\"). However, the body of the data is not valid hex, base64, or standard binary representation\u2014it is just the letter `x` repeated.\n\n### Possible Interpretations:\n\n1. **Placeholder or Corrupted",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1364.452423698384,
+                "decode_tok_s": 43.8,
+                "prefill_ms": 724.1,
+                "decode_ms": 2923.6,
+                "wall_s": 3.6520554430317134
+              },
+              {
+                "text": "It appears that the input provided consists of a header string (`AutoLuce parity salt depth=1024 rep=3.`) followed by a large block of repeated characters (`x`).\n\nThis format does not correspond to a standard cryptographic hash, a known cipher text, or a common data encoding scheme (such as Base64 or Hex) that can be directly decoded without additional context or a specific key.\n\n### Possible Interpretations:\n\n1. **Placeholder or Test Data**: The string may be dummy data used for testing a system's handling of large inputs or specific character patterns.\n2. **Custom Encoding**: If",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1364.8293963254594,
+                "decode_tok_s": 43.7,
+                "prefill_ms": 723.9,
+                "decode_ms": 2926.4,
+                "wall_s": 3.6550071390811354
+              },
+              {
+                "text": "It appears that the output you provided consists entirely of the character `x`, which typically indicates a **data corruption**, **buffer overflow**, **memory leak**, or a **failed initialization** in the context of cryptographic or hardware security testing (such as parity checks on salt values).\n\n### Analysis of the Input\n- **Context**: `AutoLuce parity salt depth=1024 rep=4` suggests a test or simulation involving:\n  - **AutoLuce**: Possibly a custom tool, library, or hardware module name.\n  - **Parity**: A check for data integrity (even/odd parity).\n",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1363.5109025669335,
+                "decode_tok_s": 43.8,
+                "prefill_ms": 724.6,
+                "decode_ms": 2923.0,
+                "wall_s": 3.6524289899971336
+              }
+            ],
+            "prefix_cache_evidence": [
+              {
+                "rep": 0,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 1,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 2,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 3,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 4,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              }
+            ],
+            "warmup_prompt_tokens": 989
+          },
+          "8192": {
+            "raw_reps": [
+              {
+                "text": "Based on the output provided, here is the analysis:\n\n### **Result: PASS**\n\nThe output shows a sequence of `x` characters. In the context of cryptographic benchmarking tools like **AutoLuce** (which tests implementations of cryptographic primitives such as hash functions, MACs, or ciphers), this pattern typically indicates that the **parity check passed** for all tested inputs.\n\n*   **`parity salt depth=8192`**: The test used a salt with a depth/size of 8192 bits (or bytes, depending on the specific implementation context, but usually bits in parity contexts",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1385.8727974036124,
+                "decode_tok_s": 41.3,
+                "prefill_ms": 5885.1,
+                "decode_ms": 3097.7,
+                "wall_s": 8.988236309960485
+              },
+              {
+                "text": "Based on the output provided, here is the analysis:\n\n### **Result: PASS**\n\nThe output shows a long sequence of `x` characters. In the context of the **AutoLuce** test suite (part of the **Lucee** Java-based CFML engine), this specific test (`parity salt depth=8192 rep=1`) is a stress test for the random number generator or cryptographic salt generation.\n\n*   **`x`** typically indicates a **successful** iteration or check in this specific verbose output format.\n*   If there were failures, you would usually see `f` (",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1380.430919215341,
+                "decode_tok_s": 41.3,
+                "prefill_ms": 5908.3,
+                "decode_ms": 3102.9,
+                "wall_s": 9.016891706967726
+              },
+              {
+                "text": "The output you provided appears to be a **parity check failure** or a **data corruption indicator** from a system named `AutoLuce`.\n\n### Breakdown of the Message:\n- **`AutoLuce`**: Likely the name of the software, hardware module, or test suite.\n- **`parity salt depth=8192`**: This suggests a cryptographic or error-checking operation involving:\n  - **Parity**: A simple error-detection method (checking if the number of 1s in a binary string is even or odd).\n  - **Salt**: Random data added to ensure uniqueness",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1382.0449384891722,
+                "decode_tok_s": 41.3,
+                "prefill_ms": 5901.4,
+                "decode_ms": 3098.2,
+                "wall_s": 9.004649727023207
+              },
+              {
+                "text": "Based on the input provided, it appears you are referencing a specific configuration or test case for **AutoLuce**, likely related to cryptographic hashing, error correction codes, or a specific benchmarking tool.\n\nHowever, the input consists of:\n1.  **Parameters**: `parity salt depth=8192 rep=3`\n2.  **Data**: A very long string of repeated `x` characters.\n\n### Analysis\n\n*   **AutoLuce**: This is not a widely recognized standard cryptographic algorithm or library in public documentation (as of 2024). It may be:\n    *  ",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1385.143167691315,
+                "decode_tok_s": 41.4,
+                "prefill_ms": 5888.2,
+                "decode_ms": 3089.5,
+                "wall_s": 8.982548178988509
+              },
+              {
+                "text": "It appears that the output you provided is a **test pattern** or a **debugging artifact** rather than actual data from an AutoLuce parity check.\n\nHere\u2019s a breakdown of what this likely means:\n\n### 1. **What is AutoLuce?**\nAutoLuce is not a widely recognized standard cryptographic or data integrity algorithm in public literature. It may be:\n- A proprietary internal tool or library.\n- A misspelling or variant of a known algorithm (e.g., **AutoLUC**, **Luce**, or a custom parity-checking utility).\n- A fictional or example name used",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1382.8416412343167,
+                "decode_tok_s": 41.3,
+                "prefill_ms": 5898.0,
+                "decode_ms": 3101.2,
+                "wall_s": 9.004653017036617
+              }
+            ],
+            "prefix_cache_evidence": [
+              {
+                "rep": 0,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 1,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 2,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 3,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 4,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              }
+            ],
+            "warmup_prompt_tokens": 8157
+          }
+        }
+      },
+      "summary": {
+        "1024": {
+          "prefill_tok_s": {
+            "median": 1364.452423698384,
+            "mean": 1367.198084494164,
+            "best": 1379.3103448275863,
+            "min": 1363.5109025669335,
+            "raw": [
+              1379.3103448275863,
+              1363.8873550524572,
+              1364.452423698384,
+              1364.8293963254594,
+              1363.5109025669335
+            ]
+          },
+          "decode_tok_s": {
+            "median": 43.8,
+            "mean": 43.78,
+            "best": 43.9,
+            "min": 43.7,
+            "raw": [
+              43.9,
+              43.7,
+              43.8,
+              43.7,
+              43.8
+            ]
+          },
+          "wall_s": {
+            "median": 3.6524289899971336,
+            "mean": 3.649874335597269,
+            "best": 3.635190804954618,
+            "min": 3.635190804954618,
+            "raw": [
+              3.635190804954618,
+              3.6546893009217456,
+              3.6520554430317134,
+              3.6550071390811354,
+              3.6524289899971336
+            ]
+          },
+          "prompt_tokens": {
+            "median": 988.0,
+            "mean": 988.0,
+            "best": 988.0,
+            "min": 988.0,
+            "raw": [
+              988.0,
+              988.0,
+              988.0,
+              988.0,
+              988.0
+            ]
+          }
+        },
+        "8192": {
+          "prefill_tok_s": {
+            "median": 1382.8416412343167,
+            "mean": 1383.2666928067515,
+            "best": 1385.8727974036124,
+            "min": 1380.430919215341,
+            "raw": [
+              1385.8727974036124,
+              1380.430919215341,
+              1382.0449384891722,
+              1385.143167691315,
+              1382.8416412343167
+            ]
+          },
+          "decode_tok_s": {
+            "median": 41.3,
+            "mean": 41.32,
+            "best": 41.4,
+            "min": 41.3,
+            "raw": [
+              41.3,
+              41.3,
+              41.3,
+              41.4,
+              41.3
+            ]
+          },
+          "wall_s": {
+            "median": 9.004649727023207,
+            "mean": 8.999395787995308,
+            "best": 8.982548178988509,
+            "min": 8.982548178988509,
+            "raw": [
+              8.988236309960485,
+              9.016891706967726,
+              9.004649727023207,
+              8.982548178988509,
+              9.004653017036617
+            ]
+          },
+          "prompt_tokens": {
+            "median": 8156.0,
+            "mean": 8156.0,
+            "best": 8156.0,
+            "min": 8156.0,
+            "raw": [
+              8156.0,
+              8156.0,
+              8156.0,
+              8156.0,
+              8156.0
+            ]
+          }
+        }
+      }
+    },
+    "candidate_b2": {
+      "result": {
+        "arm": "dflash",
+        "binary": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/dflash_server",
+        "binary_md5": "830eeb86dabe9220ac2096807dcacf42",
+        "lucebox_git_rev": "0e0023649131a23f45d58be71f2bfc60d6cd25a0",
+        "lucebox_checkout_dirty": true,
+        "lucebox_dirty_files": [
+          "M server/CMakeLists.txt",
+          " M server/deps/llama.cpp/VENDOR.md",
+          " M server/deps/llama.cpp/ggml/src/ggml-cuda/mmq.cuh",
+          "?? build-cuda-sm86/",
+          "?? server/test/test_mmq_streamk_iq4_xs.cpp"
+        ],
+        "command": [
+          "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-pr/build-cuda-sm86/dflash_server",
+          "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "34463",
+          "--max-ctx",
+          "8448",
+          "--prefix-cache-slots",
+          "0",
+          "--prefill-cache-slots",
+          "0",
+          "--cache-type-k",
+          "f16",
+          "--cache-type-v",
+          "f16"
+        ],
+        "cache_type_k": "f16",
+        "cache_type_v": "f16",
+        "server_ctx": 8448,
+        "flash_attention": "always-on (no CLI toggle in dflash_server; fa-window=0 means full FA)",
+        "cells": {
+          "1024": {
+            "raw_reps": [
+              {
+                "text": "The input provided appears to be a log line or configuration string from a cryptographic or hardware security context, specifically referencing **AutoLuce** (likely a typo or variant of **AutoLUC** or a specific proprietary system), **parity**, **salt**, and **depth=1024**.\n\nHowever, the string is followed by a very long sequence of `x` characters. This is unusual and likely indicates one of the following:\n\n1. **Truncated or Masked Data**: The `x`s may represent redacted or placeholder data (e.g., a hash, key, or encrypted payload) that was not fully",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1368.421052631579,
+                "decode_tok_s": 44.0,
+                "prefill_ms": 722.0,
+                "decode_ms": 2911.7,
+                "wall_s": 3.6385814949171618
+              },
+              {
+                "text": "The input provided appears to be a log line or configuration string from a cryptographic or hardware security context, specifically referencing **AutoLuce** (likely a typo or variant of **AutoLUC** or a specific proprietary tool/library), **parity**, **salt**, and **depth**.\n\nHowever, the string is followed by a very long sequence of `x` characters, which seems to be either:\n1. **Placeholder data** (e.g., representing a large block of memory, a hash, or a key).\n2. **Truncated or corrupted output**.\n3. **Intentional obfuscation**.\n\n###",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1372.2222222222222,
+                "decode_tok_s": 44.0,
+                "prefill_ms": 720.0,
+                "decode_ms": 2911.3,
+                "wall_s": 3.635688547976315
+              },
+              {
+                "text": "It appears that the input provided consists of a header line (`AutoLuce parity salt depth=1024 rep=2.`) followed by a large block of repeated characters (`x`).\n\nThis format resembles a **benchmarking or stress-test output** for a cryptographic or hashing algorithm (possibly related to password hashing, such as Argon2, scrypt, or a custom implementation named \"AutoLuce\"). However, the body of the data is not valid hex, base64, or standard binary representation\u2014it is just the letter `x` repeated.\n\n### Possible Interpretations:\n\n1. **Placeholder or Corrupted",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1369.5591904629887,
+                "decode_tok_s": 43.7,
+                "prefill_ms": 721.4,
+                "decode_ms": 2928.1,
+                "wall_s": 3.6547588070388883
+              },
+              {
+                "text": "It appears that the input provided consists of a header string (`AutoLuce parity salt depth=1024 rep=3.`) followed by a large block of repeated characters (`x`).\n\nThis format does not correspond to a standard cryptographic hash, a known cipher text, or a common data encoding scheme (such as Base64 or Hex) that can be directly decoded without additional context or a specific key.\n\n### Possible Interpretations:\n\n1. **Placeholder or Test Data**: The string may be dummy data used for testing a system's handling of large inputs or specific character patterns.\n2. **Custom Encoding**: If",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1366.5283540802213,
+                "decode_tok_s": 43.8,
+                "prefill_ms": 723.0,
+                "decode_ms": 2923.9,
+                "wall_s": 3.6520919400500134
+              },
+              {
+                "text": "It appears that the output you provided consists entirely of the character `x`, which typically indicates a **data corruption**, **buffer overflow**, **memory leak**, or a **failed initialization** in the context of cryptographic or hardware security testing (such as parity checks on salt values).\n\n### Analysis of the Input\n- **Context**: `AutoLuce parity salt depth=1024 rep=4` suggests a test or simulation involving:\n  - **AutoLuce**: Possibly a custom tool, library, or hardware module name.\n  - **Parity**: A check for data integrity (even/odd parity).\n",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1359.196588251479,
+                "decode_tok_s": 43.7,
+                "prefill_ms": 726.9,
+                "decode_ms": 2930.5,
+                "wall_s": 3.662450578995049
+              }
+            ],
+            "prefix_cache_evidence": [
+              {
+                "rep": 0,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 1,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 2,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 3,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 4,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              }
+            ],
+            "warmup_prompt_tokens": 989
+          },
+          "8192": {
+            "raw_reps": [
+              {
+                "text": "Based on the output provided, here is the analysis:\n\n### **Result: PASS**\n\nThe output shows a sequence of `x` characters. In the context of cryptographic benchmarking tools like **AutoLuce** (which tests implementations of cryptographic primitives such as hash functions, MACs, or ciphers), this pattern typically indicates that the **parity check passed** for all tested inputs.\n\n*   **`parity salt depth=8192`**: The test used a salt with a depth/size of 8192 bits (or bytes, depending on the specific implementation context, but usually bits in parity contexts",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1383.5923186537286,
+                "decode_tok_s": 41.4,
+                "prefill_ms": 5894.8,
+                "decode_ms": 3093.9,
+                "wall_s": 8.993802097043954
+              },
+              {
+                "text": "Based on the output provided, here is the analysis:\n\n### **Result: PASS**\n\nThe output shows a long sequence of `x` characters. In the context of the **AutoLuce** test suite (part of the **Lucee** Java-based CFML engine), this specific test (`parity salt depth=8192 rep=1`) is a stress test for the random number generator or cryptographic salt generation.\n\n*   **`x`** typically indicates a **successful** iteration or check in this specific verbose output format.\n*   If there were failures, you would usually see `f` (",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1384.0619060548465,
+                "decode_tok_s": 41.4,
+                "prefill_ms": 5892.8,
+                "decode_ms": 3092.3,
+                "wall_s": 8.99066573602613
+              },
+              {
+                "text": "The output you provided appears to be a **parity check failure** or a **data corruption indicator** from a system named `AutoLuce`.\n\n### Breakdown of the Message:\n- **`AutoLuce`**: Likely the name of the software, hardware module, or test suite.\n- **`parity salt depth=8192`**: This suggests a cryptographic or error-checking operation involving:\n  - **Parity**: A simple error-detection method (checking if the number of 1s in a binary string is even or odd).\n  - **Salt**: Random data added to ensure uniqueness",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1381.740559405018,
+                "decode_tok_s": 41.0,
+                "prefill_ms": 5902.7,
+                "decode_ms": 3121.4,
+                "wall_s": 9.03011222393252
+              },
+              {
+                "text": "Based on the input provided, it appears you are referencing a specific configuration or test case for **AutoLuce**, likely related to cryptographic hashing, error correction codes, or a specific benchmarking tool.\n\nHowever, the input consists of:\n1.  **Parameters**: `parity salt depth=8192 rep=3`\n2.  **Data**: A very long string of repeated `x` characters.\n\n### Analysis\n\n*   **AutoLuce**: This is not a widely recognized standard cryptographic algorithm or library in public documentation (as of 2024). It may be:\n    *  ",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1378.0984404305289,
+                "decode_tok_s": 41.3,
+                "prefill_ms": 5918.3,
+                "decode_ms": 3099.5,
+                "wall_s": 9.023223681957461
+              },
+              {
+                "text": "It appears that the output you provided is a **test pattern** or a **debugging artifact** rather than actual data from an AutoLuce parity check.\n\nHere\u2019s a breakdown of what this likely means:\n\n### 1. **What is AutoLuce?**\nAutoLuce is not a widely recognized standard cryptographic or data integrity algorithm in public literature. It may be:\n- A proprietary internal tool or library.\n- A misspelling or variant of a known algorithm (e.g., **AutoLUC**, **Luce**, or a custom parity-checking utility).\n- A fictional or example name used",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1383.0995947023014,
+                "decode_tok_s": 41.3,
+                "prefill_ms": 5896.9,
+                "decode_ms": 3101.0,
+                "wall_s": 9.003075995016843
+              }
+            ],
+            "prefix_cache_evidence": [
+              {
+                "rep": 0,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 1,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 2,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 3,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 4,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              }
+            ],
+            "warmup_prompt_tokens": 8157
+          }
+        }
+      },
+      "summary": {
+        "1024": {
+          "prefill_tok_s": {
+            "median": 1368.421052631579,
+            "mean": 1367.1854815296979,
+            "best": 1372.2222222222222,
+            "min": 1359.196588251479,
+            "raw": [
+              1368.421052631579,
+              1372.2222222222222,
+              1369.5591904629887,
+              1366.5283540802213,
+              1359.196588251479
+            ]
+          },
+          "decode_tok_s": {
+            "median": 43.8,
+            "mean": 43.839999999999996,
+            "best": 44.0,
+            "min": 43.7,
+            "raw": [
+              44.0,
+              44.0,
+              43.7,
+              43.8,
+              43.7
+            ]
+          },
+          "wall_s": {
+            "median": 3.6520919400500134,
+            "mean": 3.6487142737954854,
+            "best": 3.635688547976315,
+            "min": 3.635688547976315,
+            "raw": [
+              3.6385814949171618,
+              3.635688547976315,
+              3.6547588070388883,
+              3.6520919400500134,
+              3.662450578995049
+            ]
+          },
+          "prompt_tokens": {
+            "median": 988.0,
+            "mean": 988.0,
+            "best": 988.0,
+            "min": 988.0,
+            "raw": [
+              988.0,
+              988.0,
+              988.0,
+              988.0,
+              988.0
+            ]
+          }
+        },
+        "8192": {
+          "prefill_tok_s": {
+            "median": 1383.0995947023014,
+            "mean": 1382.1185638492848,
+            "best": 1384.0619060548465,
+            "min": 1378.0984404305289,
+            "raw": [
+              1383.5923186537286,
+              1384.0619060548465,
+              1381.740559405018,
+              1378.0984404305289,
+              1383.0995947023014
+            ]
+          },
+          "decode_tok_s": {
+            "median": 41.3,
+            "mean": 41.279999999999994,
+            "best": 41.4,
+            "min": 41.0,
+            "raw": [
+              41.4,
+              41.4,
+              41.0,
+              41.3,
+              41.3
+            ]
+          },
+          "wall_s": {
+            "median": 9.003075995016843,
+            "mean": 9.008175946795381,
+            "best": 8.99066573602613,
+            "min": 8.99066573602613,
+            "raw": [
+              8.993802097043954,
+              8.99066573602613,
+              9.03011222393252,
+              9.023223681957461,
+              9.003075995016843
+            ]
+          },
+          "prompt_tokens": {
+            "median": 8156.0,
+            "mean": 8156.0,
+            "best": 8156.0,
+            "min": 8156.0,
+            "raw": [
+              8156.0,
+              8156.0,
+              8156.0,
+              8156.0,
+              8156.0
+            ]
+          }
+        }
+      }
+    },
+    "clean_a2": {
+      "result": {
+        "arm": "dflash",
+        "binary": "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-control/build-cuda-sm86/dflash_server",
+        "binary_md5": "f8599143eb4327e66fbecd75635e7fc8",
+        "lucebox_git_rev": "0e0023649131a23f45d58be71f2bfc60d6cd25a0",
+        "lucebox_checkout_dirty": true,
+        "lucebox_dirty_files": [
+          "?? build-cuda-sm86/"
+        ],
+        "command": [
+          "/home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-mmq-control/build-cuda-sm86/dflash_server",
+          "/home/peppi/models/qwen36-27b-unsloth-gguf/Qwen3.6-27B-IQ4_XS.gguf",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "35319",
+          "--max-ctx",
+          "8448",
+          "--prefix-cache-slots",
+          "0",
+          "--prefill-cache-slots",
+          "0",
+          "--cache-type-k",
+          "f16",
+          "--cache-type-v",
+          "f16"
+        ],
+        "cache_type_k": "f16",
+        "cache_type_v": "f16",
+        "server_ctx": 8448,
+        "flash_attention": "always-on (no CLI toggle in dflash_server; fa-window=0 means full FA)",
+        "cells": {
+          "1024": {
+            "raw_reps": [
+              {
+                "text": "It appears you have provided a log line or configuration string from a cryptographic or hardware security context, specifically mentioning **AutoLuce**, **parity**, **salt**, and a large block of `x` characters.\n\nHere\u2019s a breakdown of what this likely represents:\n\n### 1. **AutoLuce**\n- This is likely a proprietary or internal name for a cryptographic module, hardware security module (HSM), secure element, or a specific algorithm implementation. It is not a widely recognized public cryptographic standard (like AES, SHA-256, etc.), so it may be from a specific vendor or research project.\n\n",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1298.9744938206677,
+                "decode_tok_s": 43.8,
+                "prefill_ms": 760.6,
+                "decode_ms": 2922.2,
+                "wall_s": 3.6879497970221564
+              },
+              {
+                "text": "The input provided appears to be a log or output string from a cryptographic or hardware security test, specifically referencing **AutoLuce** (likely a typo or variant of **AutoLFSR**, **AutoLFSR parity**, or a specific hardware security module/test suite) with parameters:\n\n- **parity**: Indicates a parity check is being performed.\n- **salt depth=1024**: Suggests a 1024-bit salt or state space.\n- **rep=1**: One repetition of the test.\n- The long sequence of `x` characters likely represents:\n  - A placeholder",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1306.5326633165828,
+                "decode_tok_s": 43.7,
+                "prefill_ms": 756.2,
+                "decode_ms": 2932.1,
+                "wall_s": 3.693468046025373
+              },
+              {
+                "text": "It appears that the input provided consists of a header line (`AutoLuce parity salt depth=1024 rep=2.`) followed by a large block of repeated `x` characters.\n\n**Analysis:**\n1.  **\"AutoLuce\"**: This term does not correspond to any widely recognized standard cryptographic algorithm, hashing function, or data format in public literature. It may be a proprietary tool, a specific project name, or a typo.\n2.  **\"parity salt depth=1024 rep=2\"**: These parameters suggest a cryptographic or data-processing context:\n    *   **Salt**:",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1296.9283276450512,
+                "decode_tok_s": 43.7,
+                "prefill_ms": 761.8,
+                "decode_ms": 2930.6,
+                "wall_s": 3.697059878031723
+              },
+              {
+                "text": "It appears that the input provided consists of a header line (`AutoLuce parity salt depth=1024 rep=3.`) followed by a large block of repeated characters (`x`).\n\nThis format does not contain a specific question, problem statement, or data payload that can be processed in a meaningful way. Here are a few possibilities for what you might have intended:\n\n1. **Placeholder Data**: If this is a test or placeholder, please provide the actual data or question you would like me to address.\n2. **Encoding Error**: If you intended to paste a file, code, or encrypted text, it may",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1296.5879265091864,
+                "decode_tok_s": 43.7,
+                "prefill_ms": 762.0,
+                "decode_ms": 2927.6,
+                "wall_s": 3.694385969080031
+              },
+              {
+                "text": "It appears that the input provided consists of a header line (`AutoLuce parity salt depth=1024 rep=4.`) followed by a large block of repeated `x` characters.\n\nThis format does not correspond to a standard computational problem, cryptographic challenge, or data format that I can directly process or solve without additional context. Specifically:\n\n1. **\"AutoLuce\"**: This is not a widely recognized standard algorithm, library, or protocol in computer science or cryptography. It may be a proprietary tool, a specific research project, or a typo.\n2. **\"parity salt depth=1024 rep",
+                "prompt_tokens": 988,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1297.268907563025,
+                "decode_tok_s": 43.7,
+                "prefill_ms": 761.6,
+                "decode_ms": 2930.6,
+                "wall_s": 3.696699899970554
+              }
+            ],
+            "prefix_cache_evidence": [
+              {
+                "rep": 0,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 1,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 2,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 3,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 4,
+                "prompt_tokens": 988,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              }
+            ],
+            "warmup_prompt_tokens": 989
+          },
+          "8192": {
+            "raw_reps": [
+              {
+                "text": "Based on the input provided, it appears you are referencing a specific technical configuration or test case related to **AutoLuce** (likely a software library, hardware controller, or cryptographic module) with the following parameters:\n\n- **Parity**: Enabled or being tested.\n- **Salt Depth**: 8192 (possibly referring to a buffer size, iteration count, or memory depth).\n- **Rep**: 0 (likely indicating the first repetition or a specific test iteration).\n- **Data**: A long sequence of `x` characters, which typically represents placeholder data, a mask, or a specific input pattern in",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1311.8867621039087,
+                "decode_tok_s": 41.1,
+                "prefill_ms": 6217.0,
+                "decode_ms": 3114.1,
+                "wall_s": 9.33671692002099
+              },
+              {
+                "text": "Based on the output provided, here is the analysis:\n\n### **Result: PASS**\n\nThe output shows a sequence of `x` characters. In the context of **AutoLuce** (a hardware verification and testing tool often used for FPGA/ASIC validation), this specific pattern typically indicates that the **parity check passed** for all tested addresses or data words.\n\n*   **`parity salt depth=8192`**: The test checked 8192 locations/words.\n*   **`rep=1`**: The test was repeated once.\n*   **`x x x ...`**:",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1311.6757799935672,
+                "decode_tok_s": 41.3,
+                "prefill_ms": 6218.0,
+                "decode_ms": 3098.8,
+                "wall_s": 9.32277421001345
+              },
+              {
+                "text": "Based on the input provided, it appears you are referencing a specific cryptographic or computational benchmark configuration, likely related to **AutoLuce** (a library or tool for cryptographic operations, possibly involving lattice-based cryptography or hash functions) and a **parity check** or **salted hash** operation.\n\nHere\u2019s a breakdown of the parameters:\n\n- **`AutoLuce`**: Likely refers to a specific cryptographic library or benchmarking suite.\n- **`parity`**: Suggests a parity check operation, often used in error detection or as part of a hash function.\n- **`salt depth=8192",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1312.4356333676624,
+                "decode_tok_s": 41.3,
+                "prefill_ms": 6214.4,
+                "decode_ms": 3102.8,
+                "wall_s": 9.323236563941464
+              },
+              {
+                "text": "Based on the input provided, it appears you are referencing a specific configuration or test case for **AutoLuce**, likely related to cryptographic hashing, error correction codes, or a specific benchmarking tool.\n\nHowever, the input consists of:\n1.  **Parameters:** `parity salt depth=8192 rep=3`\n2.  **Data:** A very long string of repeated `x` characters.\n\n### Interpretation & Analysis\n\n#### 1. **AutoLuce Context**\n\"AutoLuce\" is not a widely recognized standard cryptographic algorithm or library in public domains (like SHA-25",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1311.2118581396096,
+                "decode_tok_s": 41.4,
+                "prefill_ms": 6220.2,
+                "decode_ms": 3094.6,
+                "wall_s": 9.319618219975382
+              },
+              {
+                "text": "Based on the input provided, it appears you are referencing a specific configuration or test case for **AutoLuce**, likely related to cryptographic hashing, error correction codes, or a specific benchmarking tool.\n\nHowever, the input consists of:\n1.  **Parameters**: `parity salt depth=8192 rep=4`\n2.  **Data**: A very long string of repeated `x` characters.\n\n### Analysis\n\n*   **AutoLuce**: This is not a widely recognized standard cryptographic algorithm or library in public documentation (as of 2024). It may be:\n    *  ",
+                "prompt_tokens": 8156,
+                "completion_tokens": 128,
+                "prefill_tok_s": 1312.7947591224427,
+                "decode_tok_s": 41.2,
+                "prefill_ms": 6212.7,
+                "decode_ms": 3106.2,
+                "wall_s": 9.32395547395572
+              }
+            ],
+            "prefix_cache_evidence": [
+              {
+                "rep": 0,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 1,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 2,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 3,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              },
+              {
+                "rep": 4,
+                "prompt_tokens": 8156,
+                "prefix_len_field_present": false,
+                "raw_usage_keys": [
+                  "accept_rate",
+                  "completion_tokens",
+                  "completion_tokens_details",
+                  "prompt_tokens",
+                  "timings",
+                  "total_tokens"
+                ],
+                "raw_timings_keys": [
+                  "decode_ms",
+                  "decode_tokens_per_sec",
+                  "prefill_ms"
+                ]
+              }
+            ],
+            "warmup_prompt_tokens": 8157
+          }
+        }
+      },
+      "summary": {
+        "1024": {
+          "prefill_tok_s": {
+            "median": 1297.268907563025,
+            "mean": 1299.2584637709028,
+            "best": 1306.5326633165828,
+            "min": 1296.5879265091864,
+            "raw": [
+              1298.9744938206677,
+              1306.5326633165828,
+              1296.9283276450512,
+              1296.5879265091864,
+              1297.268907563025
+            ]
+          },
+          "decode_tok_s": {
+            "median": 43.7,
+            "mean": 43.720000000000006,
+            "best": 43.8,
+            "min": 43.7,
+            "raw": [
+              43.8,
+              43.7,
+              43.7,
+              43.7,
+              43.7
+            ]
+          },
+          "wall_s": {
+            "median": 3.694385969080031,
+            "mean": 3.6939127180259677,
+            "best": 3.6879497970221564,
+            "min": 3.6879497970221564,
+            "raw": [
+              3.6879497970221564,
+              3.693468046025373,
+              3.697059878031723,
+              3.694385969080031,
+              3.696699899970554
+            ]
+          },
+          "prompt_tokens": {
+            "median": 988.0,
+            "mean": 988.0,
+            "best": 988.0,
+            "min": 988.0,
+            "raw": [
+              988.0,
+              988.0,
+              988.0,
+              988.0,
+              988.0
+            ]
+          }
+        },
+        "8192": {
+          "prefill_tok_s": {
+            "median": 1311.8867621039087,
+            "mean": 1312.0009585454382,
+            "best": 1312.7947591224427,
+            "min": 1311.2118581396096,
+            "raw": [
+              1311.8867621039087,
+              1311.6757799935672,
+              1312.4356333676624,
+              1311.2118581396096,
+              1312.7947591224427
+            ]
+          },
+          "decode_tok_s": {
+            "median": 41.3,
+            "mean": 41.260000000000005,
+            "best": 41.4,
+            "min": 41.1,
+            "raw": [
+              41.1,
+              41.3,
+              41.3,
+              41.4,
+              41.2
+            ]
+          },
+          "wall_s": {
+            "median": 9.323236563941464,
+            "mean": 9.325260277581402,
+            "best": 9.319618219975382,
+            "min": 9.319618219975382,
+            "raw": [
+              9.33671692002099,
+              9.32277421001345,
+              9.323236563941464,
+              9.319618219975382,
+              9.32395547395572
+            ]
+          },
+          "prompt_tokens": {
+            "median": 8156.0,
+            "mean": 8156.0,
+            "best": 8156.0,
+            "min": 8156.0,
+            "raw": [
+              8156.0,
+              8156.0,
+              8156.0,
+              8156.0,
+              8156.0
+            ]
+          }
+        }
+      }
+    }
+  },
+  "comparison": {
+    "1024": {
+      "clean_pooled_median_prefill_tok_s": 1300.6845933692512,
+      "candidate_pooled_median_prefill_tok_s": 1365.6788752028403,
+      "relative_change_percent": 4.996928706999615
+    },
+    "8192": {
+      "clean_pooled_median_prefill_tok_s": 1312.1611977357857,
+      "candidate_pooled_median_prefill_tok_s": 1382.970617968309,
+      "relative_change_percent": 5.396396445399332
+    }
+  },
+  "evidence_id": "evidence-sha256-be8ec967d917b0a1110e55fc5571b23756f77228739a5a374b00c6898a565964"
+}

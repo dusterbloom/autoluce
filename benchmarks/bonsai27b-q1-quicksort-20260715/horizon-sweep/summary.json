@@ -1,0 +1,64 @@
+{
+  "status": "research_only_not_promoted",
+  "model_change": {
+    "method": "temporary GGUF metadata override; tensors unchanged",
+    "key": "dspark.dspark.block_size",
+    "published_value": 4,
+    "tested_values": [5, 6, 7, 8],
+    "restored_h4_copy_byte_identical_to_published_file": true
+  },
+  "quicksort_abba": {
+    "prompt": "Implement quicksort in Python.",
+    "max_tokens": 400,
+    "order": [4, 5, 5, 4],
+    "warmups_per_launch": 1,
+    "measured_repetitions_per_launch": 3,
+    "h4": {
+      "samples_tok_s": [119.04, 118.22, 119.21, 116.99, 117.83, 117.94],
+      "mean_tok_s": 118.205,
+      "std_tok_s": 0.7521690856006616,
+      "target_forwards": 106,
+      "forwards_per_token": 0.265,
+      "average_commit": 3.77
+    },
+    "h5": {
+      "samples_tok_s": [122.94, 122.87, 121.64, 121.32, 122.03, 121.82],
+      "mean_tok_s": 122.10333333333334,
+      "std_tok_s": 0.605768566001537,
+      "target_forwards": 96,
+      "forwards_per_token": 0.24,
+      "average_commit": 4.17
+    },
+    "h5_delta_percent": 3.2979428394174004
+  },
+  "one_shot_horizon_sweep": {
+    "5": {"tok_s": 120.7, "target_forwards": 96, "average_commit": 4.17},
+    "6": {"tok_s": 115.7, "target_forwards": 98, "average_commit": 4.08},
+    "7": {"tok_s": 117.9, "target_forwards": 92, "average_commit": 4.35},
+    "8": {"tok_s": 111.3, "target_forwards": 90, "average_commit": 4.44}
+  },
+  "existing_golden_prompt_breadth": [
+    {
+      "prompt": "Write a Python function that returns the nth Fibonacci number.",
+      "completion_tokens": 128,
+      "h4_tok_s": 112.2,
+      "h5_tok_s": 110.65,
+      "outputs_identical": true
+    },
+    {
+      "prompt": "Explain virtual memory in two concise sentences.",
+      "completion_tokens": 50,
+      "h4_tok_s": 63.15,
+      "h5_tok_s": 56.55,
+      "outputs_identical": true
+    },
+    {
+      "prompt": "What is the capital of France? Answer in one word.",
+      "completion_tokens": 2,
+      "h4_tok_s": 28.95,
+      "h5_tok_s": 27.55,
+      "outputs_identical": true
+    }
+  ],
+  "conclusion": "Horizon 5 is a quicksort-specific lead but loses every existing golden prompt; keep the published native horizon 4 default."
+}

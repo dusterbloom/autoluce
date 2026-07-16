@@ -35,6 +35,7 @@ from autoluce.bench.uncertainty import propagate_score_stddev
 from autoluce.runtime.dflash_http import (
     DflashHttpRuntime,
     product_environment_overrides,
+    resolved_kv_cache,
     server_environment,
     validate_prompt_depth,
 )
@@ -89,6 +90,7 @@ def capture_source_evidence(runtime_env: dict[str, str]) -> dict:
     )
     return {
         "backend": backend,
+        "resolved_kv_cache": resolved_kv_cache(runtime_env),
         "product_backends": layout.manifest.product_backends,
         "vendor_backends": list(layout.manifest.vendor_backends),
         **vars(evidence),
@@ -147,6 +149,15 @@ def resolve_model(benchmark_name: str, role: str) -> Path | None:
         first = Path(files[0]).expanduser()
         return first if first.is_absolute() else WORK_DIR / "models" / first
     return WORK_DIR / "models" / entry["local"]
+
+
+def resolve_benchmark_models(spec: dict) -> tuple[Path | None, Path | None]:
+    """Resolve the target and only load a draft when the benchmark permits one."""
+
+    entry = spec.get("manifest_entry", spec.get("name"))
+    target = resolve_model(entry, "target")
+    draft = None if spec.get("spec_type") == "target-only" else resolve_model(entry, "draft")
+    return target, draft
 
 
 # ---------------------------------------------------------------------------
@@ -663,9 +674,7 @@ def run_single_benchmark(
         correct = True
         details: list[dict] = []
     else:
-        entry = benchmark.get("manifest_entry", benchmark_name)
-        model = resolve_model(entry, "target")
-        draft = resolve_model(entry, "draft")
+        model, draft = resolve_benchmark_models(benchmark)
         if model is None or not model.exists():
             raise RuntimeError(f"target model for benchmark '{benchmark_name}' not found; run prepare.py (or use --simulate)")
         quality = benchmark.get("quality", "exact")

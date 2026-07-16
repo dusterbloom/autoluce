@@ -1,0 +1,33 @@
+{
+  "benchmark": "bonsai27b-q1-dspark",
+  "model": "bonsai-27b-q1",
+  "draft": "Bonsai-27B-dspark-Q4_1.gguf",
+  "spec_type": "draft-dspark",
+  "n_draft": 4,
+  "parameters": {
+    "temperature": 0.0,
+    "top_k": 1,
+    "top_p": 1.0,
+    "n_predict": 128,
+    "seed": 42,
+    "n_draft": 4
+  },
+  "generated_at": "2026-07-14T22:59:55.846978+00:00",
+  "outputs": [
+    {
+      "prompt": "Write a Python function that returns the nth Fibonacci number.",
+      "text": "Here are a few ways to implement a function that returns the nth Fibonacci number in Python, ranging from simple to optimized.\n\n### 1. Iterative Approach (Recommended)\nThis is the most efficient and Pythonic way for general use. It runs in **O(n)** time and uses **O(1)** space.\n\n```python\ndef fibonacci_iterative(n):\n    \"\"\"\n    Returns the nth Fibonacci number using an iterative approach.\n    Assumes n >= 0.\n    \"\"\"\n    if n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    \n    if n",
+      "tokens": []
+    },
+    {
+      "prompt": "Explain virtual memory in two concise sentences.",
+      "text": "Virtual memory is a system that allows a computer to use more memory than is physically available by using disk storage as an extension of RAM. It manages this by automatically swapping pages of data between the faster RAM and slower disk storage based on usage patterns.",
+      "tokens": []
+    },
+    {
+      "prompt": "What is the capital of France? Answer in one word.",
+      "text": "Paris",
+      "tokens": []
+    }
+  ]
+}

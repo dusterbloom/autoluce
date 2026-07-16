@@ -1,0 +1,19 @@
+{
+  "tokenizer": "Bonsai-27B-Q1_0.gguf",
+  "bos_included": false,
+  "first_difference_zero_based": 239,
+  "ar": {
+    "token_ids": [632, 27379],
+    "text": "unsorted"
+  },
+  "prism_dspark": {
+    "token_ids": [5887, 1951],
+    "text": "sample_list"
+  },
+  "lucebox_dspark": {
+    "token_ids": [5887, 1951],
+    "text": "sample_list"
+  },
+  "prism_dspark_vs_lucebox_dspark_next_difference_zero_based": 290,
+  "interpretation": "Both runtimes make the same first speculative departure from their byte-identical AR output; this is evidence against a Lucebox-only indexing or rollback defect."
+}

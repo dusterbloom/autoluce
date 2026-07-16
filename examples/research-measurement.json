@@ -1,0 +1,24 @@
+{
+  "metrics": {
+    "prefill_tok_s": 1425.0,
+    "prefill_tok_s_stddev": 8.0,
+    "peak_mem_GiB": 19.2
+  },
+  "quality": {
+    "correctness": {
+      "kind": "exact",
+      "passed": true
+    },
+    "kl": {
+      "kind": "kl",
+      "mean": 0.005,
+      "max": 0.05
+    },
+    "memory": "pass"
+  },
+  "provenance": {
+    "product_digest": "replace-with-product-tree-sha256",
+    "vendor_digest": "replace-with-vendor-tree-sha256",
+    "binary_sha256": "replace-with-runtime-binary-sha256"
+  }
+}

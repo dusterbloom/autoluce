@@ -1,8 +1,8 @@
 schema_version = 1
 name = "lucebox"
-repository = "https://github.com/Luce-Org/lucebox-hub.git"
-ref = "5e302cbb483819cd21e72f5dd8becaa609eca8cf"
-track = "refs/heads/main"
+repository = "https://github.com/dusterbloom/lucebox-hub.git"
+ref = "3ade7bc8d792f6d907606f0c00997b6a275080ed"
+track = "refs/heads/feat/bonsai27b-dspark-frontier"
 layout = "lucebox-hub-vendored"
 checkout_subdir = "work/lucebox"
 pin_subpath = "work/lucebox.pin"

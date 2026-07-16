@@ -12,6 +12,7 @@ from autoluce.runtime.dflash_http import (
     build_server_command,
     parse_completion,
     product_environment_overrides,
+    resolved_kv_cache,
     server_environment,
     validate_prompt_depth,
 )
@@ -134,6 +135,8 @@ def test_http_client_benchmarks_and_checks_frozen_quality(fake_lucebox):
 
     assert metrics["decode_tok_s"] == pytest.approx(120.0)
     assert metrics["prefill_tok_s"] == pytest.approx(2000.0)
+    assert metrics["prefill_tok_s_samples"] == [2000.0, 2000.0]
+    assert metrics["decode_tok_s_samples"] == [120.0, 120.0]
     assert metrics["prompt_tokens"] == pytest.approx(120.0)
     assert metrics["prompt_tokens_min"] == 120
     assert metrics["prompt_tokens_max"] == 120
@@ -261,6 +264,20 @@ def test_product_environment_overrides_discovers_inherited_native_settings():
         "DFLASH27B_KV_K": "q4_0",
         "GGML_CUDA_GRAPH_OPT": "1",
         "LUCE_MMQ_DP_MAX_NE1": "2048",
+    }
+
+
+def test_resolved_kv_cache_records_an_explicit_per_axis_pair():
+    assert resolved_kv_cache({"DFLASH27B_KV_K": "Q8_0", "DFLASH27B_KV_V": "q4_0"}) == {
+        "key": "q8_0",
+        "value": "q4_0",
+    }
+
+
+def test_resolved_kv_cache_does_not_guess_an_undocumented_runtime_default():
+    assert resolved_kv_cache({}) == {
+        "key": "unknown:runtime-default",
+        "value": "unknown:runtime-default",
     }
 
 

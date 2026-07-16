@@ -189,3 +189,31 @@ def test_default_frontier_excludes_the_non_scoring_test_drive_canary():
     from autoluce.bench.harness import list_benchmarks
 
     assert "deepseek-v4-test-drive" not in list_benchmarks()
+
+
+def test_target_only_benchmark_never_loads_the_manifest_draft(monkeypatch):
+    from autoluce.bench import harness
+
+    monkeypatch.setattr(harness, "resolve_model", lambda entry, role: Path(f"/{entry}-{role}.gguf"))
+
+    target, draft = harness.resolve_benchmark_models({
+        "manifest_entry": "qwen36-27b",
+        "spec_type": "target-only",
+    })
+
+    assert target == Path("/qwen36-27b-target.gguf")
+    assert draft is None
+
+
+def test_target_only_golden_freeze_never_loads_the_manifest_draft(monkeypatch):
+    from scripts import generate_golden
+
+    monkeypatch.setattr(generate_golden, "resolve_model", lambda entry, role: Path(f"/{entry}-{role}.gguf"))
+
+    target, draft = generate_golden.resolve_benchmark_models({
+        "manifest_entry": "qwen36-27b",
+        "spec_type": "target-only",
+    })
+
+    assert target == Path("/qwen36-27b-target.gguf")
+    assert draft is None

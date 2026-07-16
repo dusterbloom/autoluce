@@ -32,6 +32,7 @@ COMMANDS: dict[str, tuple[str, list[str], str]] = {
     "onboard":   ("autoluce.onboard",           [], "install a user-local launcher on an SSH target"),
     "test-drive": ("autoluce.test_drive",        [], "check readiness or run a short live V4 canary"),
     "consult":   ("autoluce.consult",           [], "create a machine-aware research contract"),
+    "research":  ("autoluce.research",          [], "run a machine-aware campaign with an optional reference"),
     "freeze":    ("autoluce.freeze",            [], "freeze exact quality references on a target"),
     "profile-report": ("autoluce.profile_report", [], "summarize a rocprofv3 kernel capture"),
     "verify":    ("autoluce.verify_remote",      [], "run interleaved remote A/B verification"),

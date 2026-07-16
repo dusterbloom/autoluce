@@ -1,0 +1,22 @@
+{
+  "kind": "runtime",
+  "name": "upstream-llama",
+  "measurement": {
+    "prefill_tok_s": 1375.0,
+    "prefill_tok_s_stddev": 7.0
+  },
+  "compatibility": {
+    "machine": "replace-with-doctor-machine-fingerprint",
+    "model": "qwen36-27b",
+    "hardware": "rtx-3090-sm86",
+    "backend": "cuda",
+    "quantization": "IQ4_XS",
+    "environment": "replace-with-environment-fingerprint",
+    "workload": "rtx3090-qwen36-prefill",
+    "workload_fingerprint": "workload-942253a320318d74fa454326a8d52d0e95cc3bc6badc6565e8ddfc40d60c5dba",
+    "model_fingerprint": "replace-with-model-fingerprint"
+  },
+  "provenance": {
+    "source": "manual example; replace with immutable published or measured provenance"
+  }
+}

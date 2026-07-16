@@ -34,9 +34,9 @@ def _hub_checkout(root: Path) -> Path:
 def test_repository_manifest_pins_current_vendored_lucebox_product():
     manifest = SourceManifest.load()
 
-    assert manifest.repository == "https://github.com/Luce-Org/lucebox-hub.git"
-    assert manifest.ref == "5e302cbb483819cd21e72f5dd8becaa609eca8cf"
-    assert manifest.track == "refs/heads/main"
+    assert manifest.repository == "https://github.com/dusterbloom/lucebox-hub.git"
+    assert manifest.ref == "3ade7bc8d792f6d907606f0c00997b6a275080ed"
+    assert manifest.track == "refs/heads/feat/bonsai27b-dspark-frontier"
     assert manifest.layout == "lucebox-hub-vendored"
     assert manifest.vendor_subdir == "server/deps/llama.cpp"
     assert manifest.submodules_by_backend == {

@@ -26,6 +26,7 @@ AutoLuce currently provides:
 - Full-vocabulary logit comparison with aggregate KL, top-k, margin, and finite-value gates.
 - A tested SM86 NVFP4 W4A16 CUDA operator and microbenchmark for RTX 3090 work.
 - Context-validated, prefill-only NVFP4 campaigns with recorded Lucebox/GGML tuning overrides.
+- A pinned public Bonsai-27B Q1 + native DSpark campaign with a deterministic frozen-output regression gate.
 
 The pinned Hub product does not expose token logits by default. AutoLuce carries a
 validated, opt-in Lucebox patch for non-streaming first-token logits; product KL remains
@@ -88,9 +89,88 @@ machine session; historical or sequential controls are diagnostic only.
 | Product KL capture | Candidate endpoint validated; pending Hub integration |
 | Interleaved remote `verify` | Not yet wired to the HTTP adapter |
 | RTX 3090 NVFP4 operator test and microbenchmark | Ready |
+| Bonsai-27B Q1 native DSpark | Native horizon 4 implemented; matched Prism diagnostic and acceptance-trace work recorded |
 
 Simulation is only a control-plane test. It never produces performance evidence or
 updates the research frontier.
+
+The Bonsai frontier contract pins the public Q1 target and its matched Q4_1
+DSpark drafter by revision, size, and SHA-256. The bring-up evidence and numeric
+caveats are recorded in
+[`benchmarks/bonsai27b-q1-dspark-frontier.md`](benchmarks/bonsai27b-q1-dspark-frontier.md).
+
+## Run A Research Campaign
+
+`autoluce research` is the single campaign entry point. A campaign always names the
+system under test, workload, objective direction, and constraints. A performance
+reference is optional and is separate from correctness or quality oracles.
+
+Start from the versioned campaign example:
+
+```bash
+mkdir -p .autoluce/research
+cp examples/research-campaign.json .autoluce/research/campaign.json
+uv run autoluce research
+uv run autoluce research --json
+```
+
+The first command reports `observe` state with no reference. Record a harness bundle or
+the compact measurement shape shown in `examples/research-measurement.json`:
+
+```bash
+uv run autoluce research --record examples/research-measurement.json --json
+uv run autoluce research --advance discover
+uv run autoluce research --advance explore
+```
+
+Comparison can be attached later without changing the campaign ID or any content-derived
+evidence ID:
+
+```bash
+uv run autoluce research --goal 'prefill_tok_s >= 1500' --compare --json
+
+mkdir -p .autoluce/references
+cp examples/upstream-llama-reference.json .autoluce/references/upstream-llama.json
+AUTOLUCE_REFERENCE_DIR=.autoluce/references \
+  uv run autoluce research --against upstream-llama --compare --json
+```
+
+The bundled measurement is `1425 ± 8 tok/s`, so the `1500` SLO is intentionally
+unmet; this demonstrates that goal interpretation is fail-closed rather than a
+guaranteed happy-path result.
+
+Named executable, branch/candidate, saved-bundle, accepted-baseline, published/manual
+measurement, and absolute-goal references share the same campaign state. A named
+reference may be attached for planning without measurements, but comparison fails closed
+until it includes compatible machine, model, quantization, workload, backend, and
+environment evidence. Runtime differences are allowed only when the reference explicitly
+represents another runtime. Legacy result bundles remain recordable diagnostics; they are
+not silently treated as comparable.
+
+Plain output guides human decisions. `--json` emits one document for agents. Both use the
+same campaign and immutable evidence archive. The lifecycle is:
+
+```text
+observe -> discover -> explore -> [compare] -> explain -> promote
+```
+
+Promotion closes one iteration, not the campaign: advancing from `promote` to
+`discover` starts another cycle while retaining the accepted result and all evidence.
+
+`compare` is optional. Promotion by evidence ID is explicit and limited to the
+quality-constrained Pareto frontier:
+
+```bash
+uv run autoluce research --advance explain
+uv run autoluce research --promote evidence-<sha256> --json
+```
+
+The older `consult` YAML remains the version-1 remote execution contract used by
+`freeze`, `harness`, and `run`. AutoLuce can normalize it for campaign planning, but
+unknown runtime, hardware, quantization, and environment identities remain explicit and
+must be resolved in a fully observed v2 campaign before evidence can be recorded or
+compared. Migrated headroom, accepted-baseline, power-mode, and KL policies become typed
+gates rather than advisory fields. Unknown future schema versions are rejected.
 
 ### Validated RTX 3090 win
 
@@ -108,6 +188,21 @@ Quality was checked independently of generated-text equality:
 
 The patch, provenance, artifact hashes, per-prompt evidence, and quality decision are in
 [`benchmarks/rtx3090-qwen36-27b-mmq-quality.md`](benchmarks/rtx3090-qwen36-27b-mmq-quality.md).
+
+The subsequent Q4_K_M campaign stacks compact GDN Q/K broadcast and an automatic
+Ampere grouped-column policy on that MMQ change. With the default 512-token ubatch and
+no force overrides, its measured point estimates lead llama.cpp by **4.91% at 1K**,
+**2.52% at 8K**, and **1.97% at 16K** in the final RTX 3090 A-B-B-A run. The 8K
+and 16K points are the strongest; upstream phase imbalance makes the defensible
+1K magnitude less precise (the first upstream phase alone implies about **3.3%**
+before drift adjustment). The raw comparison is archived
+under its canonical measurement ID in
+[`benchmarks/q4km-prefill-upstream-20260714/`](benchmarks/q4km-prefill-upstream-20260714/README.md).
+The runtimes report a two-token accounting difference, so this is retained as strong
+performance evidence rather than mislabeled as bit-identical output promotion. The
+accepted frontier remains draft Lucebox PR #524 stacked on MMQ PR #518; rejected
+follow-on attention experiments are not included or stacked. Comparable 32K/64K
+llama.cpp evidence remains the next campaign phase.
 
 ## Work As A Team
 
@@ -278,6 +373,21 @@ Lucebox `DFLASH27B_*` spellings, with an explicitly set product spelling taking 
 
 The shared 3090 performance targets and measurement rules live in
 [`benchmarks/rtx3090-qwen36-27b-frontier.md`](benchmarks/rtx3090-qwen36-27b-frontier.md).
+
+### Normal-KV prefill before TQ3
+
+The Qwen3.6 Q4_K_M prefill campaign treats F16/F16, Q8_0/Q8_0, and Q4_0/Q4_0 KV
+caches as separate compatible-evidence lanes. Both K and V are always selected
+explicitly and recorded in source provenance; AutoLuce does not guess a runtime default.
+The shared 1K/8K/16K/64K benchmark, promotion evidence contract, isolated hypothesis
+ladder, GPU handoff commands, and optional Q8/Q4 128K fit probes are documented in
+[`benchmarks/qwen36-normal-kv-prefill-campaign.md`](benchmarks/qwen36-normal-kv-prefill-campaign.md).
+The initial RTX 3090 run, including content-addressed campaigns, normalized evidence,
+ordered raw samples, and the frozen oracle, is archived in
+[`benchmarks/normal-kv-prefill-20260713/`](benchmarks/normal-kv-prefill-20260713/README.md).
+At 64K, Q4_0 retained 99.59% of F16 prefill throughput while reducing peak VRAM from
+21.91 GiB to 19.26 GiB; its one-shot 128K fit probe also passed at 20.63 GiB.
+TQ3 is intentionally excluded until these normal paths are correct and optimized.
 
 ## Keep Lucebox Current
 

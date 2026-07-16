@@ -59,6 +59,15 @@ def resolve_model(benchmark_name: str, role: str) -> Path | None:
     return MODELS_DIR / entry["local"]
 
 
+def resolve_benchmark_models(benchmark: dict) -> tuple[Path | None, Path | None]:
+    """Resolve the target and honor a target-only benchmark during quality freeze."""
+
+    entry = benchmark.get("manifest_entry", benchmark.get("name"))
+    target = resolve_model(entry, "target")
+    draft = None if benchmark.get("spec_type") == "target-only" else resolve_model(entry, "draft")
+    return target, draft
+
+
 def generate_one(client, prompt: str, params: dict) -> dict:
     return {
         "prompt": prompt,
@@ -82,9 +91,7 @@ def main():
         return 1
 
     benchmark = load_benchmark(args.benchmark)
-    manifest_entry = benchmark.get("manifest_entry", args.benchmark)
-    model = resolve_model(manifest_entry, "target")
-    draft = resolve_model(manifest_entry, "draft")
+    model, draft = resolve_benchmark_models(benchmark)
 
     if model is None or not model.exists():
         print(f"ERROR: target model not found: {model}")

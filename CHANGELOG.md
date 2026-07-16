@@ -8,6 +8,59 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Bonsai-27B Q1 native DSpark matched diagnostic and frontier probes** (RTX 3090,
+  WSL2, CUDA 12.6, Lucebox `b19b95e`, Prism `b9591-62061f9`): archived raw AR and
+  DSpark requests, responses, logs, runtime properties, hashes, and GPU snapshots for
+  the public no-thinking quicksort workload. Prism measured 72.81 ± 1.96 tok/s AR and
+  115.75 ± 1.05 tok/s DSpark. Lucebox's original aggregates were 65.80 ± 1.52 and
+  118.12 ± 2.65 tok/s, but later raw refreshes placed Lucebox DSpark at 111–112 tok/s
+  with substantial within-launch drift; the small point difference between engines is
+  therefore parity evidence, not a defensible lead. After normalizing telemetry, Prism
+  accepted 293/420 proposals (69.76%) and Lucebox accepted 294/424 (69.34%), with both
+  committing about 3.8 tokens per target verification. Prism AR and Lucebox AR produce
+  the same text; both speculative paths first diverge from AR at generated token 239
+  and choose the same branch. This is consistent with the audited width-dependent Q1
+  MMVQ and FlashAttention paths, but first-mismatch logit margins were not captured, so
+  the deterministic frozen output remains a regression gate rather than a claim of
+  distribution losslessness. The remaining Lucebox AR gap is not root-caused.
+  A normal Qwen3.6 width-16 drafter loaded against Bonsai but fell to about 63 tok/s from
+  low acceptance. A research-only five-proposal metadata extrapolation improved the
+  400-token quicksort prompt by 3.30% in ABBA, then lost all three existing Bonsai golden
+  prompts; horizons six through eight also failed promotion. The published four-proposal
+  model contract remains the default. The benchmark CLI can now retain every measured
+  API response with `--include-samples` and write a replayable artifact with
+  `--json-output`. Evidence: `benchmarks/bonsai27b-q1-quicksort-20260715/`.
+- **Automatic Q4_K_M prefill closure**: archived the final content-addressed RTX 3090
+  A-B-B-A comparison for the Lucebox MMQ + compact-Q/K + automatic grouped-GDN stack.
+  At the default 512-token ubatch and without force controls, the measured point
+  estimates lead llama.cpp by 4.91% at 1K, 2.52% at 8K, and 1.97% at 16K; the
+  upstream phase imbalance makes the 1K magnitude less precise (its first phase
+  alone implies about 3.3% before drift adjustment).
+  The record preserves the two-token cross-runtime accounting difference and the
+  missing upstream text capture, so it is comparative performance evidence rather
+  than an exact-output promotion bundle. Draft Lucebox PR #524 stacked on #518
+  remains the accepted frontier after four follow-on attention candidates missed
+  promotion; comparable 32K/64K llama.cpp cells remain open.
+- **Normal-KV Qwen3.6 prefill campaign**: added separate content-compatible F16/F16,
+  Q8_0/Q8_0, and Q4_0/Q4_0 lanes for the fixed Q4_K_M weight artifact, a target-only
+  1K/8K/16K/64K benchmark, optional non-frontier 128K fit probes, an isolated
+  hypothesis ladder, and a fail-closed promotion measurement validator. Product runs
+  now record the resolved K/V pair and label an implicit runtime default unknown.
+  Campaign archives retain the complete raw measurement bundle under a separate content
+  ID, preserving ordered context samples independently from their normalized frontier
+  interpretation. The first RTX 3090 archive covers the replicated frontier through 64K
+  plus Q8/Q4 128K fit probes. TQ3 remains explicitly out of scope until the normal paths
+  are correct and fast.
+- **Machine-aware research campaigns**: added a versioned campaign contract and the
+  `autoluce research` lifecycle (`observe → discover → explore → [compare] → explain →
+  promote`). Campaigns always declare the system, workload, objective direction, and
+  constraints, while performance references remain optional and attachable without
+  rewriting earlier evidence. Content-addressed measurement files, fail-closed
+  compatibility checks, absolute goals, runtime/candidate/bundle/manual references, and
+  a quality-constrained Pareto archive now share one JSON-capable human/agent workflow.
+  Version-1 execution contracts migrate to typed headroom, baseline, power, and KL gates;
+  unresolved identities block evidence collection. Legacy bundles remain diagnostic
+  rather than silently comparable, and lifecycle transitions are enforced consistently.
 - **Runtime shared-library provenance**: real product runs now resolve the executable's
   dynamic dependency closure under the effective server environment and record canonical
   paths, sizes, and SHA-256 hashes. Mutation of `libggml-cuda`, GGML CPU/base libraries,

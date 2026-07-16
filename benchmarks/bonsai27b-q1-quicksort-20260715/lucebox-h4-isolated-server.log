@@ -1,0 +1,147 @@
+[server] loading tokenizer from /tmp/Bonsai-27B-Q1_0.gguf
+[tokenizer] added_tokens: 33 special tokens
+[tokenizer] loaded vocab=248320 merges=247587 bos=248044 eos=248046 eot=248046 pre=qwen35 sp=no
+[server] creating backend...
+[backend_factory] detected arch=qwen35
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 24575 MiB):
+  Device 0: NVIDIA GeForce RTX 3090, compute capability 8.6, VMM: yes, VRAM: 24575 MiB
+[draft GGUF] DSpark Markov head enabled: rank=256 vocab=248320 confidence_dim=5376
+[dflash-feature] mirror dtype=bf16 cap=4096 fc_in=25600
+[server] gguf meta: general.name='Bonsai-27B' general.architecture='qwen35'
+[model_card] using cards dir: /home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-bonsai-dspark/build-cuda-sm86/../share/model_cards
+[model_card] probing sidecar: /home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-bonsai-dspark/build-cuda-sm86/../share/model_cards/bonsai-27b.json (from general.name='Bonsai-27B')
+[model_card] sidecar not found at /home/peppi/Dev/autoresearch-ggml-optimizer/work/lucebox-bonsai-dspark/build-cuda-sm86/../share/model_cards/bonsai-27b.json
+[model_card] using family fallback for arch='qwen35'
+[server] effort-tier ceiling = max_ctx(16384) - hard_limit_reply_budget(4096) = 12288
+[server] reasoning-effort medium=14336 clamped to max_ctx - hard_limit_reply_budget = 12288
+[server] reasoning-effort high=28672 clamped to max_ctx - hard_limit_reply_budget = 12288
+[server] reasoning-effort x-high=28672 clamped to max_ctx - hard_limit_reply_budget = 12288
+[server] reasoning-effort max=28672 clamped to max_ctx - hard_limit_reply_budget = 12288
+
+[server] ╭─── Configuration ───────────────────────────────────╮
+[server] │  host            = 127.0.0.1
+[server] │  port            = 18742
+[server] │  model           = /tmp/Bonsai-27B-Q1_0.gguf
+[server] │  draft           = /tmp/Bonsai-27B-dspark-Q4_1-block8.gguf
+[server] │  model_name      = autoluce-benchmark
+[server] │  max_ctx         = 16384
+[server] │  model_card      = family:qwen35
+[server] │  max_tokens      = 32768 (family:qwen35)
+[server] │  think_max_tokens= 28672 (family:qwen35)
+[server] │  hard_limit_reply= 4096 (family:qwen35)
+[server] │  effort tiers    = low=3584 (family:qwen35)
+[server] │                    medium=12288 (family:qwen35)
+[server] │                    high=12288 (family:qwen35)
+[server] │                    x-high=12288 (family:qwen35)
+[server] │                    max=12288 (family:qwen35)
+[server] │  target_device   = auto:0
+[server] │  draft_device    = auto:0
+[server] │  draft_exec      = local
+[server] │  peer_access     = off
+[server] │  chunk           = 512
+[server] │  fa_window       = 0
+[server] │  ddtree          = off
+[server] │  fast_rollback   = ON
+[server] │  ddtree_budget   = 22
+[server] │  prefix_cache    = 0 slots
+[server] │  prefill_cache   = 0 slots
+[server] │  cors            = ON
+[server] │  cache_type_k    = family default
+[server] │  cache_type_v    = family default
+[server] │  pflash          = off
+[server] │  draft_residency = auto
+[server] │  lazy_draft      = off
+[server] ╰─────────────────────────────────────────────────────╯
+
+[server] level-2 force-close (marker-only, 8 chars → 1 tokens, hard_limit_reply_budget = 4096)
+[server] level-2 force-close token ids: 248069
+[server] listening on http://127.0.0.1:18742
+[server] request path=/v1/chat/completions body_bytes=202
+[server] chat chatcmpl_0000000000000000 format=chat stream=false msgs=1 tools=0 prompt_tokens=18 max_tokens=400 max_ctx=16384 thinking=false started_in_thinking=false stops=0 model=autoluce-benchmark
+[server] chat START chatcmpl_0000000000000000 format=chat stream=false prompt_tokens=18 max_tokens=400 tools=0
+[server] chat CACHE chatcmpl_0000000000000000 restore=false slot=-1 prefix_len=0 effective_prompt=18 pflash=false disk_policy=full disk_hit=false snap_slot=-1 snap_pos=0 full_snap_slot=-1 full_snap_pos=0
+[draft-kv] ctx-KV ring active: cap=4096 kv_total=4128 a_step=5 layers=6 f16 cache 48.4 MiB
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+[spec-decode] tokens=400 time=3.493 s speed=114.52 tok/s steps=106 accepted=400/530 (75.5%) avg_commit=3.77
+[spec-decode] target_forwards=106 forwards_per_token=0.265000 forwards_per_step=1.000
+[vram] released scratch buffers
+[server] chat DONE chatcmpl_0000000000000000 ok=true in=18 effective_in=18 out=400 3.7s 109.0 tok/s finish=stop restore=false slot=-1 prefix_len=0 prefill=0.2s decode=3.5s(114.5tok/s) error=- detail=-
+[server] request path=/v1/chat/completions body_bytes=202
+[server] chat chatcmpl_0000000000000001 format=chat stream=false msgs=1 tools=0 prompt_tokens=18 max_tokens=400 max_ctx=16384 thinking=false started_in_thinking=false stops=0 model=autoluce-benchmark
+[server] chat START chatcmpl_0000000000000001 format=chat stream=false prompt_tokens=18 max_tokens=400 tools=0
+[server] chat CACHE chatcmpl_0000000000000001 restore=false slot=-1 prefix_len=0 effective_prompt=18 pflash=false disk_policy=full disk_hit=false snap_slot=-1 snap_pos=0 full_snap_slot=-1 full_snap_pos=0
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+[spec-decode] tokens=400 time=3.441 s speed=116.25 tok/s steps=106 accepted=400/530 (75.5%) avg_commit=3.77
+[spec-decode] target_forwards=106 forwards_per_token=0.265000 forwards_per_step=1.000
+[vram] released scratch buffers
+[server] chat DONE chatcmpl_0000000000000001 ok=true in=18 effective_in=18 out=400 3.5s 114.7 tok/s finish=stop restore=false slot=-1 prefix_len=0 prefill=0.0s decode=3.4s(116.3tok/s) error=- detail=-
+[server] request path=/v1/chat/completions body_bytes=202
+[server] chat chatcmpl_0000000000000002 format=chat stream=false msgs=1 tools=0 prompt_tokens=18 max_tokens=400 max_ctx=16384 thinking=false started_in_thinking=false stops=0 model=autoluce-benchmark
+[server] chat START chatcmpl_0000000000000002 format=chat stream=false prompt_tokens=18 max_tokens=400 tools=0
+[server] chat CACHE chatcmpl_0000000000000002 restore=false slot=-1 prefix_len=0 effective_prompt=18 pflash=false disk_policy=full disk_hit=false snap_slot=-1 snap_pos=0 full_snap_slot=-1 full_snap_pos=0
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+[spec-decode] tokens=400 time=3.468 s speed=115.36 tok/s steps=106 accepted=400/530 (75.5%) avg_commit=3.77
+[spec-decode] target_forwards=106 forwards_per_token=0.265000 forwards_per_step=1.000
+[vram] released scratch buffers
+[server] chat DONE chatcmpl_0000000000000002 ok=true in=18 effective_in=18 out=400 3.5s 113.9 tok/s finish=stop restore=false slot=-1 prefix_len=0 prefill=0.0s decode=3.5s(115.4tok/s) error=- detail=-
+[server] request path=/v1/chat/completions body_bytes=202
+[server] chat chatcmpl_0000000000000003 format=chat stream=false msgs=1 tools=0 prompt_tokens=18 max_tokens=400 max_ctx=16384 thinking=false started_in_thinking=false stops=0 model=autoluce-benchmark
+[server] chat START chatcmpl_0000000000000003 format=chat stream=false prompt_tokens=18 max_tokens=400 tools=0
+[server] chat CACHE chatcmpl_0000000000000003 restore=false slot=-1 prefix_len=0 effective_prompt=18 pflash=false disk_policy=full disk_hit=false snap_slot=-1 snap_pos=0 full_snap_slot=-1 full_snap_pos=0
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+[spec-decode] tokens=400 time=3.458 s speed=115.68 tok/s steps=106 accepted=400/530 (75.5%) avg_commit=3.77
+[spec-decode] target_forwards=106 forwards_per_token=0.265000 forwards_per_step=1.000
+[vram] released scratch buffers
+[server] chat DONE chatcmpl_0000000000000003 ok=true in=18 effective_in=18 out=400 3.5s 114.2 tok/s finish=stop restore=false slot=-1 prefix_len=0 prefill=0.0s decode=3.5s(115.7tok/s) error=- detail=-
+[server] request path=/v1/chat/completions body_bytes=202
+[server] chat chatcmpl_0000000000000004 format=chat stream=false msgs=1 tools=0 prompt_tokens=18 max_tokens=400 max_ctx=16384 thinking=false started_in_thinking=false stops=0 model=autoluce-benchmark
+[server] chat START chatcmpl_0000000000000004 format=chat stream=false prompt_tokens=18 max_tokens=400 tools=0
+[server] chat CACHE chatcmpl_0000000000000004 restore=false slot=-1 prefix_len=0 effective_prompt=18 pflash=false disk_policy=full disk_hit=false snap_slot=-1 snap_pos=0 full_snap_slot=-1 full_snap_pos=0
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+[spec-decode] tokens=400 time=3.594 s speed=111.31 tok/s steps=106 accepted=400/530 (75.5%) avg_commit=3.77
+[spec-decode] target_forwards=106 forwards_per_token=0.265000 forwards_per_step=1.000
+[vram] released scratch buffers
+[server] chat DONE chatcmpl_0000000000000004 ok=true in=18 effective_in=18 out=400 3.6s 109.9 tok/s finish=stop restore=false slot=-1 prefix_len=0 prefill=0.0s decode=3.6s(111.3tok/s) error=- detail=-
+[server] request path=/v1/chat/completions body_bytes=202
+[server] chat chatcmpl_0000000000000005 format=chat stream=false msgs=1 tools=0 prompt_tokens=18 max_tokens=400 max_ctx=16384 thinking=false started_in_thinking=false stops=0 model=autoluce-benchmark
+[server] chat START chatcmpl_0000000000000005 format=chat stream=false prompt_tokens=18 max_tokens=400 tools=0
+[server] chat CACHE chatcmpl_0000000000000005 restore=false slot=-1 prefix_len=0 effective_prompt=18 pflash=false disk_policy=full disk_hit=false snap_slot=-1 snap_pos=0 full_snap_slot=-1 full_snap_pos=0
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+[spec-decode] tokens=400 time=3.696 s speed=108.22 tok/s steps=106 accepted=400/530 (75.5%) avg_commit=3.77
+[spec-decode] target_forwards=106 forwards_per_token=0.265000 forwards_per_step=1.000
+[vram] released scratch buffers
+[server] chat DONE chatcmpl_0000000000000005 ok=true in=18 effective_in=18 out=400 3.7s 106.8 tok/s finish=stop restore=false slot=-1 prefix_len=0 prefill=0.0s decode=3.7s(108.2tok/s) error=- detail=-
+[server] request path=/v1/chat/completions body_bytes=202
+[server] chat chatcmpl_0000000000000006 format=chat stream=false msgs=1 tools=0 prompt_tokens=18 max_tokens=400 max_ctx=16384 thinking=false started_in_thinking=false stops=0 model=autoluce-benchmark
+[server] chat START chatcmpl_0000000000000006 format=chat stream=false prompt_tokens=18 max_tokens=400 tools=0
+[server] chat CACHE chatcmpl_0000000000000006 restore=false slot=-1 prefix_len=0 effective_prompt=18 pflash=false disk_policy=full disk_hit=false snap_slot=-1 snap_pos=0 full_snap_slot=-1 full_snap_pos=0
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+ggml_backend_cuda_graph_compute: CUDA graph warmup reset
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+[spec-decode] tokens=400 time=3.589 s speed=111.46 tok/s steps=106 accepted=400/530 (75.5%) avg_commit=3.77
+[spec-decode] target_forwards=106 forwards_per_token=0.265000 forwards_per_step=1.000
+[vram] released scratch buffers
+[server] chat DONE chatcmpl_0000000000000006 ok=true in=18 effective_in=18 out=400 3.6s 110.0 tok/s finish=stop restore=false slot=-1 prefix_len=0 prefill=0.0s decode=3.6s(111.5tok/s) error=- detail=-
+[loader] eos_id=248046 eos_chat_id=-1
+[target] target loaded: layers [0,64) output=1, 850 tensors on GPU 3.37 GiB, tok_embd 171 MiB CPU-only (q1_0)
+[draft]  loaded
+[draft]  native DSpark: draft_width=4 proposals=4 verify_width=5 mask=248319

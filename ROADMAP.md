@@ -139,7 +139,7 @@ bundle.
 
 ## Meta — dynamic, machine- & request-aware compilation
 
-The harness today assumes one machine, one fixed benchmark, one scalar score. That
+The legacy keep/revert harness assumes one machine, one fixed benchmark, one scalar score. That
 makes a *dynamic* build — one that adapts its flags, kernels, and code paths to the
 host hardware and the incoming request — structurally invisible: a per-target policy
 either looks like noise (it picks the same config on the reference box) or gets kept
@@ -161,6 +161,13 @@ one-file / keep-revert loop, arXiv:2603.21331) — but it too is single-frontier
 the population/archive layer is the open frontier, and it is higher-leverage here because
 speculative decoding's structure (tree verify, hidden-state drafting, UMA zero-copy) is far
 less trodden than AutoKernel's matmul/softmax/attention kernels.
+
+**Campaign/archive foundation — shipped.** `autoluce research` now separates versioned
+campaign scope, immutable measurements, compatibility-checked reference interpretation,
+and a quality-constrained Pareto index. Evidence can be collected without a competitor
+and interpreted later without changing its identity. This supplies the safe storage and
+policy seam for items 15–18; the current harness still needs multi-target measurement
+providers and strategy operators before those items are complete.
 
 15. **Multi-target scoring = archive axis 1 (machine).** Run the loop on both boxes, score
     per-target, and let an experiment's payoff be a *vector* over hardware, not a scalar.
@@ -199,15 +206,120 @@ to the grid.
 atomic `claim_best_if_significant`, re-verifying against the live best), `worktree`
 helpers, and `runner.run_parallel` (live-frontier funnel) are in. `agent_loop` now routes
 every shared-state write through the lock and honors `AUTOLUCE_FRONTIER`, so N workers in
-N worktrees -- or N hosts into one shared checkout -- converge safely instead of racing on
-`.best_score.json` / `results.tsv` / the build dir. This is the foundation #15 and #17
-build on; it does **not** yet make the score a per-target vector, which is the remaining
-#15 work.
+N worktrees on one host converge safely instead of racing on `.best_score.json` /
+`results.tsv` / the build dir. This does **not** establish cross-host safety: file locks
+and atomic replacement remain a single-host boundary until the Git-native platform track
+below ships. This is the foundation #15 and #17 build on; it does **not** yet make the
+score a per-target vector, which is the remaining #15 work.
 
 **Move 1 — shipped.** `selector.rank_by_bottleneck` + `autoluce ideas --bound
 <memory|compute|overhead>` rank untried items so those targeting the active profiling
 bottleneck come first (the AutoKernel Amdahl-targeting move). Pure decision, tested; the
 nsys/rocprof trace-parser that auto-produces the bound verdict is the deferred I/O seam.
+
+## Self-maintaining research and Git-native collaboration — platform track
+
+**Status: designed, not shipped.** AutoLuce must be safe to leave running over months of
+agent and research campaigns without turning `work/` or Lucebox's branch namespace into
+an archive of stale experiments. A 2026-07-15 audit found roughly 12 GiB under `work/`,
+spread across two independent `lucebox-hub` Git common directories, a separate GGML
+store, and roughly twenty worktrees/checkouts. Existing workspaces have no trustworthy
+AutoLuce ownership record, so every one is legacy/user-owned until explicitly adopted.
+
+The governing invariant is:
+
+> Worktrees and builds are disposable materializations. Content-addressed attempt
+> records, evidence, lessons, and source snapshots are durable truth.
+
+This applies equally to `autoluce agent` and `autoluce research`. Positive, negative,
+failed, inconclusive, orphaned, and superseded attempts all preserve the lesson learned;
+promotion is not required for preservation. PR state is reporting metadata, not cleanup
+authority: a sealed inactive worktree may be retired whether or not it produced a PR,
+while a live lease pins active work.
+
+Preservation and upstream adoption are separate, monotone states. A result becomes
+locally reclaimable when its exact source snapshot is verified on the team's fork and
+its complete evidence closure is byte-verified on external storage. Binding that result
+to an upstream `lucebox-hub` PR is the next level; observing that PR merged is gold.
+Neither event rewrites the attempt: later improvements create descendant attempts, and
+an unmerged or negative attempt remains durable evidence rather than workspace clutter.
+
+### Minimal shared contract
+
+1. **One attempt manifest, not a second research model.** A small canonical record links
+   the existing `AgentArtifact` or `CampaignEvidence` to its attempt/campaign/task IDs,
+   outcome and lesson, base commit, snapshot commit, patch digest, evidence/artifact
+   IDs, and explicit lineage. Fork verification, archive verification, PR binding, and
+   merge observations are separate content-addressed append-only events. Large logs and
+   measurements remain external and are referenced by verified digest. Shared records
+   contain no absolute local paths, hostnames, credentials, model weights, builds, or
+   caches.
+2. **Positive ownership before destructive authority.** AutoLuce records each managed
+   workspace outside the source tree and writes a matching ownership nonce under that
+   worktree's Git administration directory. Allocation validates the real path, managed
+   root, Git common directory, base commit, task, and nonce. Primary, legacy, unknown,
+   mismatched, or busy worktrees are inventory-only and can never be auto-adopted or
+   auto-deleted.
+3. **Seal, restore, retire.** Sealing uses a temporary Git index so it never changes the
+   user's index, branch, or stash. It captures tracked, staged, and explicitly permitted
+   untracked source into a Git snapshot commit while excluding only exact registered
+   build/cache paths. Secrets, dirty nested repositories, special files, oversized
+   unclassified files, or concurrent source changes block sealing. `restore <attempt>`
+   must recreate the exact snapshot tree before retirement is permitted.
+4. **Disk budgets fail safe.** `work/` is the managed root, including per-attempt build
+   directories. At start, finish, sync, and explicit GC, AutoLuce plans pressure cleanup
+   and retires eligible sealed work oldest-first to a low watermark. If it cannot free
+   enough space safely, it refuses the new allocation instead of weakening preservation
+   rules. Models and unknown directories are never pressure-deleted.
+5. **Git is the peer protocol.** Remote peers share a dedicated AutoLuce relay/fork, not
+   `origin`. One append-only ref per task (`refs/heads/autoluce/v1/tasks/<task-id>`)
+   records packet, claim, renewal, result, and promotion events. Each event commit parents
+   the exact fetched tip, so an ordinary fast-forward push is compare-and-swap: one of two
+   competing claims wins and the other must fetch and re-evaluate. Takeover requires
+   observing the same claim OID unchanged for a full local stale interval, but the push
+   is the correctness boundary. A disconnected former owner must revalidate before
+   measuring, submitting, or promoting. Existing HTTP coordination remains an optional
+   hardware scheduler, not a second durable collaboration protocol.
+6. **Competition preserves lineage.** Independent implementations remain isolated until
+   evaluation, but every result survives as an attempt record. Reviews and recombinations
+   cite their source artifact IDs, so the winning PR can credit both direct code and the
+   positive or negative experiments that shaped it.
+7. **Upstream adoption is measurable.** Promoted work carries `AutoLuce-Attempt` and
+   `AutoLuce-Campaign` trailers plus an explicit PR binding. Reconciliation reports total
+   attempts, quality-gated promotions, PRs opened, and unique attempts merged into
+   `lucebox-hub`, without double-counting repeated events. Explicit lineage can report
+   contributing attempts separately. Patch-similarity inference, automatic reversion
+   detection, signed transition commits, distributed Pareto state, a new blob service,
+   and a background janitor daemon are deferred until observed need justifies them.
+
+### Delivery order and proof gates
+
+1. **Inventory:** read-only `workspace status` groups all of `work/` by Git common
+   directory and reports size, ownership, source state, lease, and retirement blockers.
+   All current workspaces initially report `ownership: unknown`.
+2. **Local safety:** managed allocation, ownership registry/nonce, leases, temporary-index
+   snapshot, attempt manifest, exact restore, dry-run retirement, disk admission control,
+   and crash-idempotent resume.
+3. **Peer competition:** the single task-ref Git log, claim/renew/takeover/result
+   transitions, and two-clone race tests. No force pushes and no normal feature branch
+   until promotion.
+4. **Research reuse:** `research --record` continues to create `CampaignEvidence`; a
+   source-changing research attempt links the same manifest and workspace lifecycle.
+   Measurement-only research incurs no worktree ceremony.
+5. **Adoption ledger:** promotion trailers, PR binding, upstream reconciliation, and
+   deduplicated merged-result reporting.
+
+The platform track is complete only when all of these gates hold:
+
+- Unowned, primary, wrong-repository, and busy worktrees remain byte-for-byte untouched.
+- A dirty owned workspace, including staged and permitted untracked source, restores to
+  the exact sealed Git tree.
+- A crash between sealing and removal resumes without losing or duplicating state.
+- Disk pressure removes only sealed AutoLuce-owned material and otherwise refuses work.
+- Two remote peers racing for one task produce exactly one successful claim; after a
+  takeover the stale owner cannot renew, submit, or promote.
+- Agent and research modes emit the same minimal attempt envelope, and merge accounting
+  counts each attempt/PR relationship once.
 
 ## NVFP4 × SM86 co-design — we own the converter (added 2026-07-11)
 

@@ -1,0 +1,1 @@
+/tmp/prism-b9591-bin/llama-prism-b9591-62061f9/llama-server -m /mnt/e/autoluce-bonsai27b/models/Bonsai-27B-Q1_0.gguf -ngl 999 -fa on -c 16384 -np 1 --host 127.0.0.1 --port 18731 -md /mnt/e/autoluce-bonsai27b/models/Bonsai-27B-dspark-Q4_1.gguf --spec-type draft-dspark --spec-draft-n-max 4 -ngld 999

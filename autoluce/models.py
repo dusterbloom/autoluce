@@ -21,6 +21,9 @@ class ModelEntry:
     model_id: str
     quant: str
     files: list[str]
+    repository: str | None = None
+    revision: str | None = None
+    sha256: str | None = None
     expected_size_bytes: int | None = None
     path_env: str | None = None
     metadata: dict[str, Any] | None = None
@@ -41,6 +44,9 @@ def load_catalog(path: Path = CATALOG_PATH) -> dict[str, ModelEntry]:
             model_id=model_id,
             quant=value.get("quant", "unknown"),
             files=list(files),
+            repository=value.get("repository"),
+            revision=value.get("revision"),
+            sha256=value.get("sha256"),
             expected_size_bytes=value.get("expected_size_bytes"),
             path_env=value.get("path_env"),
             metadata=value.get("metadata", {}),
