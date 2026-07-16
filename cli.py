@@ -46,6 +46,7 @@ COMMANDS: dict[str, tuple[str, list[str], str]] = {
     "harness":   ("autoluce.bench.harness",     [], "raw benchmark harness"),
     "report":    ("autoluce.report",            [], "aggregate / diff results"),
     "reproduce": ("autoluce.reproduce",         [], "reproducibility suite"),
+    "web":       ("autoluce.web.server",        [], "browse campaigns in a browser (local, read-only, no auth)"),
     "nvfp4":     ("autoluce.nvfp4",             [], "test or benchmark the CUDA NVFP4 operator"),
 }
 
