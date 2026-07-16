@@ -96,17 +96,27 @@ def test_list_discovers_research_and_benchmark_contracts(tmp_path):
     assert {c["name"] for c in campaigns} == {"demo", "archived"}
 
 
-def test_summary_id_is_campaign_id_and_stage_from_contract(tmp_path):
+def test_summary_id_is_a_path_locator_distinct_from_campaign_id(tmp_path):
     _path, campaign_id = _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
 
     [campaign] = web.list_campaigns(root=tmp_path)
 
-    assert campaign["id"] == campaign_id
+    assert campaign["id"].startswith("cam-")              # path-based locator, not campaign_id
+    assert campaign["id"] != campaign_id                  # distinct: campaign_id collides across locations
     assert campaign["campaign_id"] == campaign_id
     assert campaign["stage"] == "observe"
     assert campaign["status"] == "planned"
     assert campaign["evidence_count"] == 0
     assert campaign["promotion"] is None
+
+
+def test_locator_distinguishes_same_campaign_id_in_two_locations(tmp_path):
+    # Same contract -> same campaign_id in two locations; locators must differ.
+    _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
+    _write_contract(tmp_path, "benchmarks/suite/campaigns/demo.json")
+
+    ids = {c["id"] for c in web.list_campaigns(root=tmp_path)}
+    assert len(ids) == 2                                  # two distinct locators, no collision
 
 
 def test_authoritative_state_drives_counts_and_status(tmp_path):
@@ -134,8 +144,9 @@ def test_promotion_marks_status_promoted(tmp_path):
 def test_get_campaign_returns_authoritative_state(tmp_path):
     path, campaign_id = _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
     _write_state(path, campaign_id, evidence=2, frontier=1)
+    locator = web.list_campaigns(root=tmp_path)[0]["id"]   # route by path locator, not campaign_id
 
-    detail = web.get_campaign(campaign_id, root=tmp_path)
+    detail = web.get_campaign(locator, root=tmp_path)
 
     assert detail is not None
     assert detail["campaign_id"] == campaign_id
@@ -260,8 +271,9 @@ def test_dispatch_campaign_detail(monkeypatch, tmp_path):
     path, campaign_id = _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
     _write_state(path, campaign_id, evidence=1, frontier=1)
     monkeypatch.setattr(web, "ROOT", tmp_path)
+    locator = web.list_campaigns(root=tmp_path)[0]["id"]
 
-    handler = _fake_handler(path=f"/api/campaigns/{campaign_id}")
+    handler = _fake_handler(path=f"/api/campaigns/{locator}")
     web.web_dispatch(handler)
 
     assert handler.status == 200

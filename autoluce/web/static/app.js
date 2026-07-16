@@ -85,6 +85,11 @@ function formatContext(value) {
   return `${formatNumber(number)} context`;
 }
 
+function formatLabel(row) {
+  // Prefer an explicit label (e.g. "DSpark"/"AR"); fall back to a context length.
+  return row && row.label ? escapeHtml(row.label) : formatContext(row ? row.context : null);
+}
+
 function metricUnit(metric) {
   return metric && metric.endsWith('_tok_s') ? 'tok/s' : '';
 }
@@ -129,7 +134,7 @@ function comparisonValues(row) {
 
   if (candidate === 'dFlash') {
     return {
-      context: formatContext(row.context),
+      context: formatLabel(row),
       dflash: candidateValue,
       llama: referenceValue,
       dflashLabel: candidate,
@@ -142,7 +147,7 @@ function comparisonValues(row) {
       ? ((referenceValue - candidateValue) / candidateValue) * 100
       : reportedDelta === null ? null : -reportedDelta;
     return {
-      context: formatContext(row.context),
+      context: formatLabel(row),
       dflash: referenceValue,
       llama: candidateValue,
       dflashLabel: reference,

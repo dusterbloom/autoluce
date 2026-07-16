@@ -15,6 +15,7 @@ from dispatch errors.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import mimetypes
 from pathlib import Path
@@ -23,6 +24,18 @@ from urllib.parse import urlparse
 
 from autoluce import ROOT
 from autoluce.research import CampaignStore
+
+
+def _locator(path: Path, base: Path) -> str:
+    """Stable per-location UI id (hash of the relative contract path).
+
+    ``campaign_id`` is a content hash of the campaign's system/workload/
+    objective/constraints, so the same campaign in three locations (live,
+    benchmark archive, pre-measurement bundle) shares one id -- routing detail
+    by campaign_id returns the first match. The locator is unique per path.
+    """
+    digest = hashlib.sha256(str(path.relative_to(base)).encode()).hexdigest()[:16]
+    return f"cam-{digest}"
 
 
 def _static_dir() -> Path:
@@ -96,15 +109,16 @@ def _campaign_view(path: Path, base: Path) -> dict[str, Any] | None:
         return None
     campaign = state["campaign"]
     campaign_id = state["campaign_id"]
+    locator = _locator(path, base)
     root, family, variant = _lineage(path, base)
     head_to_head = [
-        {k: c[k] for k in ("context", "metric", "engine_candidate", "value_candidate",
+        {k: c[k] for k in ("label", "context", "metric", "engine_candidate", "value_candidate",
                            "engine_reference", "value_reference", "delta_pct") if k in c}
         for c in state.get("comparisons", [])
         if isinstance(c, dict) and c.get("kind") == "head_to_head"
     ]
     return {
-        "id": campaign_id,
+        "id": locator,
         "campaign_id": campaign_id,
         "name": campaign["name"],
         "stage": campaign["lifecycle_stage"],
@@ -171,15 +185,15 @@ def generation(root: Path | str | None = None) -> int:
     return int(max(mtimes) * 1000) if mtimes else 0
 
 
-def get_campaign(campaign_id: str, root: Path | str | None = None) -> dict[str, Any] | None:
+def get_campaign(locator: str, root: Path | str | None = None) -> dict[str, Any] | None:
     base = _resolve_root(root)
     for path in _discover_campaign_paths(base):
         state = _load_state(path)
-        if state is None or state.get("campaign_id") != campaign_id:
+        if state is None or _locator(path, base) != locator:
             continue
         campaign = state["campaign"]
         return {
-            "campaign_id": campaign_id,
+            "campaign_id": state["campaign_id"],
             "stage": campaign["lifecycle_stage"],
             "status": _status(state),
             "path": str(path.relative_to(base)),

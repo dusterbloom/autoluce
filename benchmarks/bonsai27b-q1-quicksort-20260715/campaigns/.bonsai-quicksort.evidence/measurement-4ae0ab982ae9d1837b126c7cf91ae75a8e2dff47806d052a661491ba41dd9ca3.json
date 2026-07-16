@@ -1,0 +1,16 @@
+{
+  "artifact_hash": "dflash:AR",
+  "metrics": {
+    "decode_tok_s": 65.8
+  },
+  "provenance": {
+    "engine": "dFlash",
+    "label": "AR"
+  },
+  "quality": {
+    "correctness": {
+      "kind": "numeric-kernel-parity",
+      "passed": true
+    }
+  }
+}

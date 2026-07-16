@@ -1,0 +1,16 @@
+{
+  "artifact_hash": "dflash:DSpark",
+  "metrics": {
+    "decode_tok_s": 118.12
+  },
+  "provenance": {
+    "engine": "dFlash",
+    "label": "DSpark"
+  },
+  "quality": {
+    "correctness": {
+      "kind": "numeric-kernel-parity",
+      "passed": true
+    }
+  }
+}
