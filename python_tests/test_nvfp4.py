@@ -1,4 +1,8 @@
+import os
+import shutil
 from pathlib import Path
+
+import pytest
 
 from autoluce.nvfp4 import (
     LLAMA_CPP_CONVERTER_REVISION,
@@ -6,6 +10,22 @@ from autoluce.nvfp4 import (
     conversion_command,
     is_mixed_nvfp4_fp8_config,
     native_source_dir,
+)
+
+
+def _nvcc_is_available() -> bool:
+    # Mirrors autoluce.nvfp4.cuda_compiler resolution: CUDACXX override, then
+    # the conventional /usr/local/cuda path, then PATH discovery.
+    override = os.environ.get("CUDACXX")
+    if override and Path(override).is_file():
+        return True
+    if Path("/usr/local/cuda/bin/nvcc").is_file():
+        return True
+    return shutil.which("nvcc") is not None
+
+
+requires_nvcc = pytest.mark.skipif(
+    not _nvcc_is_available(), reason="nvcc not available on this host"
 )
 
 
@@ -18,6 +38,7 @@ def test_nvfp4_native_sources_are_owned_by_autoluce():
     assert (source / "bench_nvfp4.cu").is_file()
 
 
+@requires_nvcc
 def test_nvfp4_build_defaults_to_ampere_and_caps_parallelism(tmp_path: Path):
     configure, build = build_commands(tmp_path, architecture="86", jobs=99)
 
