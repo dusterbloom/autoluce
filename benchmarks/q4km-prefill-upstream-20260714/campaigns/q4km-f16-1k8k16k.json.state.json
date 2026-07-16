@@ -1,0 +1,300 @@
+{
+  "campaign": {
+    "campaign_id": "campaign-8aa90169d165845fe6ee378aded1e9b40548db698b05650d00e562f23afda0d8",
+    "constraints": {
+      "correctness": "numeric-kernel-parity",
+      "gdn_nmse": {
+        "max": 1e-06
+      },
+      "prefix_cache_hits": {
+        "max": 0
+      },
+      "quality_scope": "performance comparison; end-to-end output equality was not established",
+      "runtime_prompt_token_delta": {
+        "max": 2
+      }
+    },
+    "lifecycle_stage": "compare",
+    "name": "rtx3090-qwen36-q4km-prefill-f16-vs-llama-20260714",
+    "objective": {
+      "direction": "maximize",
+      "metric": "prefill_tok_s"
+    },
+    "reference": {
+      "compatibility": {
+        "backend": "cuda",
+        "environment": "wsl2-5.15.167.4-driver-610.62-cuda-12.6.85-gcc-11.5",
+        "hardware": "nvidia-geforce-rtx-3090-sm86-24576mib",
+        "machine": "gpu-uuid:GPU-3307b546-fd93-b443-8e4d-27a437ad0082",
+        "model": "qwen36-27b",
+        "model_fingerprint": "sha256:5ed60d0af4650a854b1755bd392f9aef4872643dc25a254bc68043fa638392a0",
+        "quantization": {
+          "kv_cache": {
+            "key": "f16",
+            "value": "f16"
+          },
+          "weights": "Q4_K_M"
+        }
+      },
+      "kind": "runtime",
+      "locator": "llama.cpp@00f5442cc4e805293280c8f85d21d8f9d4aad206",
+      "provenance": "llama-server sha256:559b37b2c755b8446dd7819bf79b4982f85f4c660d9defd66b0f9ed5e678e0dd"
+    },
+    "schema_version": 2,
+    "system": {
+      "backend": "cuda",
+      "environment": "wsl2-5.15.167.4-driver-610.62-cuda-12.6.85-gcc-11.5",
+      "hardware": "nvidia-geforce-rtx-3090-sm86-24576mib",
+      "machine": "gpu-uuid:GPU-3307b546-fd93-b443-8e4d-27a437ad0082",
+      "model": "qwen36-27b",
+      "model_fingerprint": "sha256:5ed60d0af4650a854b1755bd392f9aef4872643dc25a254bc68043fa638392a0",
+      "quantization": {
+        "kv_cache": {
+          "key": "f16",
+          "value": "f16"
+        },
+        "weights": "Q4_K_M"
+      },
+      "runtime": "lucebox:dflash-server-http@3c0be1f3be018a5a1b7a3e48d3e2a88c77419d3b"
+    },
+    "workload": {
+      "batch_shape": {
+        "batch": 1,
+        "parallel": 1,
+        "ubatch": 512
+      },
+      "contexts": [
+        1024,
+        8192,
+        16384
+      ],
+      "mode": "prefill",
+      "prompts": [
+        "deterministic salted synthetic chat prompt generated for each context and repetition"
+      ]
+    }
+  },
+  "campaign_id": "campaign-8aa90169d165845fe6ee378aded1e9b40548db698b05650d00e562f23afda0d8",
+  "comparisons": [
+    {
+      "compatible": true,
+      "context": 1024,
+      "delta_pct": 4.91,
+      "direction": "maximize",
+      "engine_candidate": "dFlash",
+      "engine_reference": "llama.cpp",
+      "kind": "head_to_head",
+      "locator": "llama.cpp@00f5442cc4e805293280c8f85d21d8f9d4aad206",
+      "metric": "prefill_tok_s",
+      "value_candidate": 1341.47,
+      "value_reference": 1278.72
+    },
+    {
+      "compatible": true,
+      "context": 8192,
+      "delta_pct": 2.52,
+      "direction": "maximize",
+      "engine_candidate": "dFlash",
+      "engine_reference": "llama.cpp",
+      "kind": "head_to_head",
+      "locator": "llama.cpp@00f5442cc4e805293280c8f85d21d8f9d4aad206",
+      "metric": "prefill_tok_s",
+      "value_candidate": 1393.73,
+      "value_reference": 1359.53
+    },
+    {
+      "compatible": true,
+      "context": 16384,
+      "delta_pct": 1.97,
+      "direction": "maximize",
+      "engine_candidate": "dFlash",
+      "engine_reference": "llama.cpp",
+      "kind": "head_to_head",
+      "locator": "llama.cpp@00f5442cc4e805293280c8f85d21d8f9d4aad206",
+      "metric": "prefill_tok_s",
+      "value_candidate": 1332.63,
+      "value_reference": 1306.86
+    }
+  ],
+  "evidence": [
+    {
+      "artifact_hash": "dflash:1024",
+      "campaign_id": "campaign-8aa90169d165845fe6ee378aded1e9b40548db698b05650d00e562f23afda0d8",
+      "evidence_id": "evidence-d27cddd84e6f068500e9d678410c83a44df7e11ab8b7469ee91abbc4c0e9dcce",
+      "gates": {
+        "campaign_constraints": false,
+        "correctness": true
+      },
+      "metrics": {
+        "context_tokens": 1024.0,
+        "prefill_tok_s": 1341.47
+      },
+      "provenance": {
+        "campaign_constraint_violations": [
+          "gdn_nmse: not measured",
+          "prefix_cache_hits: not measured",
+          "runtime_prompt_token_delta: not measured"
+        ],
+        "context_tokens": 1024,
+        "engine": "dFlash",
+        "measurement_bundle_id": "measurement-88c3ccd2a4a24565b2bd0666c215d0ae806f4b747cfe7fb203fe82c7d3726a5b"
+      },
+      "schema_version": 1,
+      "system": {
+        "backend": "cuda",
+        "environment": "wsl2-5.15.167.4-driver-610.62-cuda-12.6.85-gcc-11.5",
+        "hardware": "nvidia-geforce-rtx-3090-sm86-24576mib",
+        "machine": "gpu-uuid:GPU-3307b546-fd93-b443-8e4d-27a437ad0082",
+        "model": "qwen36-27b",
+        "model_fingerprint": "sha256:5ed60d0af4650a854b1755bd392f9aef4872643dc25a254bc68043fa638392a0",
+        "quantization": {
+          "kv_cache": {
+            "key": "f16",
+            "value": "f16"
+          },
+          "weights": "Q4_K_M"
+        },
+        "runtime": "lucebox:dflash-server-http@3c0be1f3be018a5a1b7a3e48d3e2a88c77419d3b"
+      },
+      "uncertainty": {},
+      "workload": {
+        "batch_shape": {
+          "batch": 1,
+          "parallel": 1,
+          "ubatch": 512
+        },
+        "contexts": [
+          1024,
+          8192,
+          16384
+        ],
+        "mode": "prefill",
+        "prompts": [
+          "deterministic salted synthetic chat prompt generated for each context and repetition"
+        ]
+      }
+    },
+    {
+      "artifact_hash": "dflash:8192",
+      "campaign_id": "campaign-8aa90169d165845fe6ee378aded1e9b40548db698b05650d00e562f23afda0d8",
+      "evidence_id": "evidence-c22363b360f1fb42a22dc5d9e346d9243abff773fcd2212442fbc86eb1f8157d",
+      "gates": {
+        "campaign_constraints": false,
+        "correctness": true
+      },
+      "metrics": {
+        "context_tokens": 8192.0,
+        "prefill_tok_s": 1393.73
+      },
+      "provenance": {
+        "campaign_constraint_violations": [
+          "gdn_nmse: not measured",
+          "prefix_cache_hits: not measured",
+          "runtime_prompt_token_delta: not measured"
+        ],
+        "context_tokens": 8192,
+        "engine": "dFlash",
+        "measurement_bundle_id": "measurement-0ae44c706e14f454b179ee80ee4a86134e6aeffbac0d0fc791a9814686f6622a"
+      },
+      "schema_version": 1,
+      "system": {
+        "backend": "cuda",
+        "environment": "wsl2-5.15.167.4-driver-610.62-cuda-12.6.85-gcc-11.5",
+        "hardware": "nvidia-geforce-rtx-3090-sm86-24576mib",
+        "machine": "gpu-uuid:GPU-3307b546-fd93-b443-8e4d-27a437ad0082",
+        "model": "qwen36-27b",
+        "model_fingerprint": "sha256:5ed60d0af4650a854b1755bd392f9aef4872643dc25a254bc68043fa638392a0",
+        "quantization": {
+          "kv_cache": {
+            "key": "f16",
+            "value": "f16"
+          },
+          "weights": "Q4_K_M"
+        },
+        "runtime": "lucebox:dflash-server-http@3c0be1f3be018a5a1b7a3e48d3e2a88c77419d3b"
+      },
+      "uncertainty": {},
+      "workload": {
+        "batch_shape": {
+          "batch": 1,
+          "parallel": 1,
+          "ubatch": 512
+        },
+        "contexts": [
+          1024,
+          8192,
+          16384
+        ],
+        "mode": "prefill",
+        "prompts": [
+          "deterministic salted synthetic chat prompt generated for each context and repetition"
+        ]
+      }
+    },
+    {
+      "artifact_hash": "dflash:16384",
+      "campaign_id": "campaign-8aa90169d165845fe6ee378aded1e9b40548db698b05650d00e562f23afda0d8",
+      "evidence_id": "evidence-607c9a8581ebe52580eb56b338d489f73662ac7def4afe676ae9277eac7803da",
+      "gates": {
+        "campaign_constraints": false,
+        "correctness": true
+      },
+      "metrics": {
+        "context_tokens": 16384.0,
+        "prefill_tok_s": 1332.63
+      },
+      "provenance": {
+        "campaign_constraint_violations": [
+          "gdn_nmse: not measured",
+          "prefix_cache_hits: not measured",
+          "runtime_prompt_token_delta: not measured"
+        ],
+        "context_tokens": 16384,
+        "engine": "dFlash",
+        "measurement_bundle_id": "measurement-5d6a72d72457bf203539b97746d984ace7bd0c60cdd1f0cb7d7822fd61f5287d"
+      },
+      "schema_version": 1,
+      "system": {
+        "backend": "cuda",
+        "environment": "wsl2-5.15.167.4-driver-610.62-cuda-12.6.85-gcc-11.5",
+        "hardware": "nvidia-geforce-rtx-3090-sm86-24576mib",
+        "machine": "gpu-uuid:GPU-3307b546-fd93-b443-8e4d-27a437ad0082",
+        "model": "qwen36-27b",
+        "model_fingerprint": "sha256:5ed60d0af4650a854b1755bd392f9aef4872643dc25a254bc68043fa638392a0",
+        "quantization": {
+          "kv_cache": {
+            "key": "f16",
+            "value": "f16"
+          },
+          "weights": "Q4_K_M"
+        },
+        "runtime": "lucebox:dflash-server-http@3c0be1f3be018a5a1b7a3e48d3e2a88c77419d3b"
+      },
+      "uncertainty": {},
+      "workload": {
+        "batch_shape": {
+          "batch": 1,
+          "parallel": 1,
+          "ubatch": 512
+        },
+        "contexts": [
+          1024,
+          8192,
+          16384
+        ],
+        "mode": "prefill",
+        "prompts": [
+          "deterministic salted synthetic chat prompt generated for each context and repetition"
+        ]
+      }
+    }
+  ],
+  "frontier": [],
+  "promotion": null,
+  "references": [],
+  "schema_version": 1,
+  "stage": "compare",
+  "stage_history": [
+    "observe"
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "artifact_hash": "dflash:1024",
+  "campaign_id": "campaign-8aa90169d165845fe6ee378aded1e9b40548db698b05650d00e562f23afda0d8",
+  "evidence_id": "evidence-d27cddd84e6f068500e9d678410c83a44df7e11ab8b7469ee91abbc4c0e9dcce",
+  "gates": {
+    "campaign_constraints": false,
+    "correctness": true
+  },
+  "metrics": {
+    "context_tokens": 1024.0,
+    "prefill_tok_s": 1341.47
+  },
+  "provenance": {
+    "campaign_constraint_violations": [
+      "gdn_nmse: not measured",
+      "prefix_cache_hits: not measured",
+      "runtime_prompt_token_delta: not measured"
+    ],
+    "context_tokens": 1024,
+    "engine": "dFlash",
+    "measurement_bundle_id": "measurement-88c3ccd2a4a24565b2bd0666c215d0ae806f4b747cfe7fb203fe82c7d3726a5b"
+  },
+  "schema_version": 1,
+  "system": {
+    "backend": "cuda",
+    "environment": "wsl2-5.15.167.4-driver-610.62-cuda-12.6.85-gcc-11.5",
+    "hardware": "nvidia-geforce-rtx-3090-sm86-24576mib",
+    "machine": "gpu-uuid:GPU-3307b546-fd93-b443-8e4d-27a437ad0082",
+    "model": "qwen36-27b",
+    "model_fingerprint": "sha256:5ed60d0af4650a854b1755bd392f9aef4872643dc25a254bc68043fa638392a0",
+    "quantization": {
+      "kv_cache": {
+        "key": "f16",
+        "value": "f16"
+      },
+      "weights": "Q4_K_M"
+    },
+    "runtime": "lucebox:dflash-server-http@3c0be1f3be018a5a1b7a3e48d3e2a88c77419d3b"
+  },
+  "uncertainty": {},
+  "workload": {
+    "batch_shape": {
+      "batch": 1,
+      "parallel": 1,
+      "ubatch": 512
+    },
+    "contexts": [
+      1024,
+      8192,
+      16384
+    ],
+    "mode": "prefill",
+    "prompts": [
+      "deterministic salted synthetic chat prompt generated for each context and repetition"
+    ]
+  }
+}

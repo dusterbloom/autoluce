@@ -96,17 +96,27 @@ def test_list_discovers_research_and_benchmark_contracts(tmp_path):
     assert {c["name"] for c in campaigns} == {"demo", "archived"}
 
 
-def test_summary_id_is_campaign_id_and_stage_from_contract(tmp_path):
+def test_summary_id_is_a_path_locator_distinct_from_campaign_id(tmp_path):
     _path, campaign_id = _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
 
     [campaign] = web.list_campaigns(root=tmp_path)
 
-    assert campaign["id"] == campaign_id
+    assert campaign["id"].startswith("cam-")              # path-based locator, not campaign_id
+    assert campaign["id"] != campaign_id                  # distinct: campaign_id collides across locations
     assert campaign["campaign_id"] == campaign_id
     assert campaign["stage"] == "observe"
     assert campaign["status"] == "planned"
     assert campaign["evidence_count"] == 0
     assert campaign["promotion"] is None
+
+
+def test_locator_distinguishes_same_campaign_id_in_two_locations(tmp_path):
+    # Same contract -> same campaign_id in two locations; locators must differ.
+    _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
+    _write_contract(tmp_path, "benchmarks/suite/campaigns/demo.json")
+
+    ids = {c["id"] for c in web.list_campaigns(root=tmp_path)}
+    assert len(ids) == 2                                  # two distinct locators, no collision
 
 
 def test_authoritative_state_drives_counts_and_status(tmp_path):
@@ -134,8 +144,9 @@ def test_promotion_marks_status_promoted(tmp_path):
 def test_get_campaign_returns_authoritative_state(tmp_path):
     path, campaign_id = _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
     _write_state(path, campaign_id, evidence=2, frontier=1)
+    locator = web.list_campaigns(root=tmp_path)[0]["id"]   # route by path locator, not campaign_id
 
-    detail = web.get_campaign(campaign_id, root=tmp_path)
+    detail = web.get_campaign(locator, root=tmp_path)
 
     assert detail is not None
     assert detail["campaign_id"] == campaign_id
@@ -213,6 +224,66 @@ def test_version_route_is_a_webui_request():
     assert not web.is_public_webui("/api/version")
 
 
+# --- catalog: composable series + comparisons + facets + lineage -----------
+
+def _campaign_with_h2h(tmp_path, rel=".autoluce/research/demo/campaign.json"):
+    """A campaign carrying a head-to-head comparison (dFlash vs llama.cpp)."""
+    from autoluce.evidence_adapters import ingest_head_to_head
+    path, campaign_id = _write_contract(tmp_path, rel)
+    rows = [
+        {"context": 1024, "metric": "prefill_tok_s", "candidate": 1341.0, "reference": 1279.0, "delta_pct": 4.85},
+        {"context": 8192, "metric": "prefill_tok_s", "candidate": 1394.0, "reference": 1360.0, "delta_pct": 2.50},
+    ]
+    from autoluce.research import CampaignStore
+    ingest_head_to_head(CampaignStore(path), rows, engine_reference="llama.cpp", reference_locator="llama.cpp@x")
+    return path
+
+
+def test_catalog_emits_candidate_and_reference_series(tmp_path):
+    _campaign_with_h2h(tmp_path)
+    catalog = web.build_catalog(root=tmp_path)
+
+    engines = {s["engine"] for s in catalog["series"]}
+    assert "dFlash" in engines and "llama.cpp" in engines   # both arms become overlayable series
+
+    dflash = next(s for s in catalog["series"] if s["engine"] == "dFlash")
+    assert dflash["metric"] == "prefill_tok_s"
+    assert [p["x"] for p in dflash["points"]] == [1024, 8192]
+    assert all("evidence_id" in p for p in dflash["points"])
+
+
+def test_catalog_comparisons_carry_lineage_and_outcome(tmp_path):
+    _campaign_with_h2h(tmp_path)
+    catalog = web.build_catalog(root=tmp_path)
+
+    assert len(catalog["comparisons"]) == 2
+    cmp = catalog["comparisons"][0]
+    assert cmp["campaign_locator"].startswith("cam-")          # lineage: links back to the campaign
+    assert cmp["outcome"] in {"win", "loss", "parity"}
+    assert cmp["engine_reference"] == "llama.cpp"
+
+
+def test_catalog_facets_collect_dimensions(tmp_path):
+    _campaign_with_h2h(tmp_path)
+    facets = web.build_catalog(root=tmp_path)["facets"]
+
+    assert "dFlash" in facets["engines"] and "llama.cpp" in facets["engines"]
+    assert "prefill_tok_s" in facets["metrics"]
+    assert set(facets["outcomes"]) <= {"win", "loss", "parity"}
+
+
+def test_catalog_route_dispatch(monkeypatch, tmp_path):
+    _campaign_with_h2h(tmp_path)
+    monkeypatch.setattr(web, "ROOT", tmp_path)
+
+    handler = _fake_handler(path="/api/catalog")
+    web.web_dispatch(handler)
+
+    assert handler.status == 200
+    payload = json.loads(handler.wfile.getvalue())
+    assert "series" in payload and "facets" in payload and "generation" in payload
+
+
 def test_summary_sparkline_is_ordered_objective_series(tmp_path):
     path, campaign_id = _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
     _write_state(path, campaign_id, evidence=3, frontier=1)
@@ -260,8 +331,9 @@ def test_dispatch_campaign_detail(monkeypatch, tmp_path):
     path, campaign_id = _write_contract(tmp_path, ".autoluce/research/demo/campaign.json")
     _write_state(path, campaign_id, evidence=1, frontier=1)
     monkeypatch.setattr(web, "ROOT", tmp_path)
+    locator = web.list_campaigns(root=tmp_path)[0]["id"]
 
-    handler = _fake_handler(path=f"/api/campaigns/{campaign_id}")
+    handler = _fake_handler(path=f"/api/campaigns/{locator}")
     web.web_dispatch(handler)
 
     assert handler.status == 200

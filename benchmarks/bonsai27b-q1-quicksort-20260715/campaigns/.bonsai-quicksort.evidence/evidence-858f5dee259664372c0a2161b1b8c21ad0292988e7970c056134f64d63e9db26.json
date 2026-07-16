@@ -1,0 +1,50 @@
+{
+  "artifact_hash": "dflash:AR",
+  "campaign_id": "campaign-45a5ea7392781aa62354189eb0d812214700ebcf7b78927d62d923f83e9491f5",
+  "evidence_id": "evidence-858f5dee259664372c0a2161b1b8c21ad0292988e7970c056134f64d63e9db26",
+  "gates": {
+    "campaign_constraints": false,
+    "correctness": true
+  },
+  "metrics": {
+    "decode_tok_s": 65.8
+  },
+  "provenance": {
+    "campaign_constraint_violations": [
+      "correctness"
+    ],
+    "engine": "dFlash",
+    "label": "AR",
+    "measurement_bundle_id": "measurement-4ae0ab982ae9d1837b126c7cf91ae75a8e2dff47806d052a661491ba41dd9ca3"
+  },
+  "schema_version": 1,
+  "system": {
+    "backend": "cuda",
+    "environment": "wsl2-driver-610.62-cuda-12.6.85-gcc-11.5",
+    "hardware": "nvidia-rtx3090-sm86-24576mib",
+    "machine": "DESKTOP-7MCOG2Q:GPU-3307b546-fd93-b443-8e4d-27a437ad0082",
+    "model": "prism-ml/Bonsai-27B-gguf:Bonsai-27B-Q1_0.gguf",
+    "model_fingerprint": "sha256:17ef842e47450caeb8eaa3ebfbbab5d2f2278b62b79be107985fb69a2f819aa0",
+    "quantization": {
+      "kv_cache": {
+        "key": "f16",
+        "value": "f16"
+      },
+      "weights": "Q1_0_g128"
+    },
+    "runtime": "lucebox:dflash-server-http@b19b95e+q1-cuda-port"
+  },
+  "uncertainty": {},
+  "workload": {
+    "batch_shape": {
+      "batch": 1
+    },
+    "contexts": [
+      16384
+    ],
+    "mode": "decode",
+    "prompts": [
+      "Implement quicksort in Python."
+    ]
+  }
+}

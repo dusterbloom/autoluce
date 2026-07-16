@@ -25,3 +25,6 @@ benchmarks/shadow.json
 # KL reference logits: machine-generated binaries; the shadow one embeds
 # the user's prompt tokens
 benchmarks/golden/*.kl_base.bin
+
+# CampaignStore runtime locks (state index locks; not durable evidence)
+*.state.json.lock
