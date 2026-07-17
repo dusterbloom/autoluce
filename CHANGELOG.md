@@ -23,6 +23,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (pooling raw samples across benchmarks or context cells is not iid and is
   deliberately not fabricated). Context-cell aggregation now propagates
   uncertainty on the log scale, matching the geometric-mean score it describes.
+- **Interleaved ABBA A/B measurement (`autoluce ab`, `autoluce/bench/interleave.py`)**:
+  the local primitive behind the interleaved-measurement frontier rule. Clean and
+  candidate `dflash_server` arms run in mirrored ABBA blocks on one machine, every
+  activation a fresh process with warmup excluded, decided by a paired one-sample
+  t-test on block deltas with separate improvement and regression verdicts. Arms may
+  differ by binary, server flags, or product environment. The metric is client-side
+  wall-clock output tok/s, explicitly labeled `wall_clock.chat_completion`, because
+  some product backends do not populate `usage.timings`. GPU-validated on RTX 3090
+  (Qwen3-0.6B BF16, 6 blocks): an A/A run of identical arms measured +0.34% at
+  p=0.39 (not significant), and a known-effect run (prefill chunk 2048 vs 128)
+  measured -21.0% at t(11)=-29.6 with the regression verdict firing and the
+  improvement gate correctly staying closed.
 - **Bonsai-27B Q1 native DSpark matched diagnostic and frontier probes** (RTX 3090,
   WSL2, CUDA 12.6, Lucebox `b19b95e`, Prism `b9591-62061f9`): archived raw AR and
   DSpark requests, responses, logs, runtime properties, hashes, and GPU snapshots for

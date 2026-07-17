@@ -44,6 +44,7 @@ COMMANDS: dict[str, tuple[str, list[str], str]] = {
     "ideas":     ("autoluce.ideation.ideas",    [], "list/rank untried ROADMAP ideas (--bound)"),
     "propose":   ("autoluce.ideation.propose",  [], "ask the LLM for the next idea (needs OPENAI_BASE_URL)"),
     "harness":   ("autoluce.bench.harness",     [], "raw benchmark harness"),
+    "ab":        ("autoluce.bench.ab",          [], "interleaved ABBA A/B measurement on one machine (drift-robust)"),
     "report":    ("autoluce.report",            [], "aggregate / diff results"),
     "reproduce": ("autoluce.reproduce",         [], "reproducibility suite"),
     "web":       ("autoluce.web.server",        [], "browse campaigns in a browser (local, read-only, no auth)"),

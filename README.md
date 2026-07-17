@@ -425,6 +425,29 @@ authoritative per-request prefill/decode timings and exact output generation.
 - Preserve negative results so another person or agent does not repeat them.
 - Allow one active accelerator experiment per physical machine.
 
+## Interleaved A/B Measurement
+
+`autoluce ab` is the local primitive for the interleaved frontier rule: it launches the
+clean and candidate `dflash_server` arms in mirrored ABBA blocks on one machine — each
+activation a fresh process with warmup excluded — and decides with a paired one-sample
+t-test on block deltas (Welch and multiple-comparison primitives live in
+`autoluce/bench/statistics.py`).
+
+```bash
+uv run autoluce ab \
+  --clean-binary work/lucebox/build-cuda-sm86/dflash_server \
+  --candidate-binary work/lucebox/build-candidate/dflash_server \
+  --model /path/to/model.gguf --blocks 8 --json
+```
+
+Arms may differ by binary, `--clean-flag/--candidate-flag` server options, or
+`--clean-env/--candidate-env` product controls. The metric is client-side wall-clock
+output tok/s (`wall_clock.chat_completion`), used because some product backends do not
+populate `usage.timings`; evidence is never mislabeled as server-reported timings.
+A/A runs (identical arms) must come back with no significant difference; treat an
+improve or regress verdict on identical arms as a contaminated machine, not a
+methodology signal.
+
 The archived `deepseek-v4-sinkhorn-77bccaa.patch` is reference material, not a ready
 candidate. Current Hub owns DeepSeek V4 under `server/src/deepseek4` and already contains
 custom fused HC CUDA/HIP paths. Re-profile the current product before porting it.
